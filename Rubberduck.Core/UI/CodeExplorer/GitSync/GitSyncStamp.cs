@@ -67,6 +67,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             @"^[ \t]*'[ \t]*rdsync[ \t]+rev=(\d+)[ \t]+hash=([0-9a-f]+)(?:[ \t]+utc=(\S+))?[ \t]*$",
             RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+        private static readonly Regex MemberAttributeLine = new Regex(@"^\s*Attribute\s+\w+\.\w+\s*=", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
         private static readonly Regex BeginBlock = new Regex(@"^\s*Begin\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex EndBlock = new Regex(@"^\s*End\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -123,15 +125,28 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         /// <summary>
         /// Hash of the code, ignoring the stamp line, the kind of line endings and blank space around the code.
+        /// Member attributes (<c>Attribute x.VB_VarHelpID = -1</c>) are ignored too: exported files contain them, but the VBE hides them in the module,
+        /// so the same code would otherwise have a different hash on each side.
         /// </summary>
         public static string HashOfCode(string code)
         {
-            var normalized = string.Join("\r\n", Lines(code).Where(line => !StampLine.IsMatch(line))).Trim();
+            var normalized = string.Join("\r\n", Lines(code).Where(line => !StampLine.IsMatch(line) && !MemberAttributeLine.IsMatch(line))).Trim();
             using (var sha = SHA1.Create())
             {
                 var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(normalized));
                 return string.Concat(hash.Take(8).Select(b => b.ToString("x2")));
             }
+        }
+
+        /// <summary>
+        /// The attribute lines of an exported file or module (<c>Attribute VB_Exposed = True</c>, <c>Attribute x.VB_VarHelpID = -1</c>), in order.
+        /// They are ignored by <see cref="HashOfCode"/>, so they are compared separately.
+        /// </summary>
+        public static string AttributeSignature(string fileText)
+        {
+            return string.Join("\n", Lines(fileText)
+                .Where(line => line.StartsWith("Attribute ", StringComparison.OrdinalIgnoreCase))
+                .Select(line => line.TrimEnd()));
         }
 
         /// <summary>

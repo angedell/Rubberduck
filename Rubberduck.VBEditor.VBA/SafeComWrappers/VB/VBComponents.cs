@@ -109,7 +109,7 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
                         throw new IndexOutOfRangeException($"Could not find document component named '{name}'.  Try adding a document component with the same name and try again.");
                     }
 
-                    var codeString = _fileSystem.File.ReadAllText(path, Encoding.UTF8);
+                    var codeString = WithoutExportHeader(_fileSystem.File.ReadAllText(path, Encoding.UTF8));
                     using (var codeModule = component.CodeModule)
                     {
                         codeModule.Clear();
@@ -156,6 +156,32 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
                 default:
                     return Import(path);
             }
+        }
+
+        //Document modules are exported with a "VERSION 1.0 CLASS ... End" block and Attribute lines,
+        //which must not end up as code in the existing document's code module.
+        private static string WithoutExportHeader(string source)
+        {
+            var lines = source.TrimStart((char)0xFEFF).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
+
+            //Anything before the header (e.g. a sync stamp comment) is real code and is kept.
+            var versionIndex = lines.FindIndex(line => line.TrimStart().StartsWith("VERSION ", StringComparison.OrdinalIgnoreCase));
+            var kept = new List<string>();
+            var index = 0;
+            if (versionIndex >= 0 && lines.Take(versionIndex).All(line => line.Trim().Length == 0 || line.TrimStart().StartsWith("'")))
+            {
+                kept.AddRange(lines.Take(versionIndex));
+                var end = lines.FindIndex(versionIndex, line => line.Trim().Equals("End", StringComparison.OrdinalIgnoreCase));
+                index = end < 0 ? versionIndex : end + 1;
+            }
+
+            while (index < lines.Count && lines[index].TrimStart().StartsWith("Attribute ", StringComparison.OrdinalIgnoreCase))
+            {
+                index++;
+            }
+
+            kept.AddRange(lines.Skip(index));
+            return string.Join(Environment.NewLine, kept);
         }
 
         public void RemoveSafely(IVBComponent component)
