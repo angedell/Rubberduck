@@ -3,6 +3,7 @@
 This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds **Git Sync** and **bulk removal** to the Code Explorer. Everything below is on top of the original; the rest of this README is unchanged.
 
 ## Git Sync
+<img width="322" height="87" alt="image" src="https://github.com/user-attachments/assets/2d82a89e-e56f-4d74-9826-aa269dac9783" />
 
 Keeps a VBA project in sync with a folder on disk, subfolders included, so the code can live in a git repository.
 
@@ -18,6 +19,7 @@ Keeps a VBA project in sync with a folder on disk, subfolders included, so the c
 - **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
 
 ## Select mode and bulk removal
+<img width="778" height="717" alt="image" src="https://github.com/user-attachments/assets/9a15350e-d46b-4716-ba34-d2b10e4520c2" />
 
 - The Code Explorer toolbar has a **select** toggle that shows a checkbox next to every module and folder (ticking a folder ticks what is in it). Projects, members, references and document modules cannot be ticked.
 - While it is on, the red button removes all ticked modules at once. One dialog asks whether to export first, whether to keep the folder structure or use a single folder, and where to (the last folder is remembered). If the export fails, nothing is removed. Select mode switches off afterwards.
