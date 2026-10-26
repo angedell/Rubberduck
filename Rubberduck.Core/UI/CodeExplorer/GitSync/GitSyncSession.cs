@@ -10,6 +10,7 @@ using IOException = System.IO.IOException;
 using NotifyFilters = System.IO.NotifyFilters;
 using NLog;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.SmartIndenter;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers;
@@ -48,6 +49,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly GitSyncManifestStore _manifestStore;
         private readonly IProjectsProvider _projectsProvider;
         private readonly IParseManager _parseManager;
+        private readonly IIndenter _indenter;
         private readonly IModuleNameFromFileExtractor _moduleNameExtractor;
         private readonly IFileSystem _fileSystem;
         private readonly GitSyncFolderProcessor _processor;
@@ -59,6 +61,12 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private ProjectManifest _manifest;
         //What the poll saw last for each module, to tell when someone is still typing.
         private readonly Dictionary<string, KeyValuePair<string, DateTime>> _lastSeen = new Dictionary<string, KeyValuePair<string, DateTime>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly System.Text.RegularExpressions.Regex NoIndentAnnotation =
+            new System.Text.RegularExpressions.Regex(@"^\s*'\s*@NoIndent\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private Func<string, bool> _confirmCreateModule;
+        private readonly Dictionary<string, string> _failedHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         private FileSystemWatcher _watcher;
         private Timer _debounce;
@@ -74,8 +82,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             IProjectsProvider projectsProvider,
             IParseManager parseManager,
             IModuleNameFromFileExtractor moduleNameExtractor,
-            IFileSystem fileSystem)
+            IFileSystem fileSystem,
+            IIndenter indenter)
         {
+            _indenter = indenter;
             ProjectId = projectId;
             Root = fileSystem.Path.GetFullPath(root);
             _manifestKey = manifestKey;
@@ -97,7 +107,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         /// Synchronizes the folder with the project once and starts watching the folder.
         /// </summary>
         /// <param name="chooseWinner">Asked who wins for the modules that exist on both sides but were never synced and carry no stamp. Without it, those modules are skipped.</param>
-        public GitSyncResult Start(Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null)
+        /// <param name="confirmCreateModule">Asked whether to create an empty module of the same name when a file cannot be imported as a new module. Only used during this call; without it, such files are reported as errors.</param>
+        public GitSyncResult Start(Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null, Func<string, bool> confirmCreateModule = null)
         {
             var result = new GitSyncResult();
             lock (_lock)
@@ -105,10 +116,31 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 _fileSystem.Directory.CreateDirectory(Root);
                 _manifest = _manifestStore.Load(_manifestKey, Root);
 
+                Logger.Info($"Git sync [{ProjectId}]: starting for '{Root}'; manifest has {Snapshots.Count} module snapshots.");
+                var timer = System.Diagnostics.Stopwatch.StartNew();
                 var prepared = _processor.PrepareAll(Root).ToList();
                 CountPrepared(prepared, result);
+                Logger.Info($"Git sync [{ProjectId}]: prepared {prepared.Count} files in {timer.ElapsedMilliseconds}ms "
+                            + $"(line endings fixed: {result.LineEndingsFixed}, folder annotations fixed: {result.FolderAnnotationsFixed}).");
+                foreach (var file in prepared.Where(file => file.LineEndingsFixed || file.FolderAnnotationFixed))
+                {
+                    Logger.Debug($"Git sync: rewrote '{file.Path}' (line endings: {file.LineEndingsFixed}, folder annotation: {file.FolderAnnotationFixed}).");
+                }
 
-                Suspended(() => SyncModules(prepared.Select(file => file.Path).ToList(), true, result, null, chooseWinner));
+                _confirmCreateModule = confirmCreateModule;
+                try
+                {
+                    Suspended(() => SyncModules(prepared.Select(file => file.Path).ToList(), true, result, null, chooseWinner));
+                }
+                finally
+                {
+                    //Later syncs run on background threads and must not prompt.
+                    _confirmCreateModule = null;
+                }
+
+                Logger.Info($"Git sync [{ProjectId}]: initial sync done in {timer.ElapsedMilliseconds}ms: imported {result.Imported}, exported {result.Exported}, "
+                            + $"conflicts {result.Conflicts}, errors {result.Errors.Count}, notes {result.Notes.Count}, cancelled {result.Cancelled}.");
+
                 if (result.Cancelled)
                 {
                     return result;
@@ -147,6 +179,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     {
                         return;
                     }
+
+                    Logger.Info($"Git sync [{ProjectId}]: poll found {due.Count} module(s) due: {string.Join(", ", due)}.");
 
                     //A conflict means importing, which needs the parser to hold still.
                     Suspended(() => SyncModules(due.Select(TrackedPath).Where(path => path != null).ToList(), false, result, due));
@@ -190,6 +224,18 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         var name = component.Name;
                         var hash = ModuleHash(component);
 
+                        //A module that failed to sync is left alone until it changes; retrying every poll keeps the parser busy.
+                        if (_failedHashes.TryGetValue(name, out var failedHash))
+                        {
+                            if (failedHash == hash)
+                            {
+                                Logger.Trace($"Git sync: poll skips '{name}', which failed to sync and has not changed.");
+                                continue;
+                            }
+
+                            _failedHashes.Remove(name);
+                        }
+
                         if (!_lastSeen.TryGetValue(name, out var seen) || seen.Key != hash)
                         {
                             _lastSeen[name] = new KeyValuePair<string, DateTime>(hash, now);
@@ -205,6 +251,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         Snapshots.TryGetValue(name, out var snapshot);
                         if ((snapshot == null || snapshot.ModuleHash != hash) && now - seen.Value >= QuietPeriod)
                         {
+                            Logger.Debug($"Git sync: poll finds '{name}' due: hash={hash}, snapshot={(snapshot == null ? "none" : snapshot.ModuleHash)}, quiet for {(now - seen.Value).TotalSeconds:F1}s.");
                             due.Add(name);
                         }
                     }
@@ -296,6 +343,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 return;
             }
 
+            Logger.Trace($"Git sync: file event for '{path}'.");
             lock (_pendingFiles)
             {
                 _pendingFiles.Add(path);
@@ -323,6 +371,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         return;
                     }
 
+                    Logger.Info($"Git sync [{ProjectId}]: processing {files.Count} changed file(s): {string.Join(", ", files.Select(file => _fileSystem.Path.GetFileName(file)))}.");
                     var prepared = new List<PreparedFile>();
                     var ignored = _processor.LoadIgnoreRules(Root);
                     foreach (var path in files.Where(file => _fileSystem.File.Exists(file) && !ignored.IsIgnored(RelativePathOf(file), false)))
@@ -431,12 +480,39 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     }
                     catch (Exception exception)
                     {
+                        Logger.Error(exception, $"Git sync: could not sync '{name}'.");
                         result.Errors.Add($"Could not sync '{name}': {exception.Message}");
+                        RememberFailure(components, name);
                     }
                 }
             }
 
             SaveManifest();
+        }
+
+        private static string DescribeStamp(StampState stamp)
+        {
+            return stamp == null
+                ? "none"
+                : $"rev={stamp.Revision}, stampHash={stamp.Hash}, bodyHash={stamp.BodyHash}, dirty={stamp.Dirty}, utc={stamp.Utc:O}";
+        }
+
+        private void RememberFailure(IVBComponents components, string name)
+        {
+            try
+            {
+                using (var component = FindComponent(components, name))
+                {
+                    if (component != null)
+                    {
+                        _failedHashes[name] = ModuleHash(component);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.Warn(exception, $"Could not note the failure of '{name}'.");
+            }
         }
 
         //Both sides exist, differ, and there is no snapshot and no complete pair of stamps to say which is newer.
@@ -472,6 +548,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     return;
                 }
 
+                var excluded = filePath != null && ignored.IsIgnored(RelativePathOf(filePath), false);
                 var fileExists = filePath != null
                                  && _fileSystem.File.Exists(filePath)
                                  && !ignored.IsIgnored(RelativePathOf(filePath), false);
@@ -491,6 +568,11 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
                 //The stamps travel with the workbook and the repository, so they are the better guide; the local snapshot
                 //only decides where one side has not been stamped yet.
+                Logger.Debug($"Git sync: examining '{name}': component={(component == null ? "none" : component.Type.ToString())}, file={(filePath ?? "none")}, "
+                             + $"fileWrittenUtc={fileWritten:O}, "
+                             + $"snapshot=[{(snapshot == null ? "none" : $"module={snapshot.ModuleHash}, file={snapshot.FileHash}, path={snapshot.RelativePath}, changedUtc={snapshot.ModuleChangedUtc:O}")}], "
+                             + $"moduleStamp=[{DescribeStamp(moduleStamp)}], fileStamp=[{DescribeStamp(fileStamp)}].");
+
                 var decision = moduleStamp != null && fileStamp != null
                     ? SyncDirectionResolver.DecideByStamps(moduleStamp, fileStamp, fileWritten, snapshot?.ModuleChangedUtc ?? now)
                     : SyncDirectionResolver.Decide(
@@ -502,6 +584,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         now);
 
                 var direction = decision.Direction;
+                Logger.Debug($"Git sync: '{name}' decided {direction} (conflict={decision.IsConflict}) by {(moduleStamp != null && fileStamp != null ? "stamps" : "snapshot")}.");
                 if (direction == SyncDirection.Ask)
                 {
                     if (winner == null)
@@ -513,11 +596,49 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     direction = winner == InitialChoice.Folder ? SyncDirection.Import : SyncDirection.Export;
                 }
 
+                //The hidden attributes are not part of the code hash. A file whose attributes were edited by hand (and nothing else)
+                //is imported, which applies them; the module's own attributes only travel with its code.
+                if ((direction == SyncDirection.None || direction == SyncDirection.Record)
+                    && component != null && filePath != null && snapshot != null
+                    && HashOfFile(filePath) != snapshot.FileHash
+                    && AttributesDiffer(component, filePath))
+                {
+                    Logger.Info($"Git sync: the attributes of '{name}' differ from its file, which changed since the last sync; importing the file.");
+                    direction = SyncDirection.Import;
+                }
+
+                //Identical content needs no copying; removing and re-importing an unchanged module only makes the parser start over.
+                if ((direction == SyncDirection.Import || direction == SyncDirection.Export)
+                    && component != null && filePath != null
+                    //The code can be the same while the stamps differ, e.g. a module stamp left behind by an unsaved session.
+                    && ((moduleStamp != null && fileStamp != null && moduleStamp.BodyHash == fileStamp.BodyHash && !AttributesDiffer(component, filePath))
+                        || IsSameAsFile(component, filePath)))
+                {
+                    Logger.Debug($"Git sync: '{name}' would be {direction.ToString().ToLowerInvariant()}ed but module and file are identical.");
+                    direction = SyncDirection.Record;
+                }
+
+                if (direction != SyncDirection.None)
+                {
+                    Logger.Info($"Git sync: '{name}' -> {direction} (conflict={decision.IsConflict}, snapshot={snapshot != null}, "
+                                + $"moduleStamp={(moduleStamp == null ? "none" : moduleStamp.Revision + (moduleStamp.Dirty ? "*" : string.Empty))}, "
+                                + $"fileStamp={(fileStamp == null ? "none" : fileStamp.Revision + (fileStamp.Dirty ? "*" : string.Empty))}).");
+                }
+
                 switch (direction)
                 {
                     case SyncDirection.Record:
                         StampBoth(component, filePath, code, fileText, moduleStamp, fileStamp);
                         Record(name, filePath, component);
+                        break;
+
+                    case SyncDirection.None:
+                        //Nothing to copy, but the snapshot may be out of date (e.g. the stamps agree while the module's hash moved);
+                        //leaving it so keeps the module due on every poll, and each poll suspends the parser.
+                        if (component != null && (snapshot == null || snapshot.ModuleHash != ModuleHash(component)))
+                        {
+                            Record(name, filePath, component);
+                        }
                         break;
 
                     case SyncDirection.Import:
@@ -544,6 +665,64 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         }
                         break;
                 }
+
+                if (!excluded)
+                {
+                    IndentModule(components, name, ignored, result);
+                }
+            }
+        }
+
+        //Every module is kept indented the same way, so that the project and the folder cannot drift apart over indentation alone.
+        //Modules whose file is excluded in .rdsyncignore are left as they are.
+        private void IndentModule(IVBComponents components, string name, GitIgnoreSet ignored, GitSyncResult result)
+        {
+            using (var component = FindComponent(components, name))
+            {
+                if (component == null || component.Type.FileExtension().Length == 0 || !NeedsIndenting(component))
+                {
+                    return;
+                }
+
+                Logger.Info($"Git sync: indenting '{name}'.");
+                _indenter.Indent(component);
+
+                //The module changed, so it gets a new revision and goes to the folder.
+                var code = CodeOf(component);
+                var path = TrackedPath(name);
+                var fileStamp = path != null && _fileSystem.File.Exists(path) ? GitSyncStamp.StateOfFile(ReadSource(path)) : null;
+                SetModuleStamp(component, NextRevision(GitSyncStamp.StateOfCode(code), fileStamp), GitSyncStamp.HashOfCode(code), DateTime.UtcNow);
+                if (ExportModule(component, name, ignored))
+                {
+                    result.Exported++;
+                }
+            }
+        }
+
+        private bool NeedsIndenting(IVBComponent component)
+        {
+            using (var module = component.CodeModule)
+            {
+                var lineCount = module.CountOfLines;
+                if (lineCount == 0)
+                {
+                    return false;
+                }
+
+                var lines = module.GetLines(1, lineCount).Replace("\r", string.Empty).Split('\n');
+
+                //Read from the text, as the parser is suspended while syncing. An annotated procedure keeps its whole module as it is.
+                if (lines.Any(line => NoIndentAnnotation.IsMatch(line)))
+                {
+                    Logger.Debug($"Git sync: '{component.Name}' is not indented because of @NoIndent.");
+                    return false;
+                }
+
+                var indented = _indenter.Indent(lines, true).ToList();
+                return !string.Equals(
+                    string.Join("\n", lines).TrimEnd(),
+                    string.Join("\n", indented).TrimEnd(),
+                    StringComparison.Ordinal);
             }
         }
 
@@ -632,18 +811,28 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         private void WriteFileStamp(string path, string fileText, int revision, string hash, DateTime utc)
         {
+            Logger.Debug($"Git sync: stamping file '{path}' with rev={revision} hash={hash}.");
             _fileSystem.File.WriteAllText(path, GitSyncStamp.WithStamp(fileText, revision, hash, utc), GitSyncFolderProcessor.EncodingFor(path));
         }
 
         private static void SetModuleStamp(IVBComponent component, int revision, string hash, DateTime utc)
         {
             var stamp = GitSyncStamp.Format(revision, hash, utc);
+            Logger.Debug($"Git sync: stamping module '{component.Name}' with '{stamp}'.");
             using (var module = component.CodeModule)
             {
                 var lines = (module.Content() ?? string.Empty).Split(new[] { "\r\n" }, StringSplitOptions.None);
                 var index = Array.FindIndex(lines, GitSyncStamp.IsStampLine);
                 if (index >= 0)
                 {
+                    //Importing a form leaves empty lines above the code; the stamp belongs on top.
+                    if (index > 0 && lines.Take(index).All(line => line.Trim().Length == 0))
+                    {
+                        Logger.Debug($"Git sync: removing {index} blank line(s) above the stamp in '{component.Name}'.");
+                        module.DeleteLines(1, index);
+                        index = 0;
+                    }
+
                     module.ReplaceLine(index + 1, stamp);
                 }
                 else
@@ -657,9 +846,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         private void ImportFile(IVBComponents components, IVBComponent existing, string name, string path)
         {
+            Logger.Info($"Git sync: importing '{name}' from '{path}' ({(existing == null ? "new module" : existing.Type == ComponentType.Document ? "document, code only" : "remove and re-import")}).");
             if (existing == null)
             {
-                using (components.Import(path)) { }
+                ImportNewFile(components, name, path);
             }
             else if (existing.Type == ComponentType.Document)
             {
@@ -673,13 +863,59 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
             using (var imported = FindComponent(components, name))
             {
+                RemoveLeadingBlankLines(imported);
                 Record(name, path, imported);
+            }
+        }
+
+        private static void RemoveLeadingBlankLines(IVBComponent component)
+        {
+            if (component == null)
+            {
+                return;
+            }
+
+            using (var module = component.CodeModule)
+            {
+                var lines = (module.Content() ?? string.Empty).Split(new[] { "\r\n" }, StringSplitOptions.None);
+                var blank = lines.TakeWhile(line => line.Trim().Length == 0).Count();
+                if (blank > 0 && blank < lines.Length)
+                {
+                    Logger.Debug($"Git sync: removing {blank} leading blank line(s) from '{component.Name}'.");
+                    module.DeleteLines(1, blank);
+                }
+            }
+        }
+
+        //The VBE often refuses to import a user form that does not exist yet; it works when an empty form of that name is there.
+        private void ImportNewFile(IVBComponents components, string name, string path)
+        {
+            try
+            {
+                using (components.Import(path)) { }
+            }
+            catch (Exception exception)
+            {
+                var isForm = string.Equals(_fileSystem.Path.GetExtension(path), ".frm", StringComparison.OrdinalIgnoreCase);
+                if (!isForm || _confirmCreateModule == null || !_confirmCreateModule(name))
+                {
+                    throw;
+                }
+
+                Logger.Warn(exception, $"Could not import '{name}' as a new module; creating an empty user form instead.");
+                using (var created = components.Add(ComponentType.UserForm))
+                {
+                    created.Name = name;
+                }
+
+                using (components.ImportSourceFile(path)) { }
             }
         }
 
         //Returns whether a file was written.
         private bool ExportModule(IVBComponent component, string name, GitIgnoreSet ignored)
         {
+            Logger.Info($"Git sync: exporting '{name}' ({component.Type}).");
             var extension = component.Type.FileExtension();
             var temp = ExportToTemp(component);
             try
@@ -752,6 +988,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 Folder = folder,
                 ModuleChangedUtc = null
             };
+            Logger.Debug($"Git sync: recorded '{name}': module={Snapshots[name].ModuleHash}, file={Snapshots[name].FileHash}, path={Snapshots[name].RelativePath}, folder='{folder}'.");
         }
 
         private void BackUpFile(string filePath, string name, GitSyncResult result)
@@ -780,6 +1017,25 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         private static string Stamp() => DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+
+        private bool AttributesDiffer(IVBComponent component, string path)
+        {
+            var temp = ExportToTemp(component);
+            try
+            {
+                var differ = GitSyncStamp.AttributeSignature(ReadSource(temp)) != GitSyncStamp.AttributeSignature(ReadSource(path));
+                if (differ)
+                {
+                    Logger.Debug($"Git sync: attributes of '{component.Name}' differ between module and file.");
+                }
+
+                return differ;
+            }
+            finally
+            {
+                DeleteTempFiles(temp);
+            }
+        }
 
         private bool IsSameAsFile(IVBComponent component, string path)
         {

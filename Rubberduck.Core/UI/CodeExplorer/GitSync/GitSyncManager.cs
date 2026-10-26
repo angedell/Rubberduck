@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using NLog;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.SmartIndenter;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 using Rubberduck.VBEditor.Utility;
@@ -20,6 +21,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         private readonly IProjectsProvider _projectsProvider;
         private readonly IParseManager _parseManager;
+        private readonly IIndenter _indenter;
         private readonly IModuleNameFromFileExtractor _moduleNameExtractor;
         private readonly IFileSystem _fileSystem;
 
@@ -31,8 +33,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             IProjectsProvider projectsProvider,
             IParseManager parseManager,
             IModuleNameFromFileExtractor moduleNameExtractor,
-            IFileSystem fileSystem)
+            IFileSystem fileSystem,
+            IIndenter indenter)
         {
+            _indenter = indenter;
             _projectsProvider = projectsProvider;
             _parseManager = parseManager;
             _moduleNameExtractor = moduleNameExtractor;
@@ -70,15 +74,16 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         /// <param name="chooseWinner">Asked who wins for modules that exist on both sides and carry no stamp.</param>
-        public GitSyncResult Start(IVBProject project, string folder, Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null)
+        /// <param name="confirmCreateModule">Asked whether to create an empty module of the given name when its file cannot be imported as a new module.</param>
+        public GitSyncResult Start(IVBProject project, string folder, Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null, Func<string, bool> confirmCreateModule = null)
         {
             Stop(project);
 
-            var session = new GitSyncSession(project.ProjectId, folder, ManifestKey(project), _manifestStore, _projectsProvider, _parseManager, _moduleNameExtractor, _fileSystem);
+            var session = new GitSyncSession(project.ProjectId, folder, ManifestKey(project), _manifestStore, _projectsProvider, _parseManager, _moduleNameExtractor, _fileSystem, _indenter);
             GitSyncResult result;
             try
             {
-                result = session.Start(chooseWinner);
+                result = session.Start(chooseWinner, confirmCreateModule);
             }
             catch
             {

@@ -55,6 +55,13 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 : null;
         }
 
+        private bool ConfirmCreateModule(string name)
+        {
+            return _messageBox.ConfirmYesNo(
+                $"'{name}' could not be imported because the project has no module with that name yet.{Environment.NewLine}{Environment.NewLine}Create an empty user form named '{name}' and import into it?",
+                CodeExplorerUI.GitSync_DialogTitle);
+        }
+
         protected override void OnExecute(object parameter)
         {
             var project = TargetProject(parameter);
@@ -85,7 +92,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
             try
             {
-                var result = _gitSyncManager.Start(project, folder, GitSyncInitialDialog.Ask);
+                var result = _gitSyncManager.Start(project, folder, GitSyncInitialDialog.Ask, ConfirmCreateModule);
                 if (result.Cancelled)
                 {
                     return;
