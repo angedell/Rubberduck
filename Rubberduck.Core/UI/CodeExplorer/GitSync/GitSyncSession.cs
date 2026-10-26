@@ -192,7 +192,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     }
 
                     var prepared = new List<PreparedFile>();
-                    foreach (var path in files.Where(_fileSystem.File.Exists))
+                    var ignored = _processor.LoadIgnoreRules(Root);
+                    foreach (var path in files.Where(file => _fileSystem.File.Exists(file) && !ignored.IsIgnored(RelativePathOf(file), false)))
                     {
                         try
                         {
@@ -406,6 +407,13 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     ? trackedPath
                     : _fileSystem.Path.Combine(Root, GitSyncText.RelativeDirectory(folder), name + extension);
 
+                //Modules that belong in an ignored folder stay in the project only.
+                if (_processor.IsIgnored(Root, target))
+                {
+                    _componentHashes[name] = hash;
+                    return;
+                }
+
                 var changed = CopyIfDifferent(temp, target);
 
                 var binaryExtension = component.Type.BinaryFileExtension();
@@ -435,6 +443,13 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         #endregion
 
         #region File helpers
+
+        private string RelativePathOf(string path)
+        {
+            var directory = _processor.RelativeDirectory(Root, path);
+            var name = _fileSystem.Path.GetFileName(path);
+            return directory.Length == 0 ? name : directory + "\\" + name;
+        }
 
         private string ExportToTemp(IVBComponent component)
         {

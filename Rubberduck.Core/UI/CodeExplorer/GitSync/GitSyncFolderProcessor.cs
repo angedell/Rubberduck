@@ -44,6 +44,11 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _fileSystem = fileSystem;
         }
 
+        /// <summary>
+        /// Name of the files listing what not to sync. They use the .gitignore syntax but are separate from git's own.
+        /// </summary>
+        public const string IgnoreFileName = ".rdsyncignore";
+
         //The VBE reads and writes source files in the ANSI code page of the current user.
         public static Encoding SourceEncoding => Encoding.Default;
 
@@ -55,10 +60,45 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         public IEnumerable<string> SourceFiles(string root)
         {
+            var ignored = LoadIgnoreRules(root);
             return _fileSystem.Directory
                 .EnumerateFiles(root, "*", System.IO.SearchOption.AllDirectories)
-                .Where(path => IsSourceFile(path) && !IsInHiddenDirectory(root, path))
+                .Where(path => IsSourceFile(path) 
+                               && !IsInHiddenDirectory(root, path) 
+                               && !ignored.IsIgnored(RelativePath(root, path), false))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Reads every .rdsyncignore file below the root; the folders and files they exclude are not synced.
+        /// </summary>
+        public GitIgnoreSet LoadIgnoreRules(string root)
+        {
+            var files = new List<KeyValuePair<string, GitIgnore>>();
+            foreach (var path in _fileSystem.Directory.EnumerateFiles(root, IgnoreFileName, System.IO.SearchOption.AllDirectories))
+            {
+                if (IsInHiddenDirectory(root, path))
+                {
+                    continue;
+                }
+
+                var folder = RelativeDirectory(root, path).Replace('\\', '/');
+                files.Add(new KeyValuePair<string, GitIgnore>(folder, new GitIgnore(_fileSystem.File.ReadAllLines(path))));
+            }
+
+            return new GitIgnoreSet(files);
+        }
+
+        public bool IsIgnored(string root, string path)
+        {
+            return LoadIgnoreRules(root).IsIgnored(RelativePath(root, path), false);
+        }
+
+        private string RelativePath(string root, string path)
+        {
+            var directory = RelativeDirectory(root, path);
+            var name = _fileSystem.Path.GetFileName(path);
+            return directory.Length == 0 ? name : directory + "\\" + name;
         }
 
         //Skips .git and the like.
