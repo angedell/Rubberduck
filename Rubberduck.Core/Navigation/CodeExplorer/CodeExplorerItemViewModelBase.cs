@@ -125,6 +125,33 @@ namespace Rubberduck.Navigation.CodeExplorer
             set { /* no-op for base class, override as needed */ }
         }
 
+        /// <summary>
+        /// Whether the node can be ticked in the code explorer's selection mode, e.g. for bulk deletion.
+        /// </summary>
+        public virtual bool CanBeMarked => false;
+
+        private bool _marked;
+        public bool IsMarked
+        {
+            get => _marked;
+            set
+            {
+                if (_marked == value)
+                {
+                    return;
+                }
+
+                _marked = value;
+
+                foreach (var child in Children.Where(child => child.CanBeMarked))
+                {
+                    child.IsMarked = value;
+                }
+
+                OnPropertyChanged();
+            }
+        }
+
         public virtual bool IsObsolete => false;
 
         public abstract bool IsErrorState { get; set; }

@@ -506,4 +506,91 @@ Import aborted.</value>
   <data name="CodeExplorer_NavigateText" xml:space="preserve">
     <value>Navigate</value>
   </data>
+  <data name="GitSync" xml:space="preserve">
+    <value>Git Sync...</value>
+  </data>
+  <data name="GitSync_DialogTitle" xml:space="preserve">
+    <value>Git Sync</value>
+  </data>
+  <data name="GitSync_FolderDialogDescription" xml:space="preserve">
+    <value>Select the project folder to keep in sync with project '{0}'. Subfolders are included.</value>
+  </data>
+  <data name="GitSync_AlreadySyncing" xml:space="preserve">
+    <value>Project '{0}' is already kept in sync with:
+{1}
+
+Yes: choose another folder
+No: stop syncing
+Cancel: keep syncing</value>
+  </data>
+  <data name="GitSync_Summary" xml:space="preserve">
+    <value>Git sync is active for:
+{0}
+
+Imported into the project: {1}
+Exported to the folder: {2}
+Line endings corrected: {3}
+@Folder annotations corrected: {4}
+Errors: {5}</value>
+  </data>
+  <data name="GitSync_Failed" xml:space="preserve">
+    <value>Git sync could not be started: {0}</value>
+  </data>
+  <data name="CodeExplorer_SelectModeToolTip" xml:space="preserve">
+    <value>Select modules and folders</value>
+  </data>
+  <data name="CodeExplorer_RemoveSelectedToolTip" xml:space="preserve">
+    <value>Remove the selected modules from the project</value>
+  </data>
+  <data name="BulkRemove_Caption" xml:space="preserve">
+    <value>Remove Selected Modules</value>
+  </data>
+  <data name="BulkRemove_ExportFailed" xml:space="preserve">
+    <value>The modules could not be exported, so none were removed: {0}</value>
+  </data>
+  <data name="BulkRemove_SuspendFailed" xml:space="preserve">
+    <value>The modules could not be removed because the parser could not be suspended ({0}).</value>
+  </data>
+  <data name="BulkRemove_Summary" xml:space="preserve">
+    <value>{0} module(s) will be removed from the project.</value>
+  </data>
+  <data name="BulkRemove_BeforeRemoving" xml:space="preserve">
+    <value>Before removing</value>
+  </data>
+  <data name="BulkRemove_ExportFirst" xml:space="preserve">
+    <value>Export the modules first</value>
+  </data>
+  <data name="BulkRemove_NoExport" xml:space="preserve">
+    <value>Remove without exporting</value>
+  </data>
+  <data name="BulkRemove_Layout" xml:space="preserve">
+    <value>Export layout</value>
+  </data>
+  <data name="BulkRemove_PreserveStructure" xml:space="preserve">
+    <value>Preserve the folder structure</value>
+  </data>
+  <data name="BulkRemove_SingleFolder" xml:space="preserve">
+    <value>Export everything to a single folder</value>
+  </data>
+  <data name="BulkRemove_FolderLabel" xml:space="preserve">
+    <value>Export folder:</value>
+  </data>
+  <data name="BulkRemove_Browse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="BulkRemove_BrowseDescription" xml:space="preserve">
+    <value>Select the folder to export the modules to.</value>
+  </data>
+  <data name="BulkRemove_RemoveButton" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="BulkRemove_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="BulkRemove_InvalidFolder" xml:space="preserve">
+    <value>Please enter a valid export folder.</value>
+  </data>
+  <data name="CodeExplorer_GitSyncNowToolTip" xml:space="preserve">
+    <value>Git sync: sync the project with its folder now</value>
+  </data>
 </root>

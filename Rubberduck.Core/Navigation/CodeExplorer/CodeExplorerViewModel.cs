@@ -196,6 +196,39 @@ namespace Rubberduck.Navigation.CodeExplorer
             }
         }
 
+        private bool _isSelectionMode;
+        /// <summary>
+        /// While true, the tree shows check boxes next to the modules and folders that can be removed in bulk.
+        /// </summary>
+        public bool IsSelectionMode
+        {
+            get => _isSelectionMode;
+            set
+            {
+                if (_isSelectionMode == value)
+                {
+                    return;
+                }
+
+                _isSelectionMode = value;
+                if (!_isSelectionMode)
+                {
+                    ClearMarks(Projects);
+                }
+
+                OnPropertyChanged();
+            }
+        }
+
+        private static void ClearMarks(IEnumerable<ICodeExplorerNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                node.IsMarked = false;
+                ClearMarks(node.Children);
+            }
+        }
+
         private bool _unparsed = true;
         public bool Unparsed
         {
@@ -440,6 +473,34 @@ namespace Rubberduck.Navigation.CodeExplorer
         public ImportCommand ImportCommand { get; set; }
         public UpdateFromFilesCommand UpdateFromFilesCommand { get; set; }
         public ReplaceProjectContentsFromFilesCommand ReplaceProjectContentsFromFilesCommand { get; set; }
+        public GitSyncCommand GitSyncCommand { get; set; }
+        private BulkRemoveCommand _bulkRemoveCommand;
+        public BulkRemoveCommand BulkRemoveCommand
+        {
+            get => _bulkRemoveCommand;
+            set
+            {
+                if (_bulkRemoveCommand != null)
+                {
+                    _bulkRemoveCommand.Completed -= BulkRemoveCompleted;
+                }
+
+                _bulkRemoveCommand = value;
+
+                if (_bulkRemoveCommand != null)
+                {
+                    _bulkRemoveCommand.Completed += BulkRemoveCompleted;
+                }
+            }
+        }
+
+        //Leave the selection mode once the modules are gone.
+        private void BulkRemoveCompleted(object sender, EventArgs e)
+        {
+            IsSelectionMode = false;
+        }
+
+        public GitSyncNowCommand GitSyncNowCommand { get; set; }
         public ExportCommand ExportCommand { get; set; }
         public ExportAllCommand ExportAllCommand { get; set; }
         public DeleteCommand DeleteCommand { get; set; }

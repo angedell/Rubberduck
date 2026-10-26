@@ -44,6 +44,9 @@
             <BitmapImage x:Key="ShowSignaturesImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/DisplayFullSignature.png" />
             <BitmapImage x:Key="CopyResultsImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/document-copy.png" />
             <BitmapImage x:Key="AddRemoveReferencesImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/node-select-all.png" />
+            <BitmapImage x:Key="GitSyncNowImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/arrow-circle-double.png" />
+            <BitmapImage x:Key="SelectModeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/node-select-all.png" />
+            <BitmapImage x:Key="RemoveSelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/cross-circle.png" />
             <BitmapImage x:Key="SyncImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/SyncArrows.png" />
             <BitmapImage x:Key="FontSizeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/edit-size.png" />
             <BitmapImage x:Key="ExtractInterfaceImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/ExtractInterface.png" />
@@ -335,6 +338,32 @@
 
                 <Separator />
 
+                <Button Command="{Binding GitSyncNowCommand}" CommandParameter="{Binding SelectedItem, Mode=OneWay}">
+                    <Image Source="{StaticResource GitSyncNowImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_GitSyncNowToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
+                <Separator />
+
+                <ToggleButton IsChecked="{Binding IsSelectionMode, Mode=TwoWay}">
+                    <Image Style="{StaticResource ToolbarIconStyle}" Source="{StaticResource SelectModeImage}" />
+                    <ToggleButton.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_SelectModeToolTip}" />
+                    </ToggleButton.ToolTip>
+                </ToggleButton>
+
+                <Button Command="{Binding BulkRemoveCommand}" CommandParameter="{Binding Projects}"
+                        Visibility="{Binding IsSelectionMode, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource RemoveSelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_RemoveSelectedToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
+                <Separator />
+
                 <Button Command="{Binding CopyResultsCommand}" CommandParameter="{Binding ElementName=ProjectTree}">
                     <Image Source="{StaticResource CopyResultsImage}" Style="{StaticResource ToolbarImageOpacity}" />
                     <Button.ToolTip>
@@ -515,6 +544,10 @@
                                   Command="{Binding ReplaceProjectContentsFromFilesCommand}"
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}"
                                   Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitSync}"
+                                  Command="{Binding GitSyncCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
                     </MenuItem>
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddModule}"
                           ItemsSource="{StaticResource AddModuleCommands}">
@@ -607,6 +640,22 @@
                         </Style>
                     </HierarchicalDataTemplate.Resources>
                     <StackPanel Orientation="Horizontal">
+                        <CheckBox IsChecked="{Binding IsMarked, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,4,0">
+                            <CheckBox.Style>
+                                <Style TargetType="CheckBox">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding ElementName=CodeExplorer, Path=DataContext.IsSelectionMode}" Value="True" />
+                                                <Condition Binding="{Binding CanBeMarked}" Value="True" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                        </CheckBox>
                         <Grid>
                             <Image Style="{StaticResource ToolbarIconStyle}" 
                                    ToolTip="{Binding Converter={StaticResource DeclarationTypeNameConverter}}">

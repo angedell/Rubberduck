@@ -22,6 +22,8 @@ namespace Rubberduck.Navigation.CodeExplorer
         bool IsExpanded { get; set; }
         bool IsSelected { get; set; }
         bool IsDimmed { get; set; }
+        bool CanBeMarked { get; }
+        bool IsMarked { get; set; }
         bool IsObsolete { get; }
         bool IsErrorState { get; set; }
         string ToolTip { get; }
