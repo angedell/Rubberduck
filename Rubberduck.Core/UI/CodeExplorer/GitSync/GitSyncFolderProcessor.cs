@@ -52,6 +52,16 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         //The VBE reads and writes source files in the ANSI code page of the current user.
         public static Encoding SourceEncoding => Encoding.Default;
 
+        /// <summary>
+        /// Document modules are exported as UTF-8, because they are the code pane's text and not a file the VBE itself reads back.
+        /// </summary>
+        public static Encoding EncodingFor(string path)
+        {
+            return System.IO.Path.GetExtension(path).Equals(ComponentTypeExtensions.DocClassExtension, StringComparison.OrdinalIgnoreCase)
+                ? new UTF8Encoding(false)
+                : SourceEncoding;
+        }
+
         public bool IsSourceFile(string path)
         {
             var extension = _fileSystem.Path.GetExtension(path);
@@ -132,7 +142,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         {
             var relativeDirectory = RelativeDirectory(root, path);
 
-            var original = _fileSystem.File.ReadAllText(path, SourceEncoding);
+            var original = _fileSystem.File.ReadAllText(path, EncodingFor(path));
 
             var text = GitSyncText.NormalizeLineEndings(original);
             var lineEndingsFixed = text != original;
@@ -148,7 +158,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
             if (lineEndingsFixed || folderAnnotationFixed)
             {
-                _fileSystem.File.WriteAllText(path, text, SourceEncoding);
+                _fileSystem.File.WriteAllText(path, text, EncodingFor(path));
             }
 
             return new PreparedFile(path, relativeDirectory, lineEndingsFixed, folderAnnotationFixed);

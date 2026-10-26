@@ -531,6 +531,7 @@ Imported into the project: {1}
 Exported to the folder: {2}
 Line endings corrected: {3}
 @Folder annotations corrected: {4}
+Conflicts (both sides changed): {6}
 Errors: {5}</value>
   </data>
   <data name="GitSync_Failed" xml:space="preserve">
@@ -592,5 +593,23 @@ Errors: {5}</value>
   </data>
   <data name="CodeExplorer_GitSyncNowToolTip" xml:space="preserve">
     <value>Git sync: sync the project with its folder now</value>
+  </data>
+  <data name="GitSync_InitialExplanation" xml:space="preserve">
+    <value>{0} module(s) exist in the project and in the folder with different code, and neither side carries a sync stamp, so Rubberduck cannot tell which one is newer. Who wins? The losing side is overwritten.</value>
+  </data>
+  <data name="GitSync_InitialModuleColumn" xml:space="preserve">
+    <value>Module</value>
+  </data>
+  <data name="GitSync_InitialFileModifiedColumn" xml:space="preserve">
+    <value>File last modified</value>
+  </data>
+  <data name="GitSync_InitialFolderWins" xml:space="preserve">
+    <value>The files in the folder win (import them into the project)</value>
+  </data>
+  <data name="GitSync_InitialProjectWins" xml:space="preserve">
+    <value>The modules in the project win (export them over the files)</value>
+  </data>
+  <data name="GitSync_InitialContinue" xml:space="preserve">
+    <value>Continue</value>
   </data>
 </root>

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
 using System.Linq;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NLog;
 using Rubberduck.Parsing.VBA;
@@ -24,6 +23,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly IModuleNameFromFileExtractor _moduleNameExtractor;
         private readonly IFileSystem _fileSystem;
 
+        private readonly GitSyncManifestStore _manifestStore;
         private readonly object _lock = new object();
         private readonly Dictionary<string, GitSyncSession> _sessions = new Dictionary<string, GitSyncSession>();
 
@@ -37,8 +37,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _parseManager = parseManager;
             _moduleNameExtractor = moduleNameExtractor;
             _fileSystem = fileSystem;
-
-            _parseManager.StateChanged += OnParserStateChanged;
+            _manifestStore = new GitSyncManifestStore(fileSystem);
         }
 
         private string SettingsFile => _fileSystem.Path.Combine(
@@ -70,20 +69,27 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 : null;
         }
 
-        public GitSyncResult Start(IVBProject project, string folder)
+        /// <param name="chooseWinner">Asked who wins for modules that exist on both sides and carry no stamp.</param>
+        public GitSyncResult Start(IVBProject project, string folder, Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null)
         {
             Stop(project);
 
-            var session = new GitSyncSession(project.ProjectId, folder, _projectsProvider, _parseManager, _moduleNameExtractor, _fileSystem);
+            var session = new GitSyncSession(project.ProjectId, folder, ManifestKey(project), _manifestStore, _projectsProvider, _parseManager, _moduleNameExtractor, _fileSystem);
             GitSyncResult result;
             try
             {
-                result = session.Start();
+                result = session.Start(chooseWinner);
             }
             catch
             {
                 session.Dispose();
                 throw;
+            }
+
+            if (result.Cancelled)
+            {
+                session.Dispose();
+                return result;
             }
 
             lock (_lock)
@@ -93,6 +99,12 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
             Remember(project, session.Root);
             return result;
+        }
+
+        //Unsaved workbooks have no file name to tell them apart across sessions, so their state is not persisted.
+        private static string ManifestKey(IVBProject project)
+        {
+            return string.IsNullOrWhiteSpace(project.FileName) ? null : project.FileName;
         }
 
         public void Stop(IVBProject project)
@@ -109,36 +121,6 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             }
 
             session.Dispose();
-        }
-
-        private void OnParserStateChanged(object sender, ParserStateEventArgs e)
-        {
-            if (e.State != ParserState.Ready)
-            {
-                return;
-            }
-
-            List<GitSyncSession> sessions;
-            lock (_lock)
-            {
-                sessions = _sessions.Values.ToList();
-            }
-
-            //Never block the parser thread: a session may be waiting for the parser while holding its lock.
-            foreach (var session in sessions)
-            {
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        session.ExportChangedModules();
-                    }
-                    catch (Exception exception)
-                    {
-                        Logger.Error(exception, "Git sync failed to export changed modules.");
-                    }
-                });
-            }
         }
 
         private void Remember(IVBProject project, string folder)
@@ -184,8 +166,6 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         public void Dispose()
         {
-            _parseManager.StateChanged -= OnParserStateChanged;
-
             List<GitSyncSession> sessions;
             lock (_lock)
             {

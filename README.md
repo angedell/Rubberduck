@@ -1,3 +1,29 @@
+# Changes in this fork
+
+This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds **Git Sync** and **bulk removal** to the Code Explorer. Everything below is on top of the original; the rest of this README is unchanged.
+
+## Git Sync
+
+Keeps a VBA project in sync with a folder on disk, subfolders included, so the code can live in a git repository.
+
+- **Where:** Code Explorer, right-click a project, **Sync Project > Git Sync...** asks for the folder (the last one is remembered per workbook). The toolbar's **Git sync** button re-syncs with the remembered folder in one click.
+- **Both directions, live:** file changes are imported, and module changes are exported. The VBE raises no event while you type, so the project is polled every couple of seconds and a module is synced once nobody has typed in it for a moment.
+- **Line endings:** files with LF endings are corrected to CRLF.
+- **Folders:** a file's location below the sync folder sets its `@Folder` annotation (`Models\Orders\Foo.cls` becomes `'@Folder("Models.Orders")`). A module moved to another virtual folder is moved on disk. Files directly in the sync folder keep the `@Folder` they have.
+- **Stamp:** every synced module and its file carry one comment line, `' rdsync rev=12 hash=3fa9c1d4e07b22aa utc=2025-06-01T12:34:56Z`: a revision, a hash of the code without the stamp, and when the code was last modified. Since both sides carry it, the direction can be told on any machine, for example after pulling the repository on another one. A side whose code no longer matches its stamp was edited; of two unedited sides, the higher revision is the newer.
+- **Conflicts:** if both sides were edited, the newer one wins and the other is saved next to the file as `<file>.conflict-<time>` or `<file>.module-conflict-<time>`.
+- **First sync:** if a module exists in both places with different code and there is no stamp or sync history, a dialog asks who wins, for all such modules at once.
+- **Local state:** a snapshot of each module's last synced state is kept in `%AppData%\Rubberduck\gitsync-state.json`, never in the synced folder.
+- **Excluding things:** put a `.rdsyncignore` file in the sync folder, or in any subfolder, using the `.gitignore` syntax (comments, `!`, trailing `/`, anchoring, `*`, `?`, `[...]`, `**`; deeper files take precedence). Ignored files are not imported and modules in ignored folders are not exported. It is a separate file so it cannot be confused with git's own `.gitignore`.
+- **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
+
+## Select mode and bulk removal
+
+- The Code Explorer toolbar has a **select** toggle that shows a checkbox next to every module and folder (ticking a folder ticks what is in it). Projects, members, references and document modules cannot be ticked.
+- While it is on, the red button removes all ticked modules at once. One dialog asks whether to export first, whether to keep the folder structure or use a single folder, and where to (the last folder is remembered). If the export fails, nothing is removed. Select mode switches off afterwards.
+
+---
+
 <!-- ![banner](https://user-images.githubusercontent.com/5751684/113501222-8edfe880-94f1-11eb-99a9-64583e413ef3.png) -->
 
 ## Links

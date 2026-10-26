@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
-using FileSystemWatcher = System.IO.FileSystemWatcher;
-using IOException = System.IO.IOException;
-using NotifyFilters = System.IO.NotifyFilters;
 using System.IO.Abstractions;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
+using FileSystemWatcher = System.IO.FileSystemWatcher;
+using IOException = System.IO.IOException;
+using NotifyFilters = System.IO.NotifyFilters;
 using NLog;
 using Rubberduck.Parsing.VBA;
-using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers;
@@ -22,21 +22,30 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
     {
         public int Imported { get; set; }
         public int Exported { get; set; }
+        public int Conflicts { get; set; }
+        /// <summary>The user declined to pick a winner for modules that exist on both sides, so nothing was synced.</summary>
+        public bool Cancelled { get; set; }
         public int LineEndingsFixed { get; set; }
         public int FolderAnnotationsFixed { get; set; }
         public List<string> Errors { get; } = new List<string>();
+        public List<string> Notes { get; } = new List<string>();
     }
 
     /// <summary>
-    /// Keeps one VBA project in sync with one folder. Files win when the initial sync finds a difference.
-    /// Afterwards, file changes are imported and module changes are exported as they happen.
+    /// Keeps one VBA project in sync with one folder. For every module, a snapshot of both sides from the last sync
+    /// tells which one changed since, and that decides the direction. Changes made while Rubberduck was not running
+    /// are picked up as well, because the snapshots are persisted.
     /// Nothing is ever deleted from the project; files are only deleted when a module moves to another folder.
     /// </summary>
     public sealed class GitSyncSession : IDisposable
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private const int DebounceMilliseconds = 500;
+        private const int PollMilliseconds = 2000;
+        private static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(2);
 
+        private readonly string _manifestKey;
+        private readonly GitSyncManifestStore _manifestStore;
         private readonly IProjectsProvider _projectsProvider;
         private readonly IParseManager _parseManager;
         private readonly IModuleNameFromFileExtractor _moduleNameExtractor;
@@ -45,19 +54,23 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly string _tempFolder;
 
         private readonly object _lock = new object();
-        private readonly Dictionary<string, int> _componentHashes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _fileHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _modulePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _moduleFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _pendingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private ProjectManifest _manifest;
+        //What the poll saw last for each module, to tell when someone is still typing.
+        private readonly Dictionary<string, KeyValuePair<string, DateTime>> _lastSeen = new Dictionary<string, KeyValuePair<string, DateTime>>(StringComparer.OrdinalIgnoreCase);
 
         private FileSystemWatcher _watcher;
         private Timer _debounce;
+        private Timer _poll;
+        private int _polling;
         private bool _disposed;
 
         public GitSyncSession(
             string projectId,
             string root,
+            string manifestKey,
+            GitSyncManifestStore manifestStore,
             IProjectsProvider projectsProvider,
             IParseManager parseManager,
             IModuleNameFromFileExtractor moduleNameExtractor,
@@ -65,6 +78,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         {
             ProjectId = projectId;
             Root = fileSystem.Path.GetFullPath(root);
+            _manifestKey = manifestKey;
+            _manifestStore = manifestStore;
             _projectsProvider = projectsProvider;
             _parseManager = parseManager;
             _moduleNameExtractor = moduleNameExtractor;
@@ -76,21 +91,28 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         public string ProjectId { get; }
         public string Root { get; }
 
+        private Dictionary<string, ModuleSnapshot> Snapshots => _manifest.Modules;
+
         /// <summary>
         /// Synchronizes the folder with the project once and starts watching the folder.
         /// </summary>
-        public GitSyncResult Start()
+        /// <param name="chooseWinner">Asked who wins for the modules that exist on both sides but were never synced and carry no stamp. Without it, those modules are skipped.</param>
+        public GitSyncResult Start(Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null)
         {
             var result = new GitSyncResult();
             lock (_lock)
             {
                 _fileSystem.Directory.CreateDirectory(Root);
+                _manifest = _manifestStore.Load(_manifestKey, Root);
 
                 var prepared = _processor.PrepareAll(Root).ToList();
                 CountPrepared(prepared, result);
 
-                ImportFiles(prepared.Select(file => file.Path).ToList(), result);
-                ExportChangedModulesCore(result);
+                Suspended(() => SyncModules(prepared.Select(file => file.Path).ToList(), true, result, null, chooseWinner));
+                if (result.Cancelled)
+                {
+                    return result;
+                }
 
                 StartWatching();
             }
@@ -99,22 +121,113 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         /// <summary>
-        /// Writes the modules changed since the last sync to the folder. Called when the parser is ready.
+        /// The VBE raises no event when code is typed, and Rubberduck itself only notices edits when it reparses.
+        /// So the code of every module is looked at every couple of seconds. This is also how the time of the last
+        /// modification is known: it is the time the poll first saw the current code.
         /// </summary>
-        public void ExportChangedModules()
+        private void Poll()
         {
-            var result = new GitSyncResult();
-            lock (_lock)
+            if (Interlocked.Exchange(ref _polling, 1) == 1)
             {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                ExportChangedModulesCore(result);
+                return;
             }
 
-            LogErrors(result);
+            var result = new GitSyncResult();
+            try
+            {
+                lock (_lock)
+                {
+                    if (_disposed || _manifest == null)
+                    {
+                        return;
+                    }
+
+                    var due = ModulesDueForSync();
+                    if (due.Count == 0)
+                    {
+                        return;
+                    }
+
+                    //A conflict means importing, which needs the parser to hold still.
+                    Suspended(() => SyncModules(due.Select(TrackedPath).Where(path => path != null).ToList(), false, result, due));
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(exception, "Git sync failed to sync the changed modules.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _polling, 0);
+            }
+
+            LogOutcome(result);
+        }
+
+        //Modules whose code differs from the snapshot and that nobody has typed in for a moment.
+        private HashSet<string> ModulesDueForSync()
+        {
+            var due = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var project = _projectsProvider.Project(ProjectId);
+            if (project == null)
+            {
+                return due;
+            }
+
+            var now = DateTime.UtcNow;
+            var manifestChanged = false;
+            using (var components = project.VBComponents)
+            {
+                foreach (var component in components)
+                {
+                    using (component)
+                    {
+                        if (component.Type.FileExtension().Length == 0)
+                        {
+                            continue;
+                        }
+
+                        var name = component.Name;
+                        var hash = ModuleHash(component);
+
+                        if (!_lastSeen.TryGetValue(name, out var seen) || seen.Key != hash)
+                        {
+                            _lastSeen[name] = new KeyValuePair<string, DateTime>(hash, now);
+                            seen = _lastSeen[name];
+
+                            if (Snapshots.TryGetValue(name, out var changedSnapshot) && changedSnapshot.ModuleHash != hash)
+                            {
+                                changedSnapshot.ModuleChangedUtc = now;
+                                manifestChanged = true;
+                            }
+                        }
+
+                        Snapshots.TryGetValue(name, out var snapshot);
+                        if ((snapshot == null || snapshot.ModuleHash != hash) && now - seen.Value >= QuietPeriod)
+                        {
+                            due.Add(name);
+                        }
+                    }
+                }
+            }
+
+            if (manifestChanged)
+            {
+                SaveManifest();
+            }
+
+            return due;
+        }
+
+        private void Suspended(Action action)
+        {
+            var suspension = _parseManager.OnSuspendParser(this, new[] { ParserState.Ready }, action);
+            if (suspension.Outcome != SuspensionOutcome.Completed)
+            {
+                throw new InvalidOperationException(
+                    $"The sync could not run because the parser could not be suspended ({suspension.Outcome}).",
+                    suspension.EncounteredException);
+            }
         }
 
         private static void CountPrepared(IEnumerable<PreparedFile> prepared, GitSyncResult result)
@@ -126,15 +239,32 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             }
         }
 
-        private static void LogErrors(GitSyncResult result)
+        private static void LogOutcome(GitSyncResult result)
         {
             foreach (var error in result.Errors)
             {
                 Logger.Warn(error);
             }
+
+            foreach (var note in result.Notes)
+            {
+                Logger.Info(note);
+            }
         }
 
-        #region Folder -> project
+        private void SaveManifest()
+        {
+            _manifestStore.Save(_manifestKey, _manifest);
+        }
+
+        private string TrackedPath(string name)
+        {
+            return Snapshots.TryGetValue(name, out var snapshot) && snapshot.RelativePath != null
+                ? _fileSystem.Path.Combine(Root, snapshot.RelativePath)
+                : null;
+        }
+
+        #region Watching the folder
 
         private void StartWatching()
         {
@@ -149,6 +279,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _watcher.Created += (sender, e) => OnFileEvent(e.FullPath);
             _watcher.Renamed += (sender, e) => OnFileEvent(e.FullPath);
             _watcher.EnableRaisingEvents = true;
+
+            _poll = new Timer(_ => Poll(), null, PollMilliseconds, PollMilliseconds);
         }
 
         private void OnFileEvent(string path)
@@ -211,34 +343,34 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     }
 
                     CountPrepared(prepared, result);
-                    ImportFiles(prepared.Select(file => file.Path).ToList(), result);
+                    if (prepared.Count > 0)
+                    {
+                        Suspended(() => SyncModules(prepared.Select(file => file.Path).ToList(), false, result));
+                    }
                 }
             }
             catch (Exception exception)
             {
-                Logger.Error(exception, "Git sync failed to import changed files.");
+                Logger.Error(exception, "Git sync failed to process changed files.");
             }
 
-            LogErrors(result);
+            LogOutcome(result);
         }
 
-        private void ImportFiles(ICollection<string> paths, GitSyncResult result)
-        {
-            if (paths.Count == 0)
-            {
-                return;
-            }
+        #endregion
 
-            var suspension = _parseManager.OnSuspendParser(this, new[] { ParserState.Ready }, () => ImportFilesCore(paths, result));
-            if (suspension.Outcome != SuspensionOutcome.Completed)
-            {
-                throw new InvalidOperationException(
-                    $"The files could not be imported because the parser could not be suspended ({suspension.Outcome}).",
-                    suspension.EncounteredException);
-            }
-        }
+        #region Syncing
 
-        private void ImportFilesCore(IEnumerable<string> paths, GitSyncResult result)
+        /// <param name="paths">The files to consider.</param>
+        /// <param name="allModules">Whether modules without any of the given files are considered too.</param>
+        /// <param name="onlyNames">If given, only these modules are considered.</param>
+        /// <param name="chooseWinner">If given, asked who wins where both sides exist but nothing says which is newer; otherwise such modules are skipped.</param>
+        private void SyncModules(
+            ICollection<string> paths,
+            bool allModules,
+            GitSyncResult result,
+            ISet<string> onlyNames = null,
+            Func<IReadOnlyList<InitialConflict>, InitialChoice> chooseWinner = null)
         {
             var project = _projectsProvider.Project(ProjectId);
             if (project == null)
@@ -246,79 +378,416 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 return;
             }
 
+            var ignored = _processor.LoadIgnoreRules(Root);
+
+            var fileByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in paths)
+            {
+                var name = _moduleNameExtractor.ModuleName(path);
+                if (name != null && !fileByName.ContainsKey(name))
+                {
+                    fileByName.Add(name, path);
+                }
+            }
+
             using (var components = project.VBComponents)
             {
-                foreach (var path in paths)
+                var names = new HashSet<string>(fileByName.Keys, StringComparer.OrdinalIgnoreCase);
+                if (allModules || onlyNames != null)
+                {
+                    foreach (var component in components)
+                    {
+                        using (component)
+                        {
+                            names.Add(component.Name);
+                        }
+                    }
+                }
+
+                InitialChoice? winner = null;
+                if (chooseWinner != null)
+                {
+                    var unresolved = fileByName
+                        .Where(file => NeedsWinner(components, file.Key, file.Value, ignored))
+                        .Select(file => new InitialConflict(file.Key, _fileSystem.File.GetLastWriteTime(file.Value)))
+                        .ToList();
+                    if (unresolved.Count > 0)
+                    {
+                        winner = chooseWinner(unresolved);
+                        if (winner == InitialChoice.Cancel)
+                        {
+                            result.Cancelled = true;
+                            return;
+                        }
+                    }
+                }
+
+                foreach (var name in names.Where(name => onlyNames == null || onlyNames.Contains(name)))
                 {
                     try
                     {
-                        ImportFile(components, path, result);
+                        var path = fileByName.TryGetValue(name, out var given) ? given : TrackedPath(name);
+                        SyncModule(components, name, path, ignored, result, winner);
                     }
                     catch (Exception exception)
                     {
-                        result.Errors.Add($"Could not import '{path}': {exception.Message}");
+                        result.Errors.Add($"Could not sync '{name}': {exception.Message}");
                     }
+                }
+            }
+
+            SaveManifest();
+        }
+
+        //Both sides exist, differ, and there is no snapshot and no complete pair of stamps to say which is newer.
+        private bool NeedsWinner(IVBComponents components, string name, string filePath, GitIgnoreSet ignored)
+        {
+            if (Snapshots.ContainsKey(name) || ignored.IsIgnored(RelativePathOf(filePath), false))
+            {
+                return false;
+            }
+
+            using (var component = FindComponent(components, name))
+            {
+                if (component == null || component.Type.FileExtension().Length == 0)
+                {
+                    return false;
+                }
+
+                if (GitSyncStamp.StateOfCode(CodeOf(component)) != null && GitSyncStamp.StateOfFile(ReadSource(filePath)) != null)
+                {
+                    return false;
+                }
+
+                return !IsSameAsFile(component, filePath);
+            }
+        }
+
+        private void SyncModule(IVBComponents components, string name, string filePath, GitIgnoreSet ignored, GitSyncResult result, InitialChoice? winner = null)
+        {
+            using (var component = FindComponent(components, name))
+            {
+                if (component != null && component.Type.FileExtension().Length == 0)
+                {
+                    return;
+                }
+
+                var fileExists = filePath != null
+                                 && _fileSystem.File.Exists(filePath)
+                                 && !ignored.IsIgnored(RelativePathOf(filePath), false);
+                if (!fileExists)
+                {
+                    filePath = null;
+                }
+
+                Snapshots.TryGetValue(name, out var snapshot);
+
+                var code = component == null ? null : CodeOf(component);
+                var fileText = fileExists ? ReadSource(filePath) : null;
+                var moduleStamp = GitSyncStamp.StateOfCode(code);
+                var fileStamp = GitSyncStamp.StateOfFile(fileText);
+                var fileWritten = fileExists ? _fileSystem.File.GetLastWriteTimeUtc(filePath) : DateTime.MinValue;
+                var now = DateTime.UtcNow;
+
+                //The stamps travel with the workbook and the repository, so they are the better guide; the local snapshot
+                //only decides where one side has not been stamped yet.
+                var decision = moduleStamp != null && fileStamp != null
+                    ? SyncDirectionResolver.DecideByStamps(moduleStamp, fileStamp, fileWritten, snapshot?.ModuleChangedUtc ?? now)
+                    : SyncDirectionResolver.Decide(
+                        snapshot,
+                        component == null ? null : ModuleHash(component),
+                        fileExists ? HashOfFile(filePath) : null,
+                        () => IsSameAsFile(component, filePath),
+                        fileWritten,
+                        now);
+
+                var direction = decision.Direction;
+                if (direction == SyncDirection.Ask)
+                {
+                    if (winner == null)
+                    {
+                        result.Notes.Add($"'{name}' exists in the project and in the folder, but nothing says which is newer. Run Git Sync... to choose.");
+                        return;
+                    }
+
+                    direction = winner == InitialChoice.Folder ? SyncDirection.Import : SyncDirection.Export;
+                }
+
+                switch (direction)
+                {
+                    case SyncDirection.Record:
+                        StampBoth(component, filePath, code, fileText, moduleStamp, fileStamp);
+                        Record(name, filePath, component);
+                        break;
+
+                    case SyncDirection.Import:
+                        if (decision.IsConflict)
+                        {
+                            BackUpModule(component, filePath, name, result);
+                        }
+
+                        StampFile(filePath, fileText, moduleStamp, fileStamp);
+                        ImportFile(components, component, name, filePath);
+                        result.Imported++;
+                        break;
+
+                    case SyncDirection.Export:
+                        if (decision.IsConflict)
+                        {
+                            BackUpFile(filePath, name, result);
+                        }
+
+                        StampModule(component, code, moduleStamp, fileStamp);
+                        if (ExportModule(component, name, ignored))
+                        {
+                            result.Exported++;
+                        }
+                        break;
                 }
             }
         }
 
-        private void ImportFile(IVBComponents components, string path, GitSyncResult result)
+        #region Stamps
+
+        private static string CodeOf(IVBComponent component)
         {
-            var name = _moduleNameExtractor.ModuleName(path);
-            if (name == null)
+            using (var module = component.CodeModule)
+            {
+                return module.Content() ?? string.Empty;
+            }
+        }
+
+        private string ReadSource(string path)
+        {
+            return _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path));
+        }
+
+        private static int NextRevision(StampState module, StampState file)
+        {
+            return Math.Max(module?.Revision ?? 0, file?.Revision ?? 0) + 1;
+        }
+
+        //Before a file is imported, its stamp has to describe its content; a hand edit or a merge may have invalidated it.
+        private void StampFile(string path, string fileText, StampState moduleStamp, StampState fileStamp)
+        {
+            if (fileStamp != null && !fileStamp.Dirty)
             {
                 return;
             }
 
-            var fileHash = HashOfFile(path);
-            if (_fileHashes.TryGetValue(path, out var knownHash) && knownHash == fileHash)
+            var hash = GitSyncStamp.HashOfCode(GitSyncStamp.CodeOfFile(fileText));
+            WriteFileStamp(path, fileText, NextRevision(moduleStamp, fileStamp), hash, _fileSystem.File.GetLastWriteTimeUtc(path));
+        }
+
+        //Before a module is exported, its stamp has to describe its code.
+        private void StampModule(IVBComponent component, string code, StampState moduleStamp, StampState fileStamp)
+        {
+            if (moduleStamp != null && !moduleStamp.Dirty)
             {
                 return;
             }
 
-            var text = _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.SourceEncoding);
+            Snapshots.TryGetValue(component.Name, out var snapshot);
+            SetModuleStamp(component, NextRevision(moduleStamp, fileStamp), GitSyncStamp.HashOfCode(code), snapshot?.ModuleChangedUtc ?? DateTime.UtcNow);
+        }
 
-            using (var component = FindComponent(components, name))
+        //Both sides hold the same code; give them the same stamp, keeping the revision if one side already has a valid stamp.
+        private void StampBoth(IVBComponent component, string filePath, string code, string fileText, StampState moduleStamp, StampState fileStamp)
+        {
+            if (component == null || filePath == null)
             {
-                if (component != null && IsSameAsFile(component, path))
-                {
-                    Record(name, path, fileHash, text, component.ContentHash());
-                    return;
-                }
+                return;
+            }
 
-                if (component == null)
+            var hash = GitSyncStamp.HashOfCode(code);
+            int revision;
+            DateTime utc;
+            if (moduleStamp != null && !moduleStamp.Dirty)
+            {
+                revision = moduleStamp.Revision;
+                utc = moduleStamp.Utc ?? DateTime.UtcNow;
+            }
+            else if (fileStamp != null && !fileStamp.Dirty)
+            {
+                revision = fileStamp.Revision;
+                utc = fileStamp.Utc ?? DateTime.UtcNow;
+            }
+            else
+            {
+                revision = NextRevision(moduleStamp, fileStamp);
+                Snapshots.TryGetValue(component.Name, out var snapshot);
+                utc = snapshot?.ModuleChangedUtc ?? DateTime.UtcNow;
+            }
+
+            if (moduleStamp == null || moduleStamp.Revision != revision || moduleStamp.Hash != hash || moduleStamp.Utc == null)
+            {
+                SetModuleStamp(component, revision, hash, utc);
+            }
+
+            if (fileStamp == null || fileStamp.Revision != revision || fileStamp.Hash != hash || fileStamp.Utc == null)
+            {
+                WriteFileStamp(filePath, fileText, revision, hash, utc);
+            }
+        }
+
+        private void WriteFileStamp(string path, string fileText, int revision, string hash, DateTime utc)
+        {
+            _fileSystem.File.WriteAllText(path, GitSyncStamp.WithStamp(fileText, revision, hash, utc), GitSyncFolderProcessor.EncodingFor(path));
+        }
+
+        private static void SetModuleStamp(IVBComponent component, int revision, string hash, DateTime utc)
+        {
+            var stamp = GitSyncStamp.Format(revision, hash, utc);
+            using (var module = component.CodeModule)
+            {
+                var lines = (module.Content() ?? string.Empty).Split(new[] { "\r\n" }, StringSplitOptions.None);
+                var index = Array.FindIndex(lines, GitSyncStamp.IsStampLine);
+                if (index >= 0)
                 {
-                    using (components.Import(path)) { }
-                }
-                else if (component.Type == ComponentType.Document)
-                {
-                    using (components.ImportSourceFile(path)) { }
+                    module.ReplaceLine(index + 1, stamp);
                 }
                 else
                 {
-                    components.Remove(component);
-                    using (components.Import(path)) { }
+                    module.InsertLines(1, stamp);
                 }
+            }
+        }
+
+        #endregion
+
+        private void ImportFile(IVBComponents components, IVBComponent existing, string name, string path)
+        {
+            if (existing == null)
+            {
+                using (components.Import(path)) { }
+            }
+            else if (existing.Type == ComponentType.Document)
+            {
+                using (components.ImportSourceFile(path)) { }
+            }
+            else
+            {
+                components.Remove(existing);
+                using (components.Import(path)) { }
             }
 
             using (var imported = FindComponent(components, name))
             {
-                Record(name, path, fileHash, text, imported?.ContentHash() ?? 0);
+                Record(name, path, imported);
+            }
+        }
+
+        //Returns whether a file was written.
+        private bool ExportModule(IVBComponent component, string name, GitIgnoreSet ignored)
+        {
+            var extension = component.Type.FileExtension();
+            var temp = ExportToTemp(component);
+            try
+            {
+                var text = _fileSystem.File.ReadAllText(temp, GitSyncFolderProcessor.EncodingFor(temp));
+                var folder = GitSyncText.GetFolderAnnotation(text) ?? string.Empty;
+
+                //The file stays where it is unless the module was moved to another virtual folder.
+                Snapshots.TryGetValue(name, out var snapshot);
+                var target = snapshot?.RelativePath != null && snapshot.Folder == folder
+                    ? _fileSystem.Path.Combine(Root, snapshot.RelativePath)
+                    : _fileSystem.Path.Combine(Root, GitSyncText.RelativeDirectory(folder), name + extension);
+
+                //Modules that belong in an ignored folder stay in the project only.
+                if (ignored.IsIgnored(RelativePathOf(target), false))
+                {
+                    Record(name, null, component);
+                    return false;
+                }
+
+                var changed = CopyIfDifferent(temp, target);
+
+                var binaryExtension = component.Type.BinaryFileExtension();
+                if (binaryExtension.Length > 0)
+                {
+                    var tempBinary = _fileSystem.Path.ChangeExtension(temp, binaryExtension);
+                    if (_fileSystem.File.Exists(tempBinary))
+                    {
+                        changed |= CopyIfDifferent(tempBinary, _fileSystem.Path.ChangeExtension(target, binaryExtension));
+                    }
+                }
+
+                var oldPath = TrackedPath(name);
+                if (oldPath != null && !PathsAreEqual(oldPath, target))
+                {
+                    DeleteWithBinary(oldPath, binaryExtension);
+                }
+
+                Record(name, target, component);
+                return changed;
+            }
+            finally
+            {
+                DeleteTempFiles(temp);
+            }
+        }
+
+        //Refreshes the snapshot: both sides are in agreement right now.
+        private void Record(string name, string filePath, IVBComponent component)
+        {
+            var folder = string.Empty;
+            if (component != null)
+            {
+                var temp = ExportToTemp(component);
+                try
+                {
+                    folder = GitSyncText.GetFolderAnnotation(_fileSystem.File.ReadAllText(temp, GitSyncFolderProcessor.EncodingFor(temp))) ?? string.Empty;
+                }
+                finally
+                {
+                    DeleteTempFiles(temp);
+                }
             }
 
-            result.Imported++;
+            Snapshots[name] = new ModuleSnapshot
+            {
+                ModuleHash = component == null ? null : ModuleHash(component),
+                FileHash = filePath == null ? null : HashOfFile(filePath),
+                RelativePath = filePath == null ? null : RelativePathOf(filePath),
+                Folder = folder,
+                ModuleChangedUtc = null
+            };
         }
 
-        private void Record(string name, string path, string fileHash, string text, int componentHash)
+        private void BackUpFile(string filePath, string name, GitSyncResult result)
         {
-            _fileHashes[path] = fileHash;
-            _modulePaths[name] = path;
-            _moduleFolders[name] = GitSyncText.GetFolderAnnotation(text) ?? string.Empty;
-            _componentHashes[name] = componentHash;
+            var backup = filePath + ".conflict-" + Stamp();
+            _fileSystem.File.Copy(filePath, backup, true);
+            result.Conflicts++;
+            result.Notes.Add($"'{name}' changed in both places; the project's version was kept. The file's version is saved as {backup}");
         }
+
+        private void BackUpModule(IVBComponent component, string filePath, string name, GitSyncResult result)
+        {
+            var backup = filePath + ".module-conflict-" + Stamp();
+            var temp = ExportToTemp(component);
+            try
+            {
+                _fileSystem.File.Copy(temp, backup, true);
+            }
+            finally
+            {
+                DeleteTempFiles(temp);
+            }
+
+            result.Conflicts++;
+            result.Notes.Add($"'{name}' changed in both places; the file's version was kept. The project's version is saved as {backup}");
+        }
+
+        private static string Stamp() => DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 
         private bool IsSameAsFile(IVBComponent component, string path)
         {
+            if (component == null || path == null)
+            {
+                return false;
+            }
+
             var temp = ExportToTemp(component);
             try
             {
@@ -348,95 +817,32 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return found;
         }
 
-        #endregion
-
-        #region Project -> folder
-
-        private void ExportChangedModulesCore(GitSyncResult result)
+        //The code module's own ContentHash is based on string.GetHashCode, which is not stable between runs.
+        private static string ModuleHash(IVBComponent component)
         {
-            var project = _projectsProvider.Project(ProjectId);
-            if (project == null)
+            var content = new StringBuilder();
+            using (var code = component.CodeModule)
             {
-                return;
+                content.Append(code.Content());
             }
 
-            using (var components = project.VBComponents)
+            if (component.HasDesigner)
             {
-                foreach (var component in components)
+                using (var controls = component.Controls)
                 {
-                    using (component)
+                    foreach (var control in controls)
                     {
-                        try
+                        using (control)
                         {
-                            ExportIfChanged(component, result);
-                        }
-                        catch (Exception exception)
-                        {
-                            result.Errors.Add($"Could not export '{component.Name}': {exception.Message}");
+                            content.Append('\u0001').Append(control.Name);
                         }
                     }
                 }
             }
-        }
 
-        private void ExportIfChanged(IVBComponent component, GitSyncResult result)
-        {
-            var extension = component.Type.FileExtension();
-            if (extension.Length == 0)
+            using (var sha = SHA1.Create())
             {
-                return;
-            }
-
-            var name = component.Name;
-            var hash = component.ContentHash();
-            if (_componentHashes.TryGetValue(name, out var knownHash) && knownHash == hash)
-            {
-                return;
-            }
-
-            var temp = ExportToTemp(component);
-            try
-            {
-                var text = _fileSystem.File.ReadAllText(temp, GitSyncFolderProcessor.SourceEncoding);
-                var folder = GitSyncText.GetFolderAnnotation(text) ?? string.Empty;
-
-                //The file stays where it is unless the module was moved to another virtual folder.
-                var target = _modulePaths.TryGetValue(name, out var trackedPath)
-                             && _moduleFolders.TryGetValue(name, out var trackedFolder)
-                             && trackedFolder == folder
-                    ? trackedPath
-                    : _fileSystem.Path.Combine(Root, GitSyncText.RelativeDirectory(folder), name + extension);
-
-                //Modules that belong in an ignored folder stay in the project only.
-                if (_processor.IsIgnored(Root, target))
-                {
-                    _componentHashes[name] = hash;
-                    return;
-                }
-
-                var changed = CopyIfDifferent(temp, target);
-
-                var binaryExtension = component.Type.BinaryFileExtension();
-                if (binaryExtension.Length > 0)
-                {
-                    var tempBinary = _fileSystem.Path.ChangeExtension(temp, binaryExtension);
-                    if (_fileSystem.File.Exists(tempBinary))
-                    {
-                        changed |= CopyIfDifferent(tempBinary, _fileSystem.Path.ChangeExtension(target, binaryExtension));
-                    }
-                }
-
-                if (_modulePaths.TryGetValue(name, out var oldPath) && !PathsAreEqual(oldPath, target))
-                {
-                    DeleteWithBinary(oldPath, binaryExtension);
-                }
-
-                Record(name, target, HashOfFile(target), text, hash);
-                result.Exported += changed ? 1 : 0;
-            }
-            finally
-            {
-                DeleteTempFiles(temp);
+                return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(content.ToString())));
             }
         }
 
@@ -528,8 +934,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 _disposed = true;
                 _watcher?.Dispose();
                 _debounce?.Dispose();
+                _poll?.Dispose();
                 _watcher = null;
                 _debounce = null;
+                _poll = null;
             }
 
             try

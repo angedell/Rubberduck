@@ -102,7 +102,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         //The exported header ends after the contiguous block of Attribute lines that starts at "Attribute VB_Name".
-        private static int IndexAfterHeader(IList<string> lines)
+        public static int IndexAfterHeader(IList<string> lines)
         {
             var firstAttribute = -1;
             for (var i = 0; i < lines.Count; i++)

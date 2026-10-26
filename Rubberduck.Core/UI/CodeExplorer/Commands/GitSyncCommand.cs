@@ -85,10 +85,16 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
             try
             {
-                var result = _gitSyncManager.Start(project, folder);
+                var result = _gitSyncManager.Start(project, folder, GitSyncInitialDialog.Ask);
+                if (result.Cancelled)
+                {
+                    return;
+                }
+
                 _messageBox.Message(string.Format(
                     CodeExplorerUI.GitSync_Summary,
-                    folder, result.Imported, result.Exported, result.LineEndingsFixed, result.FolderAnnotationsFixed, result.Errors.Count)
+                    folder, result.Imported, result.Exported, result.LineEndingsFixed, result.FolderAnnotationsFixed, result.Errors.Count, result.Conflicts)
+                    + (result.Notes.Count > 0 ? Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, result.Notes) : string.Empty)
                     + (result.Errors.Count > 0 ? Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, result.Errors) : string.Empty));
             }
             catch (Exception exception)

@@ -1428,5 +1428,59 @@ namespace Rubberduck.Resources.CodeExplorer {
                 return ResourceManager.GetString("CodeExplorer_GitSyncNowToolTip", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialExplanation.
+        /// </summary>
+        public static string GitSync_InitialExplanation {
+            get {
+                return ResourceManager.GetString("GitSync_InitialExplanation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialModuleColumn.
+        /// </summary>
+        public static string GitSync_InitialModuleColumn {
+            get {
+                return ResourceManager.GetString("GitSync_InitialModuleColumn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialFileModifiedColumn.
+        /// </summary>
+        public static string GitSync_InitialFileModifiedColumn {
+            get {
+                return ResourceManager.GetString("GitSync_InitialFileModifiedColumn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialFolderWins.
+        /// </summary>
+        public static string GitSync_InitialFolderWins {
+            get {
+                return ResourceManager.GetString("GitSync_InitialFolderWins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialProjectWins.
+        /// </summary>
+        public static string GitSync_InitialProjectWins {
+            get {
+                return ResourceManager.GetString("GitSync_InitialProjectWins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialContinue.
+        /// </summary>
+        public static string GitSync_InitialContinue {
+            get {
+                return ResourceManager.GetString("GitSync_InitialContinue", resourceCulture);
+            }
+        }
     }
 }
