@@ -38,6 +38,9 @@ namespace Rubberduck.Navigation.CodeExplorer
             AddNewChildren(ref declarations);
         }
 
+        public override bool CanBeMarked => Declaration != null
+                                            && Declaration.QualifiedModuleName.ComponentType != ComponentType.Document;
+
         private string _name;
         public override string Name => _name;
 

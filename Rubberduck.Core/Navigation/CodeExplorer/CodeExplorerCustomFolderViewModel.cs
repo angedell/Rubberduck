@@ -53,6 +53,8 @@ namespace Rubberduck.Navigation.CodeExplorer
         /// </summary>
         public int FolderDepth { get; }
 
+        public override bool CanBeMarked => true;
+
         public override QualifiedSelection? QualifiedSelection => null;
 
         public override bool IsErrorState

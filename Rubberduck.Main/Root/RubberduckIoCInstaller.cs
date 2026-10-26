@@ -65,6 +65,7 @@ using Rubberduck.Refactoring.ParseTreeValue;
 using System.IO.Abstractions;
 using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.UI.Command.ComCommands;
+using Rubberduck.UI.CodeExplorer.GitSync;
 using Rubberduck.VBEditor.ComManagement.NonDisposalDecorators;
 
 namespace Rubberduck.Root
@@ -176,6 +177,9 @@ namespace Rubberduck.Root
             RegisterDockableUserControls(container);
 
             container.Register(Component.For<ProjectToExportFolderMap>()
+                .LifestyleSingleton());
+
+            container.Register(Component.For<GitSyncManager>()
                 .LifestyleSingleton());
 
             RegisterCommands(container);

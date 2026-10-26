@@ -1203,5 +1203,284 @@ namespace Rubberduck.Resources.CodeExplorer {
                 return ResourceManager.GetString("UpdateFromFiles", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync.
+        /// </summary>
+        public static string GitSync {
+            get {
+                return ResourceManager.GetString("GitSync", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_DialogTitle.
+        /// </summary>
+        public static string GitSync_DialogTitle {
+            get {
+                return ResourceManager.GetString("GitSync_DialogTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_FolderDialogDescription.
+        /// </summary>
+        public static string GitSync_FolderDialogDescription {
+            get {
+                return ResourceManager.GetString("GitSync_FolderDialogDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_AlreadySyncing.
+        /// </summary>
+        public static string GitSync_AlreadySyncing {
+            get {
+                return ResourceManager.GetString("GitSync_AlreadySyncing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Summary.
+        /// </summary>
+        public static string GitSync_Summary {
+            get {
+                return ResourceManager.GetString("GitSync_Summary", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Failed.
+        /// </summary>
+        public static string GitSync_Failed {
+            get {
+                return ResourceManager.GetString("GitSync_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_SelectModeToolTip.
+        /// </summary>
+        public static string CodeExplorer_SelectModeToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_SelectModeToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_RemoveSelectedToolTip.
+        /// </summary>
+        public static string CodeExplorer_RemoveSelectedToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_RemoveSelectedToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_Caption.
+        /// </summary>
+        public static string BulkRemove_Caption {
+            get {
+                return ResourceManager.GetString("BulkRemove_Caption", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_ExportFailed.
+        /// </summary>
+        public static string BulkRemove_ExportFailed {
+            get {
+                return ResourceManager.GetString("BulkRemove_ExportFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_SuspendFailed.
+        /// </summary>
+        public static string BulkRemove_SuspendFailed {
+            get {
+                return ResourceManager.GetString("BulkRemove_SuspendFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_Summary.
+        /// </summary>
+        public static string BulkRemove_Summary {
+            get {
+                return ResourceManager.GetString("BulkRemove_Summary", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_BeforeRemoving.
+        /// </summary>
+        public static string BulkRemove_BeforeRemoving {
+            get {
+                return ResourceManager.GetString("BulkRemove_BeforeRemoving", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_ExportFirst.
+        /// </summary>
+        public static string BulkRemove_ExportFirst {
+            get {
+                return ResourceManager.GetString("BulkRemove_ExportFirst", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_NoExport.
+        /// </summary>
+        public static string BulkRemove_NoExport {
+            get {
+                return ResourceManager.GetString("BulkRemove_NoExport", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_Layout.
+        /// </summary>
+        public static string BulkRemove_Layout {
+            get {
+                return ResourceManager.GetString("BulkRemove_Layout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_PreserveStructure.
+        /// </summary>
+        public static string BulkRemove_PreserveStructure {
+            get {
+                return ResourceManager.GetString("BulkRemove_PreserveStructure", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_SingleFolder.
+        /// </summary>
+        public static string BulkRemove_SingleFolder {
+            get {
+                return ResourceManager.GetString("BulkRemove_SingleFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_FolderLabel.
+        /// </summary>
+        public static string BulkRemove_FolderLabel {
+            get {
+                return ResourceManager.GetString("BulkRemove_FolderLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_Browse.
+        /// </summary>
+        public static string BulkRemove_Browse {
+            get {
+                return ResourceManager.GetString("BulkRemove_Browse", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_BrowseDescription.
+        /// </summary>
+        public static string BulkRemove_BrowseDescription {
+            get {
+                return ResourceManager.GetString("BulkRemove_BrowseDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_RemoveButton.
+        /// </summary>
+        public static string BulkRemove_RemoveButton {
+            get {
+                return ResourceManager.GetString("BulkRemove_RemoveButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_Cancel.
+        /// </summary>
+        public static string BulkRemove_Cancel {
+            get {
+                return ResourceManager.GetString("BulkRemove_Cancel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to BulkRemove_InvalidFolder.
+        /// </summary>
+        public static string BulkRemove_InvalidFolder {
+            get {
+                return ResourceManager.GetString("BulkRemove_InvalidFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_GitSyncNowToolTip.
+        /// </summary>
+        public static string CodeExplorer_GitSyncNowToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_GitSyncNowToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialExplanation.
+        /// </summary>
+        public static string GitSync_InitialExplanation {
+            get {
+                return ResourceManager.GetString("GitSync_InitialExplanation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialModuleColumn.
+        /// </summary>
+        public static string GitSync_InitialModuleColumn {
+            get {
+                return ResourceManager.GetString("GitSync_InitialModuleColumn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialFileModifiedColumn.
+        /// </summary>
+        public static string GitSync_InitialFileModifiedColumn {
+            get {
+                return ResourceManager.GetString("GitSync_InitialFileModifiedColumn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialFolderWins.
+        /// </summary>
+        public static string GitSync_InitialFolderWins {
+            get {
+                return ResourceManager.GetString("GitSync_InitialFolderWins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialProjectWins.
+        /// </summary>
+        public static string GitSync_InitialProjectWins {
+            get {
+                return ResourceManager.GetString("GitSync_InitialProjectWins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialContinue.
+        /// </summary>
+        public static string GitSync_InitialContinue {
+            get {
+                return ResourceManager.GetString("GitSync_InitialContinue", resourceCulture);
+            }
+        }
     }
 }
