@@ -87,7 +87,11 @@ namespace Rubberduck.Settings
             Line("    // What happens to a module or file that breaks an enforced rule: \"fix\" repairs it while it is synced (adds the missing");
             Line("    // annotation or attribute, sets an attribute to what its annotation says; a missing @Folder is set from the file's folder),");
             Line("    // \"block\" cannot be synced until it is fixed by hand, \"warn\" is only flagged in the Git Sync window.");
-            Line("    \"onViolation\": \"fix\"");
+            Line("    \"onViolation\": \"fix\",");
+            Line();
+            Line("    // VBA does not care about case, so with true (the default) a difference in upper and lower case is not a difference,");
+            Line("    // except inside a string literal, where it matters. Set to false to treat every change of case as a change.");
+            Line("    \"ignoreCaseOutsideStrings\": true");
             Line("  }");
             Line("}");
             return text.ToString();

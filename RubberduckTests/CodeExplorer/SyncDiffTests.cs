@@ -84,6 +84,17 @@ namespace RubberduckTests.CodeExplorer
         }
 
         [Test]
+        public void CaseOutsideStrings_IsADifferenceOnlyWhenAskedFor()
+        {
+            var module = Text("Public Sub A()", "Debug.Print \"Hi\"", "End Sub");
+            var file = Text("PUBLIC SUB a()", "debug.print \"Hi\"", "end sub");
+
+            Assert.AreEqual(0, new SyncDiff(module, file, true).Hunks.Count);
+            Assert.AreEqual(1, new SyncDiff(module, file).Hunks.Count);
+            Assert.AreEqual(1, new SyncDiff(module, file.Replace("\"Hi\"", "\"HI\""), true).Hunks.Count, "inside a string it counts");
+        }
+
+        [Test]
         public void Merge_WithBoth_KeepsTheProjectsLinesThenTheFolders()
         {
             var diff = new SyncDiff(Text("A", "m", "B"), Text("A", "f", "B"));

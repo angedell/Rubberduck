@@ -155,9 +155,9 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         /// Opens the comparison. Every difference starts on the side the history favors (<paramref name="preferred"/>), or is left for the user
         /// when that is <see cref="HunkChoice.Unresolved"/>.
         /// </summary>
-        public static string Ask(IWin32Window owner, string name, string moduleText, string fileText, HunkChoice preferred)
+        public static string Ask(IWin32Window owner, string name, string moduleText, string fileText, HunkChoice preferred, bool ignoreCaseOutsideStrings = false)
         {
-            using (var dialog = new GitSyncCompareDialog(name, new SyncDiff(moduleText, fileText), preferred))
+            using (var dialog = new GitSyncCompareDialog(name, new SyncDiff(moduleText, fileText, ignoreCaseOutsideStrings), preferred))
             {
                 if (dialog._diff.Hunks.Count == 0)
                 {
@@ -488,7 +488,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             for (var i = 0; i < Math.Min(hunk.ModuleCount, hunk.FileCount); i++)
             {
                 var row = _firstRow[index] + i;
-                foreach (var diff in WinMergeWordDiff.Compute(_diff.ModuleLines[hunk.ModuleStart + i], _diff.FileLines[hunk.FileStart + i]))
+                foreach (var diff in WinMergeWordDiff.Compute(_diff.Fold(_diff.ModuleLines[hunk.ModuleStart + i]), _diff.Fold(_diff.FileLines[hunk.FileStart + i])))
                 {
                     if (hunk.Choice != HunkChoice.File)
                     {

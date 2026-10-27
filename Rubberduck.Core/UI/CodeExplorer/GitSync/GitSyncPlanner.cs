@@ -142,7 +142,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _settings = settings;
             _indenter = indenter;
             _config = config ?? new SyncConfig();
-            _cache = cache ?? new SignatureCache(settings);
+            _cache = cache ?? new SignatureCache(settings, null, _config.IgnoreCaseOutsideStrings);
         }
 
         /// <summary>How many modules and files have been compared so far. Safe to read while <see cref="Plan"/> runs.</summary>

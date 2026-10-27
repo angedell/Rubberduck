@@ -38,11 +38,15 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly IList<string> _module;
         private readonly IList<string> _file;
 
-        public SyncDiff(string moduleText, string fileText)
+        private readonly bool _ignoreCase;
+
+        /// <param name="ignoreCaseOutsideStrings">Lines that only differ in case outside of string literals are the same line.</param>
+        public SyncDiff(string moduleText, string fileText, bool ignoreCaseOutsideStrings = false)
         {
+            _ignoreCase = ignoreCaseOutsideStrings;
             _module = SyncText.Lines(moduleText).ToList();
             _file = SyncText.Lines(fileText).ToList();
-            Hunks = Compare(_module, _file);
+            Hunks = Compare(_module, _file, Key);
         }
 
         public IList<string> ModuleLines => _module;
@@ -89,12 +93,15 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return string.Join("\r\n", result);
         }
 
-        //What counts as the same line.
-        private static string Key(string line) => line.Trim();
+        /// <summary>A line as the comparison sees it: case is folded where the setting says so. Same length as the line.</summary>
+        public string Fold(string line) => _ignoreCase ? SyncText.FoldCase(line) : line;
 
-        private static IReadOnlyList<DiffHunk> Compare(IList<string> module, IList<string> file)
+        //What counts as the same line.
+        private string Key(string line) => Fold(line).Trim();
+
+        private static IReadOnlyList<DiffHunk> Compare(IList<string> module, IList<string> file, Func<string, string> key)
         {
-            return WinMergeLineDiff.Compare(module, file, Key)
+            return WinMergeLineDiff.Compare(module, file, key)
                 .Select(change => new DiffHunk
                 {
                     ModuleStart = change.Line0,

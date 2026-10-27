@@ -50,6 +50,36 @@ namespace RubberduckTests.CodeExplorer
         }
 
         [Test]
+        public void Signature_WithCaseIgnored_IgnoresCaseOutsideStrings()
+        {
+            var lower = Header + "Public Sub a()\r\nDim x As Long ' note\r\nEnd Sub\r\n";
+            var upper = Header + "PUBLIC SUB A()\r\ndim X as long ' NOTE\r\nEND SUB\r\n";
+
+            Assert.AreEqual(SyncText.Signature(lower, Settings, Indenter, true), SyncText.Signature(upper, Settings, Indenter, true));
+            Assert.AreNotEqual(Signature(lower), Signature(upper), "the case counts unless asked otherwise");
+        }
+
+        [Test]
+        public void Signature_WithCaseIgnored_StillSeesCaseInsideStrings()
+        {
+            var one = Header + "Public Sub A()\r\nDebug.Print \"Hello\"\r\nEnd Sub\r\n";
+            var other = Header + "Public Sub A()\r\nDebug.Print \"HELLO\"\r\nEnd Sub\r\n";
+            var quoted = Header + "Public Sub A()\r\nDebug.Print \"a \"\"B\"\" c\"\r\nEnd Sub\r\n";
+            var quotedOther = Header + "Public Sub A()\r\nDebug.Print \"a \"\"b\"\" c\"\r\nEnd Sub\r\n";
+
+            Assert.AreNotEqual(SyncText.Signature(one, Settings, Indenter, true), SyncText.Signature(other, Settings, Indenter, true));
+            Assert.AreNotEqual(SyncText.Signature(quoted, Settings, Indenter, true), SyncText.Signature(quotedOther, Settings, Indenter, true), "a doubled quote does not end the string");
+        }
+
+        [Test]
+        public void FoldCase_KeepsLengthAndStrings()
+        {
+            const string line = "Dim S As String: S = \"AbC\" & \"x\"\"Y\" ' ToDo";
+
+            Assert.AreEqual("dim s as string: s = \"AbC\" & \"x\"\"Y\" ' todo", SyncText.FoldCase(line));
+        }
+
+        [Test]
         public void Signature_NoticesAttributeChanges()
         {
             var plain = Header + "Option Explicit\r\n";

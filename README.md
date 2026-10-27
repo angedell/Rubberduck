@@ -24,11 +24,13 @@ Compares a VBA project with a folder on disk, subfolders included, so the code c
     "sync": {
       "ignore": ["/modScratch.bas", "Sandbox/"],
       "enforce": ["AttributeValueOutOfSync", "MissingAttribute", "MissingModuleAnnotation", "ModuleWithoutFolder"],
-      "onViolation": "fix"
+      "onViolation": "fix",
+      "ignoreCaseOutsideStrings": true
     }
   }
   ```
   `indenter` takes the names of the indenter settings and also applies to the editor while the project is the active one. `enforce` lists the rules a module or file has to follow to be used as the source of a sync; with `"fix"` (the default) the sync repairs it as it goes, the way Rubberduck's own quick fixes would (a `True` attribute gets its `'@PredeclaredId`/`'@Exposed` annotation, an annotation sets its attribute, `VB_Name` is added or corrected, a missing `@Folder` is set from the file's folder) and writes the repaired text to both the module and the file; with `"block"` it cannot be ticked until fixed by hand, with `"warn"` it is only flagged. A module with no `@Folder` whose file is in the root cannot be repaired automatically.
+- **Case:** VBA does not care about upper and lower case, so by default (`"ignoreCaseOutsideStrings": true` in `rubberduck.json`) a change of case is not a change, except inside a string literal, where it counts. Comments count as code here. Set it to `false` to treat every change of case as a change. Changing the setting changes how modules compare, so modules that differ may show up as changed on both sides once until they are synced again.
 - **Excluding things:** besides `sync.ignore`, a `.rdsyncignore` file in the sync folder or any subfolder works, using the `.gitignore` syntax. It is a separate file so it cannot be confused with git's own `.gitignore`.
 - **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
 

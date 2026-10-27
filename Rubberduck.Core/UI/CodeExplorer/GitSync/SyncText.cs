@@ -104,10 +104,44 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         /// <summary>
+        /// The text in lower case except for what is inside string literals. VBA does not tell upper and lower case apart, apart from in strings.
+        /// A string runs from a quote to the next one, and a doubled quote inside it is a quote that belongs to it; strings do not span lines.
+        /// The result is as long as the text, so positions in it are positions in the original.
+        /// </summary>
+        public static string FoldCase(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            var folded = text.ToCharArray();
+            var inString = false;
+            for (var i = 0; i < folded.Length; i++)
+            {
+                var ch = folded[i];
+                if (ch == '\n' || ch == '\r')
+                {
+                    inString = false;
+                }
+                else if (ch == '"')
+                {
+                    inString = !inString;
+                }
+                else if (!inString)
+                {
+                    folded[i] = char.ToLowerInvariant(ch);
+                }
+            }
+
+            return new string(folded);
+        }
+
+        /// <summary>
         /// A short hash of everything that matters about the file: its header and attributes as they are, and its code once it
         /// is indented the way the settings say. Two files that only differ in line endings, indentation, stamps or trailing space have the same signature.
         /// </summary>
-        public static string Signature(string fileText, IIndenterSettings settings, ISimpleIndenter indenter)
+        public static string Signature(string fileText, IIndenterSettings settings, ISimpleIndenter indenter, bool ignoreCaseOutsideStrings = false)
         {
             var lines = Lines(fileText);
             var start = CodeStart(lines);
@@ -133,6 +167,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var normalized = string.Join("\n", header)
                              + "\u0001" + string.Join("\n", attributes)
                              + "\u0001" + string.Join("\n", code.SelectMany(Lines).Select(line => line.TrimEnd())).Trim('\n');
+            if (ignoreCaseOutsideStrings)
+            {
+                normalized = FoldCase(normalized);
+            }
 
             using (var sha = SHA1.Create())
             {

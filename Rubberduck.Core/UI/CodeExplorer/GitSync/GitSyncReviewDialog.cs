@@ -287,7 +287,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var preferred = _actions[item] == SyncAction.Export ? HunkChoice.Module
                 : _actions[item] == SyncAction.Import ? HunkChoice.File
                 : HunkChoice.Unresolved;
-            var merged = GitSyncCompareDialog.Ask(this, item.Name, item.ModuleText, item.FileText, preferred);
+            var merged = GitSyncCompareDialog.Ask(this, item.Name, item.ModuleText, item.FileText, preferred, _scan.Config.Sync.IgnoreCaseOutsideStrings);
             if (merged == null)
             {
                 return;

@@ -60,6 +60,11 @@ namespace Rubberduck.Settings
         public List<string> Enforce { get; } = new List<string>();
 
         public ViolationMode OnViolation { get; set; } = ViolationMode.Fix;
+
+        /// <summary>
+        /// VBA does not care about case, so a difference in case outside of string literals is not a difference. Inside a string it is.
+        /// </summary>
+        public bool IgnoreCaseOutsideStrings { get; set; } = true;
     }
 
     /// <summary>
@@ -75,7 +80,8 @@ namespace Rubberduck.Settings
     ///   "sync": {
     ///     "ignore": ["modScratch.bas", "Sandbox/"],
     ///     "enforce": ["ModuleWithoutFolder", "MissingAttribute"],
-    ///     "onViolation": "fix"
+    ///     "onViolation": "fix",
+    ///     "ignoreCaseOutsideStrings": true
     ///   }
     /// }
     /// </code>
@@ -200,6 +206,16 @@ namespace Rubberduck.Settings
                         else
                         {
                             errors.Add($"Invalid value for sync setting 'onViolation': {property.Value}. Use \"fix\", \"block\" or \"warn\".");
+                        }
+                        break;
+                    case "ignorecaseoutsidestrings":
+                        if (property.Value.Type == JTokenType.Boolean)
+                        {
+                            sync.IgnoreCaseOutsideStrings = property.Value.Value<bool>();
+                        }
+                        else
+                        {
+                            errors.Add($"Invalid value for sync setting 'ignoreCaseOutsideStrings': {property.Value}. Use true or false.");
                         }
                         break;
                     case "$comment":

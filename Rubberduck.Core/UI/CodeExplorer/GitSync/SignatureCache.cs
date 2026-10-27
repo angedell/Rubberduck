@@ -36,12 +36,14 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly ConcurrentDictionary<string, string> _entries;
         private readonly ConcurrentDictionary<string, bool> _used = new ConcurrentDictionary<string, bool>();
         private readonly string _settingsKey;
+        private readonly bool _ignoreCase;
         private int _hits;
         private int _misses;
 
-        public SignatureCache(IIndenterSettings settings, IDictionary<string, string> entries = null)
+        public SignatureCache(IIndenterSettings settings, IDictionary<string, string> entries = null, bool ignoreCaseOutsideStrings = false)
         {
-            _settingsKey = AlgorithmVersion + "|" + KeyOf(settings);
+            _ignoreCase = ignoreCaseOutsideStrings;
+            _settingsKey = AlgorithmVersion + "|case=" + (ignoreCaseOutsideStrings ? "fold" : "exact") + "|" + KeyOf(settings);
             _entries = new ConcurrentDictionary<string, string>(entries ?? new Dictionary<string, string>());
         }
 
@@ -68,7 +70,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             }
 
             Interlocked.Increment(ref _misses);
-            var signature = SyncText.Signature(text, settings, indenter);
+            var signature = SyncText.Signature(text, settings, indenter, _ignoreCase);
             _entries[key] = signature;
             return signature;
         }
@@ -87,7 +89,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         public static string DefaultPath => System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Rubberduck", "gitsync-cache.json");
 
-        public static SignatureCache Load(IFileSystem fileSystem, IIndenterSettings settings, string path = null)
+        public static SignatureCache Load(IFileSystem fileSystem, IIndenterSettings settings, string path = null, bool ignoreCaseOutsideStrings = false)
         {
             path = path ?? DefaultPath;
             try
@@ -95,7 +97,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 if (fileSystem.File.Exists(path))
                 {
                     var entries = JsonConvert.DeserializeObject<Dictionary<string, string>>(fileSystem.File.ReadAllText(path));
-                    return new SignatureCache(settings, entries);
+                    return new SignatureCache(settings, entries, ignoreCaseOutsideStrings);
                 }
             }
             catch (Exception exception) when (exception is JsonException || exception is System.IO.IOException)
@@ -103,7 +105,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 Logger.Warn(exception, "Could not read the git sync cache; starting with an empty one.");
             }
 
-            return new SignatureCache(settings);
+            return new SignatureCache(settings, null, ignoreCaseOutsideStrings);
         }
 
         /// <summary>Saves the cache. Once it grows too large only the entries used since it was loaded are kept.</summary>

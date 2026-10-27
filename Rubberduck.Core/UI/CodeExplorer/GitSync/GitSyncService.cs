@@ -115,7 +115,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var statePath = _stateStore.PathFor(config.Path, root);
             var state = _stateStore.Load(statePath);
             var ignored = _processor.LoadIgnoreRules(root, config.Sync.Ignore);
-            var cache = SignatureCache.Load(_fileSystem, settings);
+            var cache = SignatureCache.Load(_fileSystem, settings, null, config.Sync.IgnoreCaseOutsideStrings);
             var setup = timer.ElapsedMilliseconds;
 
             //The VBE part: one module after the other, on this thread.
