@@ -65,6 +65,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _list.Columns.Add(CodeExplorerUI.GitSync_Col_Action, 150);
             _list.Columns.Add(CodeExplorerUI.GitSync_Col_Notes, 320);
             _list.ItemCheck += OnItemCheck;
+            _list.DoubleClick += (s, e) => CompareSelected();
 
             _hint = new Label
             {
@@ -80,7 +81,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var useModule = Button(CodeExplorerUI.GitSync_UseModule, 202, bottom, 130, (s, e) => ChooseForSelected(SyncAction.Export));
             var useFile = Button(CodeExplorerUI.GitSync_UseFile, 336, bottom, 130, (s, e) => ChooseForSelected(SyncAction.Import));
             var ignoreButton = Button(CodeExplorerUI.GitSync_IgnoreSelected, 470, bottom, 120, (s, e) => IgnoreSelected());
-            foreach (var button in new[] { selectAll, selectNone, useModule, useFile, ignoreButton })
+            var compare = Button(CodeExplorerUI.GitSync_Compare, 594, bottom, 100, (s, e) => CompareSelected());
+            foreach (var button in new[] { selectAll, selectNone, useModule, useFile, ignoreButton, compare })
             {
                 button.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             }
@@ -92,7 +94,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             apply.Click += (s, e) => Apply();
             var cancel = new Button { Text = CodeExplorerUI.BulkRemove_Cancel, Location = new Point(734, 490), Size = new Size(74, 26), Anchor = AnchorStyles.Bottom | AnchorStyles.Right, DialogResult = DialogResult.Cancel };
 
-            Controls.AddRange(new Control[] { _header, _list, _hint, selectAll, selectNone, useModule, useFile, ignoreButton, changeFolder, apply, cancel });
+            Controls.AddRange(new Control[] { _header, _list, _hint, selectAll, selectNone, useModule, useFile, ignoreButton, compare, changeFolder, apply, cancel });
             CancelButton = cancel;
 
             _header.Tag = projectName;
@@ -190,6 +192,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             {
                 case SyncAction.Export: return CodeExplorerUI.GitSync_Action_Export;
                 case SyncAction.Import: return CodeExplorerUI.GitSync_Action_Import;
+                case SyncAction.Merge: return CodeExplorerUI.GitSync_Action_Merge;
                 default: return CodeExplorerUI.GitSync_Action_None;
             }
         }
@@ -263,6 +266,40 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 row.Checked = !item.IsBlockedFor(action);
             }
 
+            ShowHint();
+        }
+
+        //Opens the two sides next to each other; what the user merges becomes the item's action.
+        private void CompareSelected()
+        {
+            if (_list.SelectedItems.Count != 1)
+            {
+                return;
+            }
+
+            var row = _list.SelectedItems[0];
+            var item = (SyncItem)row.Tag;
+            if (!item.CanCompare)
+            {
+                return; //Only on one side, so there is nothing to compare it with.
+            }
+
+            var preferred = _actions[item] == SyncAction.Export ? HunkChoice.Module
+                : _actions[item] == SyncAction.Import ? HunkChoice.File
+                : HunkChoice.Unresolved;
+            var merged = GitSyncCompareDialog.Ask(this, item.Name, item.ModuleText, item.FileText, preferred);
+            if (merged == null)
+            {
+                return;
+            }
+
+            item.MergedText = merged;
+            item.MergedViolations.Clear();
+            item.MergedViolations.AddRange(SyncHygiene.Check(item.Name, merged, SyncSide.File, _scan.Config.Sync, item.RelativePath.IndexOfAny(new[] { '\\', '/' }) >= 0));
+            _actions[item] = SyncAction.Merge;
+            RefreshRow(row);
+            row.Checked = false;
+            row.Checked = !item.IsBlockedFor(SyncAction.Merge);
             ShowHint();
         }
 

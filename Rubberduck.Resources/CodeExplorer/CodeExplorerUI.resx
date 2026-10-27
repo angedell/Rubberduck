@@ -698,4 +698,64 @@ Errors: {2}</value>
 
 It holds your current indenter settings and the default sync settings, with a comment for each. Commit it with the code; everyone who syncs this folder then indents the same way.</value>
   </data>
+  <data name="GitSync_Action_Merge" xml:space="preserve">
+    <value>Merge both sides</value>
+  </data>
+  <data name="GitSync_Compare" xml:space="preserve">
+    <value>Compare...</value>
+  </data>
+  <data name="GitSync_Compare_Title" xml:space="preserve">
+    <value>Compare {0}</value>
+  </data>
+  <data name="GitSync_Compare_Module" xml:space="preserve">
+    <value>Project</value>
+  </data>
+  <data name="GitSync_Compare_File" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="GitSync_Compare_Prev" xml:space="preserve">
+    <value>Previous difference</value>
+  </data>
+  <data name="GitSync_Compare_Next" xml:space="preserve">
+    <value>Next difference</value>
+  </data>
+  <data name="GitSync_Compare_UseModule" xml:space="preserve">
+    <value>Use project</value>
+  </data>
+  <data name="GitSync_Compare_UseFile" xml:space="preserve">
+    <value>Use folder</value>
+  </data>
+  <data name="GitSync_Compare_AllModule" xml:space="preserve">
+    <value>All from project</value>
+  </data>
+  <data name="GitSync_Compare_AllFile" xml:space="preserve">
+    <value>All from folder</value>
+  </data>
+  <data name="GitSync_Compare_Accept" xml:space="preserve">
+    <value>Merge</value>
+  </data>
+  <data name="GitSync_Compare_Status" xml:space="preserve">
+    <value>Difference {0} of {1}. Resolved: {2} of {1}.</value>
+  </data>
+  <data name="GitSync_Compare_NoDifferences" xml:space="preserve">
+    <value>The two sides have the same lines; they only differ in how the file is placed or in indentation.</value>
+  </data>
+  <data name="GitSync_Compare_Unresolved" xml:space="preserve">
+    <value>Pick a side for every difference first, or use the All buttons.</value>
+  </data>
+  <data name="GitSync_Compare_Result" xml:space="preserve">
+    <value>Result (edit freely)</value>
+  </data>
+  <data name="GitSync_Compare_UseBoth" xml:space="preserve">
+    <value>Use both</value>
+  </data>
+  <data name="GitSync_Compare_Legend" xml:space="preserve">
+    <value>Click a highlighted block in Project or Folder to put it in Result; click it again to take it back. Ctrl+click takes both. You can also type in Result.</value>
+  </data>
+  <data name="GitSync_Compare_Placeholder" xml:space="preserve">
+    <value>&lt;&lt;&lt; click the project's or the folder's version &gt;&gt;&gt;</value>
+  </data>
+  <data name="GitSync_Compare_DiscardEdits" xml:space="preserve">
+    <value>This part of the result was edited by hand. Replace your edits?</value>
+  </data>
 </root>

@@ -1752,5 +1752,185 @@ namespace Rubberduck.Resources.CodeExplorer {
             }
         }
         
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Action_Merge.
+        /// </summary>
+        public static string GitSync_Action_Merge {
+            get {
+                return ResourceManager.GetString("GitSync_Action_Merge", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare.
+        /// </summary>
+        public static string GitSync_Compare {
+            get {
+                return ResourceManager.GetString("GitSync_Compare", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Title.
+        /// </summary>
+        public static string GitSync_Compare_Title {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Module.
+        /// </summary>
+        public static string GitSync_Compare_Module {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Module", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_File.
+        /// </summary>
+        public static string GitSync_Compare_File {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_File", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Prev.
+        /// </summary>
+        public static string GitSync_Compare_Prev {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Prev", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Next.
+        /// </summary>
+        public static string GitSync_Compare_Next {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Next", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_UseModule.
+        /// </summary>
+        public static string GitSync_Compare_UseModule {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_UseModule", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_UseFile.
+        /// </summary>
+        public static string GitSync_Compare_UseFile {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_UseFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_AllModule.
+        /// </summary>
+        public static string GitSync_Compare_AllModule {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_AllModule", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_AllFile.
+        /// </summary>
+        public static string GitSync_Compare_AllFile {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_AllFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Accept.
+        /// </summary>
+        public static string GitSync_Compare_Accept {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Accept", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Status.
+        /// </summary>
+        public static string GitSync_Compare_Status {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Status", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_NoDifferences.
+        /// </summary>
+        public static string GitSync_Compare_NoDifferences {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_NoDifferences", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Unresolved.
+        /// </summary>
+        public static string GitSync_Compare_Unresolved {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Unresolved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Result.
+        /// </summary>
+        public static string GitSync_Compare_Result {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Result", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_UseBoth.
+        /// </summary>
+        public static string GitSync_Compare_UseBoth {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_UseBoth", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Legend.
+        /// </summary>
+        public static string GitSync_Compare_Legend {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Legend", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_Placeholder.
+        /// </summary>
+        public static string GitSync_Compare_Placeholder {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_Placeholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Compare_DiscardEdits.
+        /// </summary>
+        public static string GitSync_Compare_DiscardEdits {
+            get {
+                return ResourceManager.GetString("GitSync_Compare_DiscardEdits", resourceCulture);
+            }
+        }
     }
 }

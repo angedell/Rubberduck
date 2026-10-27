@@ -30,7 +30,9 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         /// <summary>Write the module to the file.</summary>
         Export,
         /// <summary>Load the file into the project.</summary>
-        Import
+        Import,
+        /// <summary>Take each difference from the side the user picked, and write the result to both.</summary>
+        Merge
     }
 
     /// <summary>A module of the project, as the VBE exports it.</summary>
@@ -77,12 +79,31 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         public List<SyncViolation> Violations { get; } = new List<SyncViolation>();
 
+        /// <summary>The module as the VBE exports it. Kept for the items that are out of sync and exist on both sides, so they can be compared line by line.</summary>
+        public string ModuleText { get; set; }
+
+        /// <summary>The file, ready for import. Kept like <see cref="ModuleText"/>.</summary>
+        public string FileText { get; set; }
+
+        /// <summary>The text the user merged from both sides, for <see cref="SyncAction.Merge"/>.</summary>
+        public string MergedText { get; set; }
+
+        /// <summary>What the merged text breaks.</summary>
+        public List<SyncViolation> MergedViolations { get; } = new List<SyncViolation>();
+
+        public bool CanCompare => ModuleText != null && FileText != null;
+
         /// <summary>The action the user went for, set by the review.</summary>
         public SyncAction Chosen { get; set; }
 
         /// <summary>Whether using the given side as the source is stopped by a rule the config enforces.</summary>
         public bool IsBlockedFor(SyncAction action)
         {
+            if (action == SyncAction.Merge)
+            {
+                return MergedViolations.Any(violation => violation.Blocking);
+            }
+
             var side = action == SyncAction.Export ? SyncSide.Module : SyncSide.File;
             return action != SyncAction.None && Violations.Any(violation => violation.Blocking && violation.Side == side);
         }
@@ -237,6 +258,12 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             //The rules only matter for what is going to be listed.
             if (item.Status != SyncStatus.InSync)
             {
+                if (file != null && module != null)
+                {
+                    item.ModuleText = module.ExportedText;
+                    item.FileText = fileText;
+                }
+
                 if (file != null)
                 {
                     item.Violations.AddRange(SyncHygiene.Check(name, fileText, SyncSide.File, _config, directory.Length > 0));

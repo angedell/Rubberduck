@@ -21,6 +21,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
     {
         public int Imported { get; set; }
         public int Exported { get; set; }
+        public int Merged { get; set; }
         public List<string> Errors { get; } = new List<string>();
         public List<string> Notes { get; } = new List<string>();
 
@@ -286,8 +287,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             {
                 //The files to import are read and made ready first, on several threads, so the parser is held still for as short a time as possible.
                 var imports = Background(
-                    () => chosen.Where(item => item.Chosen == SyncAction.Import).AsParallel().WithCancellation(progress.Token)
-                        .Select(item => new KeyValuePair<SyncItem, PreparedImport>(item, PrepareImport(item, scan, temp)))
+                    () => chosen.Where(item => item.Chosen != SyncAction.Export).AsParallel().WithCancellation(progress.Token)
+                        .Select(item => new KeyValuePair<SyncItem, PreparedImport>(item, PrepareImport(item, scan, temp, backup)))
                         .ToDictionary(pair => pair.Key, pair => pair.Value),
                     progress, SyncStage.Preparing, () => 0, chosen.Count);
                 prepared = timer.ElapsedMilliseconds;
@@ -333,6 +334,11 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
                 result.Imported = applied.Count(a => a.Item.Chosen == SyncAction.Import);
                 result.Exported = applied.Count(a => a.Item.Chosen == SyncAction.Export);
+                result.Merged = applied.Count(a => a.Item.Chosen == SyncAction.Merge);
+                if (result.Merged > 0)
+                {
+                    result.Notes.Add($"{result.Merged} module(s) were merged from both sides; the project and the folder now hold the same text.");
+                }
             }
             finally
             {
@@ -370,7 +376,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         //Reads the file and writes the copy the VBE is going to import. Runs on a worker thread.
-        private PreparedImport PrepareImport(SyncItem item, GitSyncScan scan, string temp)
+        private PreparedImport PrepareImport(SyncItem item, GitSyncScan scan, string temp, string backup)
         {
             var relative = item.RelativePath.Replace('/', '\\');
             var path = _fileSystem.Path.Combine(scan.Folder, relative);
@@ -378,7 +384,16 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
             //The VBE only reads Windows line endings, and the @Folder annotation has to match where the file is.
             //The file in the repository stays as it is; the VBE reads a corrected copy.
-            var original = GitSyncText.NormalizeLineEndings(_fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path)));
+            //A merge is made from the text the user saw, not from what the file holds now; the file is kept in the backup before it is replaced.
+            var merging = item.Chosen == SyncAction.Merge;
+            if (merging)
+            {
+                BackUp(path, _fileSystem.Path.Combine(backup, "folder"));
+            }
+
+            var original = GitSyncText.NormalizeLineEndings(merging
+                ? item.MergedText
+                : _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path)));
             var repaired = SyncFixer.FixFolder(SyncFixer.Fix(item.Name, original, scan.Config.Sync), directory, scan.Config.Sync);
             var prepared = SyncText.PrepareForImport(repaired, directory);
             var copy = _fileSystem.Path.Combine(temp, "import", item.Name, _fileSystem.Path.GetFileName(path));
@@ -397,7 +412,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 Prepared = prepared,
                 Copy = copy,
                 FilePath = path,
-                RepairedFile = repaired != original ? repaired : null
+                RepairedFile = merging || repaired != original ? repaired : null
             };
         }
 
