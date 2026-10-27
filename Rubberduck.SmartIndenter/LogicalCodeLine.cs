@@ -18,6 +18,9 @@ namespace Rubberduck.SmartIndenter
         public bool AtEnumTypeStart { get; set; }
         public bool InsideProcedureTypeOrEnum { get; set; }
 
+        /// <summary>The number of lines of code this holds: more than one for continued lines, and for a run of empty lines added by the spacing.</summary>
+        public int LineCount => _lines.Count;
+
         public bool IsEmpty
         {
             get { return _lines.All(x => x.IsEmpty); }

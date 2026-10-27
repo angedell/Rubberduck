@@ -12,7 +12,8 @@ using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 namespace Rubberduck.UI.CodeExplorer.Commands
 {
     /// <summary>
-    /// Asks for a project folder and keeps it in sync with the project, subfolders included.
+    /// Compares the project with a folder once, shows what is out of sync, and syncs what the user picks.
+    /// Asks for the folder the first time; the next time it uses the one it remembers.
     /// </summary>
     public class GitSyncCommand : CodeExplorerCommandBase
     {
@@ -26,20 +27,20 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
         private readonly IProjectsProvider _projectsProvider;
         private readonly IFileSystemBrowserFactory _dialogFactory;
-        private readonly GitSyncManager _gitSyncManager;
+        private readonly GitSyncService _gitSyncService;
         private readonly IMessageBox _messageBox;
 
         public GitSyncCommand(
             IVbeEvents vbeEvents,
             IProjectsProvider projectsProvider,
             IFileSystemBrowserFactory dialogFactory,
-            GitSyncManager gitSyncManager,
+            GitSyncService gitSyncService,
             IMessageBox messageBox)
             : base(vbeEvents)
         {
             _projectsProvider = projectsProvider;
             _dialogFactory = dialogFactory;
-            _gitSyncManager = gitSyncManager;
+            _gitSyncService = gitSyncService;
             _messageBox = messageBox;
 
             AddToCanExecuteEvaluation(project => TargetProject(project) != null);
@@ -55,13 +56,6 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 : null;
         }
 
-        private bool ConfirmCreateModule(string name)
-        {
-            return _messageBox.ConfirmYesNo(
-                $"'{name}' could not be imported because the project has no module with that name yet.{Environment.NewLine}{Environment.NewLine}Create an empty user form named '{name}' and import into it?",
-                CodeExplorerUI.GitSync_DialogTitle);
-        }
-
         protected override void OnExecute(object parameter)
         {
             var project = TargetProject(parameter);
@@ -70,45 +64,75 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 return;
             }
 
-            var activeFolder = _gitSyncManager.ActiveFolder(project);
-            if (activeFolder != null)
-            {
-                var message = string.Format(CodeExplorerUI.GitSync_AlreadySyncing, project.Name, activeFolder);
-                switch (_messageBox.Confirm(message, CodeExplorerUI.GitSync_DialogTitle, ConfirmationOutcome.Cancel))
-                {
-                    case ConfirmationOutcome.No:
-                        _gitSyncManager.Stop(project);
-                        return;
-                    case ConfirmationOutcome.Cancel:
-                        return;
-                }
-            }
-
-            var folder = AskForFolder(project, activeFolder ?? _gitSyncManager.RememberedFolder(project));
-            if (folder == null)
-            {
-                return;
-            }
-
+            var folder = _gitSyncService.RememberedFolder(project) ?? AskForFolder(project, null);
             try
             {
-                var result = _gitSyncManager.Start(project, folder, GitSyncInitialDialog.Ask, ConfirmCreateModule);
-                if (result.Cancelled)
+                while (folder != null)
                 {
-                    return;
-                }
+                    var scan = WithProgress(progress => _gitSyncService.Scan(project, folder, progress));
+                    if (scan.ConfigCreated)
+                    {
+                        _messageBox.Message(string.Format(CodeExplorerUI.GitSync_ConfigCreated, scan.Config.Path));
+                    }
 
-                _messageBox.Message(string.Format(
-                    CodeExplorerUI.GitSync_Summary,
-                    folder, result.Imported, result.Exported, result.LineEndingsFixed, result.FolderAnnotationsFixed, result.Errors.Count, result.Conflicts)
-                    + (result.Notes.Count > 0 ? Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, result.Notes) : string.Empty)
-                    + (result.Errors.Count > 0 ? Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, result.Errors) : string.Empty));
+                    if (scan.Config.Errors.Count > 0)
+                    {
+                        _messageBox.NotifyWarn(
+                            string.Format(CodeExplorerUI.GitSync_ConfigErrors, string.Join(Environment.NewLine, scan.Config.Errors)),
+                            CodeExplorerUI.GitSync_DialogTitle);
+                    }
+
+                    if (scan.Plan.Items.Count == 0)
+                    {
+                        _messageBox.Message(string.Format(CodeExplorerUI.GitSync_NothingToDo, project.Name, scan.Plan.InSyncCount, scan.Plan.Ignored.Count));
+                        return;
+                    }
+
+                    switch (GitSyncReviewDialog.Ask(project.Name, scan, items => _gitSyncService.Ignore(scan, items)))
+                    {
+                        case ReviewOutcome.ChangeFolder:
+                            folder = AskForFolder(project, folder);
+                            continue;
+                        case ReviewOutcome.Apply:
+                            Report(WithProgress(progress => _gitSyncService.Apply(project, scan, scan.Plan.Items, progress)));
+                            return;
+                        default:
+                            return;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _messageBox.Message(CodeExplorerUI.GitSync_Cancelled);
             }
             catch (Exception exception)
             {
-                Logger.Error(exception, "Git sync could not be started.");
+                Logger.Error(exception, "Git sync failed.");
                 _messageBox.NotifyWarn(string.Format(CodeExplorerUI.GitSync_Failed, exception.Message), CodeExplorerUI.GitSync_DialogTitle);
             }
+        }
+
+        //Scanning and syncing take a while on big projects; the window shows how far they are and lets the user stop.
+        private static T WithProgress<T>(Func<ISyncProgress, T> work)
+        {
+            using (var progress = new GitSyncProgressDialog())
+            {
+                progress.Show();
+                return work(progress);
+            }
+        }
+
+        private void Report(GitSyncResult result)
+        {
+            var lines = new List<string> { string.Format(CodeExplorerUI.GitSync_Summary, result.Imported, result.Exported, result.Errors.Count) };
+            lines.AddRange(result.Notes);
+            lines.AddRange(result.Errors);
+            if (result.BackupFolder != null)
+            {
+                lines.Add(string.Format(CodeExplorerUI.GitSync_Backup, result.BackupFolder));
+            }
+
+            _messageBox.Message(string.Join(Environment.NewLine + Environment.NewLine, lines));
         }
 
         private string AskForFolder(IVBProject project, string initialFolder)

@@ -11,7 +11,8 @@ namespace Rubberduck.SmartIndenter
         public const int MaximumAlignDimColumn = 100;
         public const int MaximumEndOfLineCommentColumnSpaceAlignment = 100;
         public const int MaximumIndentSpaces = 32;
-        public const int MaximumVerticalSpacing = 2;     
+        public const int MaximumVerticalSpacing = 2;
+        public const int MaximumEmptyLinesLimit = 10;     
 
         public virtual bool IndentEntireProcedureBody { get; set; }
         public virtual bool IndentEnumTypeAsProcedure { get; set; }
@@ -120,6 +121,20 @@ namespace Rubberduck.SmartIndenter
 
         public virtual bool GroupRelatedProperties { get; set; }
 
+        private int _maximumConsecutiveEmptyLines;
+        /// <summary>The most empty lines allowed in a row anywhere in the code; 0 means no limit.</summary>
+        public virtual int MaximumConsecutiveEmptyLines
+        {
+            get => _maximumConsecutiveEmptyLines;
+            set => _maximumConsecutiveEmptyLines = value > MaximumEmptyLinesLimit ? MaximumEmptyLinesLimit : Math.Max(value, 0);
+        }
+
+        /// <summary>Removes the empty lines right after the first line of a procedure and right before its End line.</summary>
+        public virtual bool RemoveEmptyLinesAtProcedureEdges { get; set; }
+
+        /// <summary>Removes the empty lines at the very top of the code.</summary>
+        public virtual bool RemoveLeadingEmptyLines { get; set; }
+
         /// <summary>
         /// Use this ctor for unit testing.
         /// </summary>
@@ -173,6 +188,9 @@ namespace Rubberduck.SmartIndenter
             IndentSpaces = tabWidth;
             VerticallySpaceProcedures = true;
             LinesBetweenProcedures = 1;
+            MaximumConsecutiveEmptyLines = 0;
+            RemoveEmptyLinesAtProcedureEdges = false;
+            RemoveLeadingEmptyLines = false;
             // ReSharper restore DoNotCallOverridableMethodsInConstructor
         }
 
@@ -201,6 +219,9 @@ namespace Rubberduck.SmartIndenter
                    IndentSpaces == other.IndentSpaces &&
                    VerticallySpaceProcedures == other.VerticallySpaceProcedures &&
                    LinesBetweenProcedures == other.LinesBetweenProcedures &&
+                   MaximumConsecutiveEmptyLines == other.MaximumConsecutiveEmptyLines &&
+                   RemoveEmptyLinesAtProcedureEdges == other.RemoveEmptyLinesAtProcedureEdges &&
+                   RemoveLeadingEmptyLines == other.RemoveLeadingEmptyLines &&
                    EmptyLineHandlingMethod == other.EmptyLineHandlingMethod;
         }
 

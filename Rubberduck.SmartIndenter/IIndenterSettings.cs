@@ -26,6 +26,9 @@
         bool VerticallySpaceProcedures { get; set; }
         int LinesBetweenProcedures { get; set; }
         bool GroupRelatedProperties { get; set; }
+        int MaximumConsecutiveEmptyLines { get; set; }
+        bool RemoveEmptyLinesAtProcedureEdges { get; set; }
+        bool RemoveLeadingEmptyLines { get; set; }
         bool LegacySettingsExist();
         void LoadLegacyFromRegistry();
     }

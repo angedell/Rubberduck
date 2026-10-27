@@ -1232,33 +1232,6 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_AlreadySyncing.
-        /// </summary>
-        public static string GitSync_AlreadySyncing {
-            get {
-                return ResourceManager.GetString("GitSync_AlreadySyncing", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to GitSync_Summary.
-        /// </summary>
-        public static string GitSync_Summary {
-            get {
-                return ResourceManager.GetString("GitSync_Summary", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to GitSync_Failed.
-        /// </summary>
-        public static string GitSync_Failed {
-            get {
-                return ResourceManager.GetString("GitSync_Failed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to CodeExplorer_SelectModeToolTip.
         /// </summary>
         public static string CodeExplorer_SelectModeToolTip {
@@ -1421,6 +1394,14 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GitSync_InitialContinue.
+        /// </summary>
+        public static string GitSync_InitialContinue {
+            get {
+                return ResourceManager.GetString("GitSync_InitialContinue", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Looks up a localized string similar to CodeExplorer_GitSyncNowToolTip.
         /// </summary>
         public static string CodeExplorer_GitSyncNowToolTip {
@@ -1430,57 +1411,346 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialExplanation.
+        ///   Looks up a localized string similar to GitSync_Failed.
         /// </summary>
-        public static string GitSync_InitialExplanation {
+        public static string GitSync_Failed {
             get {
-                return ResourceManager.GetString("GitSync_InitialExplanation", resourceCulture);
+                return ResourceManager.GetString("GitSync_Failed", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialModuleColumn.
+        ///   Looks up a localized string similar to GitSync_Summary.
         /// </summary>
-        public static string GitSync_InitialModuleColumn {
+        public static string GitSync_Summary {
             get {
-                return ResourceManager.GetString("GitSync_InitialModuleColumn", resourceCulture);
+                return ResourceManager.GetString("GitSync_Summary", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialFileModifiedColumn.
+        ///   Looks up a localized string similar to GitSync_Review_Header.
         /// </summary>
-        public static string GitSync_InitialFileModifiedColumn {
+        public static string GitSync_Review_Header {
             get {
-                return ResourceManager.GetString("GitSync_InitialFileModifiedColumn", resourceCulture);
+                return ResourceManager.GetString("GitSync_Review_Header", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialFolderWins.
+        ///   Looks up a localized string similar to GitSync_Col_Module.
         /// </summary>
-        public static string GitSync_InitialFolderWins {
+        public static string GitSync_Col_Module {
             get {
-                return ResourceManager.GetString("GitSync_InitialFolderWins", resourceCulture);
+                return ResourceManager.GetString("GitSync_Col_Module", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialProjectWins.
+        ///   Looks up a localized string similar to GitSync_Col_Status.
         /// </summary>
-        public static string GitSync_InitialProjectWins {
+        public static string GitSync_Col_Status {
             get {
-                return ResourceManager.GetString("GitSync_InitialProjectWins", resourceCulture);
+                return ResourceManager.GetString("GitSync_Col_Status", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to GitSync_InitialContinue.
+        ///   Looks up a localized string similar to GitSync_Col_Action.
         /// </summary>
-        public static string GitSync_InitialContinue {
+        public static string GitSync_Col_Action {
             get {
-                return ResourceManager.GetString("GitSync_InitialContinue", resourceCulture);
+                return ResourceManager.GetString("GitSync_Col_Action", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Col_Notes.
+        /// </summary>
+        public static string GitSync_Col_Notes {
+            get {
+                return ResourceManager.GetString("GitSync_Col_Notes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_ModuleOnly.
+        /// </summary>
+        public static string GitSync_Status_ModuleOnly {
+            get {
+                return ResourceManager.GetString("GitSync_Status_ModuleOnly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_FileOnly.
+        /// </summary>
+        public static string GitSync_Status_FileOnly {
+            get {
+                return ResourceManager.GetString("GitSync_Status_FileOnly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_ModuleChanged.
+        /// </summary>
+        public static string GitSync_Status_ModuleChanged {
+            get {
+                return ResourceManager.GetString("GitSync_Status_ModuleChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_FileChanged.
+        /// </summary>
+        public static string GitSync_Status_FileChanged {
+            get {
+                return ResourceManager.GetString("GitSync_Status_FileChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_BothChanged.
+        /// </summary>
+        public static string GitSync_Status_BothChanged {
+            get {
+                return ResourceManager.GetString("GitSync_Status_BothChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Status_Differs.
+        /// </summary>
+        public static string GitSync_Status_Differs {
+            get {
+                return ResourceManager.GetString("GitSync_Status_Differs", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Action_Export.
+        /// </summary>
+        public static string GitSync_Action_Export {
+            get {
+                return ResourceManager.GetString("GitSync_Action_Export", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Action_Import.
+        /// </summary>
+        public static string GitSync_Action_Import {
+            get {
+                return ResourceManager.GetString("GitSync_Action_Import", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Action_None.
+        /// </summary>
+        public static string GitSync_Action_None {
+            get {
+                return ResourceManager.GetString("GitSync_Action_None", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_SelectAll.
+        /// </summary>
+        public static string GitSync_SelectAll {
+            get {
+                return ResourceManager.GetString("GitSync_SelectAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_SelectNone.
+        /// </summary>
+        public static string GitSync_SelectNone {
+            get {
+                return ResourceManager.GetString("GitSync_SelectNone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_UseModule.
+        /// </summary>
+        public static string GitSync_UseModule {
+            get {
+                return ResourceManager.GetString("GitSync_UseModule", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_UseFile.
+        /// </summary>
+        public static string GitSync_UseFile {
+            get {
+                return ResourceManager.GetString("GitSync_UseFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_IgnoreSelected.
+        /// </summary>
+        public static string GitSync_IgnoreSelected {
+            get {
+                return ResourceManager.GetString("GitSync_IgnoreSelected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_ChangeFolder.
+        /// </summary>
+        public static string GitSync_ChangeFolder {
+            get {
+                return ResourceManager.GetString("GitSync_ChangeFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Apply.
+        /// </summary>
+        public static string GitSync_Apply {
+            get {
+                return ResourceManager.GetString("GitSync_Apply", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_NothingToDo.
+        /// </summary>
+        public static string GitSync_NothingToDo {
+            get {
+                return ResourceManager.GetString("GitSync_NothingToDo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Blocked.
+        /// </summary>
+        public static string GitSync_Blocked {
+            get {
+                return ResourceManager.GetString("GitSync_Blocked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_MovesFile.
+        /// </summary>
+        public static string GitSync_MovesFile {
+            get {
+                return ResourceManager.GetString("GitSync_MovesFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_ConfigErrors.
+        /// </summary>
+        public static string GitSync_ConfigErrors {
+            get {
+                return ResourceManager.GetString("GitSync_ConfigErrors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_IgnoreConfirm.
+        /// </summary>
+        public static string GitSync_IgnoreConfirm {
+            get {
+                return ResourceManager.GetString("GitSync_IgnoreConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Backup.
+        /// </summary>
+        public static string GitSync_Backup {
+            get {
+                return ResourceManager.GetString("GitSync_Backup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Progress_ReadingModules.
+        /// </summary>
+        public static string GitSync_Progress_ReadingModules {
+            get {
+                return ResourceManager.GetString("GitSync_Progress_ReadingModules", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Progress_ReadingFiles.
+        /// </summary>
+        public static string GitSync_Progress_ReadingFiles {
+            get {
+                return ResourceManager.GetString("GitSync_Progress_ReadingFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Progress_Comparing.
+        /// </summary>
+        public static string GitSync_Progress_Comparing {
+            get {
+                return ResourceManager.GetString("GitSync_Progress_Comparing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Progress_Preparing.
+        /// </summary>
+        public static string GitSync_Progress_Preparing {
+            get {
+                return ResourceManager.GetString("GitSync_Progress_Preparing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Progress_Syncing.
+        /// </summary>
+        public static string GitSync_Progress_Syncing {
+            get {
+                return ResourceManager.GetString("GitSync_Progress_Syncing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Cancelled.
+        /// </summary>
+        public static string GitSync_Cancelled {
+            get {
+                return ResourceManager.GetString("GitSync_Cancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Hint_NeedSide.
+        /// </summary>
+        public static string GitSync_Hint_NeedSide {
+            get {
+                return ResourceManager.GetString("GitSync_Hint_NeedSide", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_Hint_Blocked.
+        /// </summary>
+        public static string GitSync_Hint_Blocked {
+            get {
+                return ResourceManager.GetString("GitSync_Hint_Blocked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitSync_ConfigCreated.
+        /// </summary>
+        public static string GitSync_ConfigCreated {
+            get {
+                return ResourceManager.GetString("GitSync_ConfigCreated", resourceCulture);
+            }
+        }
+        
     }
 }

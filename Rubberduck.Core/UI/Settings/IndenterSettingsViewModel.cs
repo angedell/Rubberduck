@@ -38,6 +38,9 @@ namespace Rubberduck.UI.Settings
             _spaceProcedures = config.UserSettings.IndenterSettings.VerticallySpaceProcedures;
             _procedureSpacing = config.UserSettings.IndenterSettings.LinesBetweenProcedures;
             _groupRelatedProperties = config.UserSettings.IndenterSettings.GroupRelatedProperties;
+            _maximumConsecutiveEmptyLines = config.UserSettings.IndenterSettings.MaximumConsecutiveEmptyLines;
+            _removeEmptyLinesAtProcedureEdges = config.UserSettings.IndenterSettings.RemoveEmptyLinesAtProcedureEdges;
+            _removeLeadingEmptyLines = config.UserSettings.IndenterSettings.RemoveLeadingEmptyLines;
             _emptyLineHandlingMethod = config.UserSettings.IndenterSettings.EmptyLineHandlingMethod;
 
             PropertyChanged += IndenterSettingsViewModel_PropertyChanged;
@@ -413,6 +416,51 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private int _maximumConsecutiveEmptyLines;
+
+        public int MaximumConsecutiveEmptyLines
+        {
+            get => _maximumConsecutiveEmptyLines;
+            set
+            {
+                if (_maximumConsecutiveEmptyLines != value)
+                {
+                    _maximumConsecutiveEmptyLines = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private bool _removeEmptyLinesAtProcedureEdges;
+
+        public bool RemoveEmptyLinesAtProcedureEdges
+        {
+            get => _removeEmptyLinesAtProcedureEdges;
+            set
+            {
+                if (_removeEmptyLinesAtProcedureEdges != value)
+                {
+                    _removeEmptyLinesAtProcedureEdges = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private bool _removeLeadingEmptyLines;
+
+        public bool RemoveLeadingEmptyLines
+        {
+            get => _removeLeadingEmptyLines;
+            set
+            {
+                if (_removeLeadingEmptyLines != value)
+                {
+                    _removeLeadingEmptyLines = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public string PreviewSampleCode
         {
             get
@@ -451,7 +499,11 @@ namespace Rubberduck.UI.Settings
                 IgnoreEmptyLinesInFirstBlocks = IgnoreEmptyLinesInFirstBlocks,
                 IndentSpaces = IndentSpaces,
                 VerticallySpaceProcedures = VerticallySpaceProcedures,
-                LinesBetweenProcedures = LinesBetweenProcedures
+                LinesBetweenProcedures = LinesBetweenProcedures,
+                GroupRelatedProperties = GroupRelatedProperties,
+                MaximumConsecutiveEmptyLines = MaximumConsecutiveEmptyLines,
+                RemoveEmptyLinesAtProcedureEdges = RemoveEmptyLinesAtProcedureEdges,
+                RemoveLeadingEmptyLines = RemoveLeadingEmptyLines
             };
         }
 
@@ -483,6 +535,9 @@ namespace Rubberduck.UI.Settings
             config.UserSettings.IndenterSettings.VerticallySpaceProcedures = VerticallySpaceProcedures;
             config.UserSettings.IndenterSettings.LinesBetweenProcedures = LinesBetweenProcedures;
             config.UserSettings.IndenterSettings.GroupRelatedProperties = GroupRelatedProperties;
+            config.UserSettings.IndenterSettings.MaximumConsecutiveEmptyLines = MaximumConsecutiveEmptyLines;
+            config.UserSettings.IndenterSettings.RemoveEmptyLinesAtProcedureEdges = RemoveEmptyLinesAtProcedureEdges;
+            config.UserSettings.IndenterSettings.RemoveLeadingEmptyLines = RemoveLeadingEmptyLines;
         }
 
         public void SetToDefaults(Configuration config)
@@ -516,6 +571,9 @@ namespace Rubberduck.UI.Settings
             VerticallySpaceProcedures = toLoad.VerticallySpaceProcedures;
             LinesBetweenProcedures = toLoad.LinesBetweenProcedures;
             GroupRelatedProperties = toLoad.GroupRelatedProperties;
+            MaximumConsecutiveEmptyLines = toLoad.MaximumConsecutiveEmptyLines;
+            RemoveEmptyLinesAtProcedureEdges = toLoad.RemoveEmptyLinesAtProcedureEdges;
+            RemoveLeadingEmptyLines = toLoad.RemoveLeadingEmptyLines;
         }
     }
 }

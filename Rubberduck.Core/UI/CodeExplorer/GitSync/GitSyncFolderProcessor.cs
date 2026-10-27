@@ -7,25 +7,8 @@ using Rubberduck.VBEditor.Extensions;
 
 namespace Rubberduck.UI.CodeExplorer.GitSync
 {
-    public class PreparedFile
-    {
-        public PreparedFile(string path, string relativeDirectory, bool lineEndingsFixed, bool folderAnnotationFixed)
-        {
-            Path = path;
-            RelativeDirectory = relativeDirectory;
-            LineEndingsFixed = lineEndingsFixed;
-            FolderAnnotationFixed = folderAnnotationFixed;
-        }
-
-        public string Path { get; }
-        public string RelativeDirectory { get; }
-        public bool LineEndingsFixed { get; }
-        public bool FolderAnnotationFixed { get; }
-    }
-
     /// <summary>
-    /// Prepares the source files in a sync folder before they are imported: corrects the line endings to CRLF
-    /// and makes the @Folder annotation reflect the location of the file below the sync root.
+    /// Finds the source files in a sync folder and the rules that say which of them are left alone. Reads only.
     /// </summary>
     public class GitSyncFolderProcessor
     {
@@ -68,23 +51,33 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return SourceExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
         }
 
-        public IEnumerable<string> SourceFiles(string root)
+        /// <summary>Every source file below the root, except those in hidden folders such as .git. Ignore rules are not applied.</summary>
+        public IEnumerable<string> AllSourceFiles(string root)
         {
-            var ignored = LoadIgnoreRules(root);
             return _fileSystem.Directory
                 .EnumerateFiles(root, "*", System.IO.SearchOption.AllDirectories)
-                .Where(path => IsSourceFile(path) 
-                               && !IsInHiddenDirectory(root, path) 
-                               && !ignored.IsIgnored(RelativePath(root, path), false))
+                .Where(path => IsSourceFile(path) && !IsInHiddenDirectory(root, path))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
         }
 
+        public IEnumerable<string> SourceFiles(string root)
+        {
+            var ignored = LoadIgnoreRules(root);
+            return AllSourceFiles(root).Where(path => !ignored.IsIgnored(RelativePath(root, path), false));
+        }
+
         /// <summary>
-        /// Reads every .rdsyncignore file below the root; the folders and files they exclude are not synced.
+        /// Reads every .rdsyncignore file below the root, and adds the patterns of the config's <c>sync.ignore</c> as if they were in a file in the root.
+        /// The folders and files they exclude are not synced.
         /// </summary>
-        public GitIgnoreSet LoadIgnoreRules(string root)
+        public GitIgnoreSet LoadIgnoreRules(string root, IEnumerable<string> configured = null)
         {
             var files = new List<KeyValuePair<string, GitIgnore>>();
+            if (configured != null)
+            {
+                files.Add(new KeyValuePair<string, GitIgnore>(string.Empty, new GitIgnore(configured.ToList())));
+            }
+
             foreach (var path in _fileSystem.Directory.EnumerateFiles(root, IgnoreFileName, System.IO.SearchOption.AllDirectories))
             {
                 if (IsInHiddenDirectory(root, path))
@@ -104,7 +97,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return LoadIgnoreRules(root).IsIgnored(RelativePath(root, path), false);
         }
 
-        private string RelativePath(string root, string path)
+        public string RelativePath(string root, string path)
         {
             var directory = RelativeDirectory(root, path);
             var name = _fileSystem.Path.GetFileName(path);
@@ -127,41 +120,6 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return directory.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase)
                 ? directory.Substring(rootPath.Length).TrimEnd('\\')
                 : string.Empty;
-        }
-
-        public IEnumerable<PreparedFile> PrepareAll(string root)
-        {
-            return SourceFiles(root).Select(path => Prepare(root, path)).ToList();
-        }
-
-        /// <summary>
-        /// Corrects the file in place if necessary.
-        /// Files directly in the root are not assigned to a virtual folder, so their annotation is left alone.
-        /// </summary>
-        public PreparedFile Prepare(string root, string path)
-        {
-            var relativeDirectory = RelativeDirectory(root, path);
-
-            var original = _fileSystem.File.ReadAllText(path, EncodingFor(path));
-
-            var text = GitSyncText.NormalizeLineEndings(original);
-            var lineEndingsFixed = text != original;
-
-            var folderAnnotationFixed = false;
-            var folderPath = GitSyncText.FolderPath(relativeDirectory);
-            if (folderPath.Length > 0)
-            {
-                var withAnnotation = GitSyncText.SetFolderAnnotation(text, folderPath);
-                folderAnnotationFixed = withAnnotation != text;
-                text = withAnnotation;
-            }
-
-            if (lineEndingsFixed || folderAnnotationFixed)
-            {
-                _fileSystem.File.WriteAllText(path, text, EncodingFor(path));
-            }
-
-            return new PreparedFile(path, relativeDirectory, lineEndingsFixed, folderAnnotationFixed);
         }
     }
 }

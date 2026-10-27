@@ -52,6 +52,9 @@ namespace RubberduckTests.Settings
             output.SetupProperty(s => s.VerticallySpaceProcedures);
             output.SetupProperty(s => s.LinesBetweenProcedures);
             output.SetupProperty(s => s.GroupRelatedProperties);
+            output.SetupProperty(s => s.MaximumConsecutiveEmptyLines);
+            output.SetupProperty(s => s.RemoveEmptyLinesAtProcedureEdges);
+            output.SetupProperty(s => s.RemoveLeadingEmptyLines);
 
             output.Object.IndentEntireProcedureBody = !nondefault;
             output.Object.IndentFirstCommentBlock = !nondefault;
@@ -76,6 +79,9 @@ namespace RubberduckTests.Settings
             output.Object.VerticallySpaceProcedures = !nondefault;
             output.Object.LinesBetweenProcedures = nondefault ? NondefaultLinesBetweenProcedures : DefaultLinesBetweenProcedures;
             output.Object.GroupRelatedProperties = nondefault;
+            output.Object.MaximumConsecutiveEmptyLines = nondefault ? 2 : 0;
+            output.Object.RemoveEmptyLinesAtProcedureEdges = nondefault;
+            output.Object.RemoveLeadingEmptyLines = nondefault;
 
             return output.Object;
         }
@@ -128,6 +134,9 @@ namespace RubberduckTests.Settings
                 Assert.AreEqual(config.UserSettings.IndenterSettings.VerticallySpaceProcedures, viewModel.VerticallySpaceProcedures);
                 Assert.AreEqual(config.UserSettings.IndenterSettings.LinesBetweenProcedures, viewModel.LinesBetweenProcedures);
                 Assert.AreEqual(config.UserSettings.IndenterSettings.GroupRelatedProperties, viewModel.GroupRelatedProperties);
+                Assert.AreEqual(config.UserSettings.IndenterSettings.MaximumConsecutiveEmptyLines, viewModel.MaximumConsecutiveEmptyLines);
+                Assert.AreEqual(config.UserSettings.IndenterSettings.RemoveEmptyLinesAtProcedureEdges, viewModel.RemoveEmptyLinesAtProcedureEdges);
+                Assert.AreEqual(config.UserSettings.IndenterSettings.RemoveLeadingEmptyLines, viewModel.RemoveLeadingEmptyLines);
             });
         }
 

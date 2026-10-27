@@ -196,11 +196,78 @@ namespace Rubberduck.SmartIndenter
                 indent = logical.ToList();
             }
 
+            indent = EnforceVerticalSpace(indent, settings, procedure);
+
             foreach (var line in indent)
             {
                 output.AddRange(line.Indented().Split(new[] { Environment.NewLine }, StringSplitOptions.None));
             }
             return output;
+        }
+
+        /// <summary>
+        /// Applies the settings that limit empty lines wherever they are, after the spacing between procedures was settled.
+        /// </summary>
+        private static List<LogicalCodeLine> EnforceVerticalSpace(List<LogicalCodeLine> lines, IIndenterSettings settings, bool procedure)
+        {
+            var maximum = settings.MaximumConsecutiveEmptyLines;
+            var removeLeading = settings.RemoveLeadingEmptyLines && !procedure;
+            var removeEdges = settings.RemoveEmptyLinesAtProcedureEdges;
+            if (maximum <= 0 && !removeLeading && !removeEdges)
+            {
+                return lines;
+            }
+
+            var result = new List<LogicalCodeLine>();
+            var run = 0;
+            foreach (var line in lines)
+            {
+                if (!line.IsEmpty)
+                {
+                    if (removeEdges && line.IsProcedureEnd)
+                    {
+                        while (result.Count > 0 && result[result.Count - 1].IsEmpty)
+                        {
+                            result.RemoveAt(result.Count - 1);
+                        }
+                    }
+
+                    run = 0;
+                    result.Add(line);
+                    continue;
+                }
+
+                if ((removeLeading && result.Count == 0) || (removeEdges && result.Count > 0 && result[result.Count - 1].IsProcedureStart))
+                {
+                    continue;
+                }
+
+                if (maximum <= 0)
+                {
+                    result.Add(line);
+                    continue;
+                }
+
+                //One logical line can stand for several empty lines at once, e.g. the ones the spacing between procedures adds.
+                var allowed = maximum - run;
+                if (allowed <= 0)
+                {
+                    continue;
+                }
+
+                if (line.LineCount > allowed)
+                {
+                    result.Add(new LogicalCodeLine(Enumerable.Repeat(new AbsoluteCodeLine(string.Empty, settings), allowed), settings));
+                    run += allowed;
+                }
+                else
+                {
+                    result.Add(line);
+                    run += line.LineCount;
+                }
+            }
+
+            return result;
         }
 
         protected static string ExtractPropertyIdentifier(string line)

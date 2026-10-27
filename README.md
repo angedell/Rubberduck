@@ -5,17 +5,30 @@ This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds **G
 ## Git Sync
 <img width="322" height="87" alt="image" src="https://github.com/user-attachments/assets/2d82a89e-e56f-4d74-9826-aa269dac9783" />
 
-Keeps a VBA project in sync with a folder on disk, subfolders included, so the code can live in a git repository.
+Compares a VBA project with a folder on disk, subfolders included, so the code can live in a git repository. It runs once, when you ask: nothing is watched or polled.
 
-- **Where:** Code Explorer, right-click a project, **Sync Project > Git Sync...** asks for the folder (the last one is remembered per workbook). The toolbar's **Git sync** button re-syncs with the remembered folder in one click.
-- **Both directions, live:** file changes are imported, and module changes are exported. The VBE raises no event while you type, so the project is polled every couple of seconds and a module is synced once nobody has typed in it for a moment.
-- **Line endings:** files with LF endings are corrected to CRLF.
-- **Folders:** a file's location below the sync folder sets its `@Folder` annotation (`Models\Orders\Foo.cls` becomes `'@Folder("Models.Orders")`). A module moved to another virtual folder is moved on disk. Files directly in the sync folder keep the `@Folder` they have.
-- **Stamp:** every synced module and its file carry one comment line, `' rdsync rev=12 hash=3fa9c1d4e07b22aa utc=2025-06-01T12:34:56Z`: a revision, a hash of the code without the stamp, and when the code was last modified. Since both sides carry it, the direction can be told on any machine, for example after pulling the repository on another one. A side whose code no longer matches its stamp was edited; of two unedited sides, the higher revision is the newer.
-- **Conflicts:** if both sides were edited, the newer one wins and the other is saved next to the file as `<file>.conflict-<time>` or `<file>.module-conflict-<time>`.
-- **First sync:** if a module exists in both places with different code and there is no stamp or sync history, a dialog asks who wins, for all such modules at once.
-- **Local state:** a snapshot of each module's last synced state is kept in `%AppData%\Rubberduck\gitsync-state.json`, never in the synced folder.
-- **Excluding things:** put a `.rdsyncignore` file in the sync folder, or in any subfolder, using the `.gitignore` syntax (comments, `!`, trailing `/`, anchoring, `*`, `?`, `[...]`, `**`; deeper files take precedence). Ignored files are not imported and modules in ignored folders are not exported. It is a separate file so it cannot be confused with git's own `.gitignore`.
+- **Where:** Code Explorer, right-click a project, **Sync Project > Git Sync...**, or the toolbar's **Git sync** button. The folder is asked for the first time and remembered per workbook; **Change folder...** in the review picks another.
+- **Review:** both sides are scanned and what is out of sync is listed: only in the project, only in the folder, changed on one side, changed on both, or different with no history. Tick what to sync, use **Select all / none**, and for items where the history cannot tell which side wins use **Use project version** or **Use folder version**. Nothing happens until **Sync selected**.
+- **Ignore for good:** **Ignore permanently** adds the selected items to `sync.ignore` in `rubberduck.json`. Ignored items are not listed again.
+- **Through the VBE:** modules are written with the VBE's own export and brought in with `VBComponents.Import`, so hidden attributes survive. Document modules (`ThisWorkbook`, sheets) cannot be removed, so only their code is replaced.
+- **Normalized comparison:** both sides are compared after indenting the code with the Rubberduck indenter, so line endings, indentation and trailing space never count as a change. Modules with `@NoIndent` are compared as they are.
+- **Line endings:** the VBE reads a corrected copy with CRLF endings; the file in the repository is not rewritten. If git converts line endings (`core.autocrlf`, `.gitattributes`) that is fine.
+- **Folders:** a file's location below the sync folder sets its `@Folder` annotation (`Models\Orders\Foo.cls` becomes `'@Folder("Models.Orders")`). A module moved to another virtual folder moves its file. Files directly in the sync folder keep the `@Folder` they have.
+- **History:** `rubberduck.sync.json`, next to `rubberduck.json` (or in the sync folder if there is none), holds the normalized signature of each module and file as of the last sync. Commit it: comparing today's signatures with it tells which side changed, on any machine.
+- **Backups:** before a module or file is overwritten, the old version is saved in `%LocalAppData%\Rubberduck\GitSyncBackups\<time>`. If an import fails after the old module was removed, it is put back.
+- **`rubberduck.json`:** found in the sync folder or any parent, like `biome.json`. Keys that are left out keep your own settings; unknown keys are reported.
+  ```json
+  {
+    "indenter": { "indentSpaces": 2, "indentCase": true },
+    "sync": {
+      "ignore": ["/modScratch.bas", "Sandbox/"],
+      "enforce": ["AttributeValueOutOfSync", "MissingAttribute", "MissingModuleAnnotation", "ModuleWithoutFolder"],
+      "onViolation": "fix"
+    }
+  }
+  ```
+  `indenter` takes the names of the indenter settings and also applies to the editor while the project is the active one. `enforce` lists the rules a module or file has to follow to be used as the source of a sync; with `"fix"` (the default) the sync repairs it as it goes, the way Rubberduck's own quick fixes would (a `True` attribute gets its `'@PredeclaredId`/`'@Exposed` annotation, an annotation sets its attribute, `VB_Name` is added or corrected, a missing `@Folder` is set from the file's folder) and writes the repaired text to both the module and the file; with `"block"` it cannot be ticked until fixed by hand, with `"warn"` it is only flagged. A module with no `@Folder` whose file is in the root cannot be repaired automatically.
+- **Excluding things:** besides `sync.ignore`, a `.rdsyncignore` file in the sync folder or any subfolder works, using the `.gitignore` syntax. It is a separate file so it cannot be confused with git's own `.gitignore`.
 - **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
 
 ## Select mode and bulk removal

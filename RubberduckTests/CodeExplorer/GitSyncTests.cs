@@ -107,41 +107,27 @@ namespace RubberduckTests.CodeExplorer
         }
 
         [Test]
-        public void PrepareAll_FixesLineEndingsAndAnnotationInSubfolders()
+        public void SourceFiles_AppliesIgnoreFileButAllSourceFilesDoesNot()
         {
-            var path = Write("Models\\Orders\\Foo.cls", "Attribute VB_Name = \"Foo\"\nOption Explicit\n");
+            Write("A\\Foo.cls", "x");
+            Write("B\\Bar.cls", "x");
+            Write(".rdsyncignore", "B/\n");
 
-            var prepared = new GitSyncFolderProcessor(_fileSystem).PrepareAll(_root).Single();
+            var processor = new GitSyncFolderProcessor(_fileSystem);
 
-            Assert.IsTrue(prepared.LineEndingsFixed);
-            Assert.IsTrue(prepared.FolderAnnotationFixed);
-            Assert.AreEqual("Models\\Orders", prepared.RelativeDirectory);
-            Assert.AreEqual("Attribute VB_Name = \"Foo\"\r\n'@Folder(\"Models.Orders\")\r\nOption Explicit\r\n",
-                File.ReadAllText(path, GitSyncFolderProcessor.SourceEncoding));
+            Assert.AreEqual(1, processor.SourceFiles(_root).Count());
+            Assert.AreEqual(2, processor.AllSourceFiles(_root).Count());
         }
 
         [Test]
-        public void Prepare_CorrectsWrongFolderAnnotation()
+        public void LoadIgnoreRules_AddsConfiguredPatterns()
         {
-            var path = Write("Sub\\Foo.bas", "Attribute VB_Name = \"Foo\"\r\n'@Folder(\"Elsewhere\")\r\nOption Explicit\r\n");
+            Write("A\\Foo.cls", "x");
 
-            new GitSyncFolderProcessor(_fileSystem).Prepare(_root, path);
+            var rules = new GitSyncFolderProcessor(_fileSystem).LoadIgnoreRules(_root, new[] { "/A/Foo.cls" });
 
-            StringAssert.Contains("'@Folder(\"Sub\")", File.ReadAllText(path, GitSyncFolderProcessor.SourceEncoding));
-            StringAssert.DoesNotContain("Elsewhere", File.ReadAllText(path, GitSyncFolderProcessor.SourceEncoding));
-        }
-
-        [Test]
-        public void Prepare_LeavesRootFilesAnnotationAlone()
-        {
-            var content = "Attribute VB_Name = \"Foo\"\r\nOption Explicit\r\n";
-            var path = Write("Foo.bas", content);
-
-            var prepared = new GitSyncFolderProcessor(_fileSystem).Prepare(_root, path);
-
-            Assert.IsFalse(prepared.LineEndingsFixed);
-            Assert.IsFalse(prepared.FolderAnnotationFixed);
-            Assert.AreEqual(content, File.ReadAllText(path, GitSyncFolderProcessor.SourceEncoding));
+            Assert.IsTrue(rules.IsIgnored("A\\Foo.cls", false));
+            Assert.IsFalse(rules.IsIgnored("A\\Other.cls", false));
         }
 
         [Test]

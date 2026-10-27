@@ -317,6 +317,39 @@
                                 </AccessText>
                             </CheckBox>
                         </WrapPanel>
+                        <WrapPanel Orientation="Horizontal">
+                            <Label Margin="5,-3,0,0"
+                                   Content="{Resx ResxName=Rubberduck.UI.Settings.IndenterSettingsUI, Key=MaximumConsecutiveEmptyLines}" />
+                            <controls:NumberPicker Margin="0,-6,0,0"
+                                         HorizontalAlignment="Left"
+                                         MinNumber="0"
+                                         MaxNumber="{x:Static smartIndenter:IndenterSettings.MaximumEmptyLinesLimit}"
+                                         NumValue="{Binding MaximumConsecutiveEmptyLines,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                        </WrapPanel>
+                        <WrapPanel Orientation="Horizontal">
+                            <CheckBox Margin="5,0,0,5"
+                                      HorizontalAlignment="Left"
+                                      IsChecked="{Binding RemoveEmptyLinesAtProcedureEdges,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}">
+                                <AccessText TextWrapping="WrapWithOverflow">
+                                    <AccessText.Text>
+                                        <Resx ResxName="Rubberduck.UI.Settings.IndenterSettingsUI"
+                                              Key="RemoveEmptyLinesAtProcedureEdges" />
+                                    </AccessText.Text>
+                                </AccessText>
+                            </CheckBox>
+                        </WrapPanel>
+                        <WrapPanel Orientation="Horizontal">
+                            <CheckBox Margin="5,0,0,5"
+                                      HorizontalAlignment="Left"
+                                      IsChecked="{Binding RemoveLeadingEmptyLines,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}">
+                                <AccessText TextWrapping="WrapWithOverflow">
+                                    <AccessText.Text>
+                                        <Resx ResxName="Rubberduck.UI.Settings.IndenterSettingsUI"
+                                              Key="RemoveLeadingEmptyLines" />
+                                    </AccessText.Text>
+                                </AccessText>
+                            </CheckBox>
+                        </WrapPanel>
                     </StackPanel>
                 </Expander>
                 <Expander Grid.Row="4"

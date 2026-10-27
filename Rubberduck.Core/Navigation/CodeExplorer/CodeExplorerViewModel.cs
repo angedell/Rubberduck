@@ -500,7 +500,6 @@ namespace Rubberduck.Navigation.CodeExplorer
             IsSelectionMode = false;
         }
 
-        public GitSyncNowCommand GitSyncNowCommand { get; set; }
         public ExportCommand ExportCommand { get; set; }
         public ExportAllCommand ExportAllCommand { get; set; }
         public DeleteCommand DeleteCommand { get; set; }

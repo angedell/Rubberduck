@@ -515,28 +515,6 @@ Import aborted.</value>
   <data name="GitSync_FolderDialogDescription" xml:space="preserve">
     <value>Select the project folder to keep in sync with project '{0}'. Subfolders are included.</value>
   </data>
-  <data name="GitSync_AlreadySyncing" xml:space="preserve">
-    <value>Project '{0}' is already kept in sync with:
-{1}
-
-Yes: choose another folder
-No: stop syncing
-Cancel: keep syncing</value>
-  </data>
-  <data name="GitSync_Summary" xml:space="preserve">
-    <value>Git sync is active for:
-{0}
-
-Imported into the project: {1}
-Exported to the folder: {2}
-Line endings corrected: {3}
-@Folder annotations corrected: {4}
-Conflicts (both sides changed): {6}
-Errors: {5}</value>
-  </data>
-  <data name="GitSync_Failed" xml:space="preserve">
-    <value>Git sync could not be started: {0}</value>
-  </data>
   <data name="CodeExplorer_SelectModeToolTip" xml:space="preserve">
     <value>Select modules and folders</value>
   </data>
@@ -592,24 +570,132 @@ Errors: {5}</value>
     <value>Please enter a valid export folder.</value>
   </data>
   <data name="CodeExplorer_GitSyncNowToolTip" xml:space="preserve">
-    <value>Git sync: sync the project with its folder now</value>
+    <value>Git sync: compare the project with its folder and choose what to sync</value>
   </data>
-  <data name="GitSync_InitialExplanation" xml:space="preserve">
-    <value>{0} module(s) exist in the project and in the folder with different code, and neither side carries a sync stamp, so Rubberduck cannot tell which one is newer. Who wins? The losing side is overwritten.</value>
+  <data name="GitSync_Failed" xml:space="preserve">
+    <value>Git sync failed: {0}</value>
   </data>
-  <data name="GitSync_InitialModuleColumn" xml:space="preserve">
+  <data name="GitSync_Summary" xml:space="preserve">
+    <value>Imported into the project: {0}
+Exported to the folder: {1}
+Errors: {2}</value>
+  </data>
+  <data name="GitSync_Review_Header" xml:space="preserve">
+    <value>Project '{0}' and the folder
+{1}
+
+{2} out of sync, {3} in sync, {4} ignored.</value>
+  </data>
+  <data name="GitSync_Col_Module" xml:space="preserve">
     <value>Module</value>
   </data>
-  <data name="GitSync_InitialFileModifiedColumn" xml:space="preserve">
-    <value>File last modified</value>
+  <data name="GitSync_Col_Status" xml:space="preserve">
+    <value>Status</value>
   </data>
-  <data name="GitSync_InitialFolderWins" xml:space="preserve">
-    <value>The files in the folder win (import them into the project)</value>
+  <data name="GitSync_Col_Action" xml:space="preserve">
+    <value>Action</value>
   </data>
-  <data name="GitSync_InitialProjectWins" xml:space="preserve">
-    <value>The modules in the project win (export them over the files)</value>
+  <data name="GitSync_Col_Notes" xml:space="preserve">
+    <value>Notes</value>
   </data>
-  <data name="GitSync_InitialContinue" xml:space="preserve">
-    <value>Continue</value>
+  <data name="GitSync_Status_ModuleOnly" xml:space="preserve">
+    <value>Only in the project</value>
+  </data>
+  <data name="GitSync_Status_FileOnly" xml:space="preserve">
+    <value>Only in the folder</value>
+  </data>
+  <data name="GitSync_Status_ModuleChanged" xml:space="preserve">
+    <value>Project changed</value>
+  </data>
+  <data name="GitSync_Status_FileChanged" xml:space="preserve">
+    <value>Folder changed</value>
+  </data>
+  <data name="GitSync_Status_BothChanged" xml:space="preserve">
+    <value>Both changed</value>
+  </data>
+  <data name="GitSync_Status_Differs" xml:space="preserve">
+    <value>Differs, no history</value>
+  </data>
+  <data name="GitSync_Action_Export" xml:space="preserve">
+    <value>Export to folder</value>
+  </data>
+  <data name="GitSync_Action_Import" xml:space="preserve">
+    <value>Import into project</value>
+  </data>
+  <data name="GitSync_Action_None" xml:space="preserve">
+    <value>Choose a side</value>
+  </data>
+  <data name="GitSync_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="GitSync_SelectNone" xml:space="preserve">
+    <value>Select none</value>
+  </data>
+  <data name="GitSync_UseModule" xml:space="preserve">
+    <value>Use project version</value>
+  </data>
+  <data name="GitSync_UseFile" xml:space="preserve">
+    <value>Use folder version</value>
+  </data>
+  <data name="GitSync_IgnoreSelected" xml:space="preserve">
+    <value>Ignore permanently</value>
+  </data>
+  <data name="GitSync_ChangeFolder" xml:space="preserve">
+    <value>Change folder...</value>
+  </data>
+  <data name="GitSync_Apply" xml:space="preserve">
+    <value>Sync selected</value>
+  </data>
+  <data name="GitSync_NothingToDo" xml:space="preserve">
+    <value>Project '{0}' and the folder are in sync.
+
+{1} in sync, {2} ignored.</value>
+  </data>
+  <data name="GitSync_Blocked" xml:space="preserve">
+    <value>Blocked: {0}</value>
+  </data>
+  <data name="GitSync_MovesFile" xml:space="preserve">
+    <value>moves the file</value>
+  </data>
+  <data name="GitSync_ConfigErrors" xml:space="preserve">
+    <value>rubberduck.json has problems:
+{0}</value>
+  </data>
+  <data name="GitSync_IgnoreConfirm" xml:space="preserve">
+    <value>Add {0} item(s) to the ignore list in rubberduck.json? They are not synced again until they are removed from the list.</value>
+  </data>
+  <data name="GitSync_Backup" xml:space="preserve">
+    <value>The versions that were overwritten are saved in:
+{0}</value>
+  </data>
+  <data name="GitSync_Progress_ReadingModules" xml:space="preserve">
+    <value>Reading the project's modules ({0} of {1})</value>
+  </data>
+  <data name="GitSync_Progress_ReadingFiles" xml:space="preserve">
+    <value>Reading the files in the folder</value>
+  </data>
+  <data name="GitSync_Progress_Comparing" xml:space="preserve">
+    <value>Comparing ({0} of {1})</value>
+  </data>
+  <data name="GitSync_Progress_Preparing" xml:space="preserve">
+    <value>Preparing the files to import</value>
+  </data>
+  <data name="GitSync_Progress_Syncing" xml:space="preserve">
+    <value>Syncing ({0} of {1})</value>
+  </data>
+  <data name="GitSync_Cancelled" xml:space="preserve">
+    <value>Git sync was cancelled.</value>
+  </data>
+  <data name="GitSync_Hint_NeedSide" xml:space="preserve">
+    <value>{0} item(s) are not ticked because there is no history to say which side is newer. Use "Use project version" or "Use folder version" for them (they apply to the selected rows, or to all rows if none are selected).</value>
+  </data>
+  <data name="GitSync_Hint_Blocked" xml:space="preserve">
+    <value>{0} item(s) are blocked by a rule that is enforced in rubberduck.json; see the Notes column.</value>
+  </data>
+  <data name="GitSync_ConfigCreated" xml:space="preserve">
+    <value>The folder had no rubberduck.json, so one was created:
+{0}
+
+It holds your current indenter settings and the default sync settings, with a comment for each. Commit it with the code; everyone who syncs this folder then indents the same way.</value>
   </data>
 </root>

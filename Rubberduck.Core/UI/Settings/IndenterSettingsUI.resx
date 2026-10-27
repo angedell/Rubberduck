@@ -213,4 +213,13 @@ End Sub</value>
   <data name="GroupRelatedProperties" xml:space="preserve">
     <value>Remove vertical space between related property members</value>
   </data>
+  <data name="MaximumConsecutiveEmptyLines" xml:space="preserve">
+    <value>Most empty lines in a row (0 for no limit)</value>
+  </data>
+  <data name="RemoveEmptyLinesAtProcedureEdges" xml:space="preserve">
+    <value>Remove empty lines at the start and end of procedures</value>
+  </data>
+  <data name="RemoveLeadingEmptyLines" xml:space="preserve">
+    <value>Remove empty lines at the top of the module</value>
+  </data>
 </root>

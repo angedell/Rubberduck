@@ -338,7 +338,7 @@
 
                 <Separator />
 
-                <Button Command="{Binding GitSyncNowCommand}" CommandParameter="{Binding SelectedItem, Mode=OneWay}">
+                <Button Command="{Binding GitSyncCommand}" CommandParameter="{Binding SelectedItem, Mode=OneWay}">
                     <Image Source="{StaticResource GitSyncNowImage}" Style="{StaticResource ToolbarImageOpacity}" />
                     <Button.ToolTip>
                         <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_GitSyncNowToolTip}" />

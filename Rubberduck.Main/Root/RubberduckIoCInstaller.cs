@@ -179,7 +179,7 @@ namespace Rubberduck.Root
             container.Register(Component.For<ProjectToExportFolderMap>()
                 .LifestyleSingleton());
 
-            container.Register(Component.For<GitSyncManager>()
+            container.Register(Component.For<GitSyncService>()
                 .LifestyleSingleton());
 
             RegisterCommands(container);
@@ -983,8 +983,15 @@ namespace Rubberduck.Root
                 .ImplementedBy<IndenterSettings>()
                 .LifestyleSingleton());
             container.Register(Component.For<Func<IIndenterSettings>>()
-                .UsingFactoryMethod(kernel => (Func<IIndenterSettings>)(() => kernel.Resolve<IConfigurationService<Configuration>>()
-                   .Read().UserSettings.IndenterSettings))
+                .UsingFactoryMethod(kernel => (Func<IIndenterSettings>)(() =>
+                {
+                    var userSettings = kernel.Resolve<IConfigurationService<Configuration>>().Read().UserSettings.IndenterSettings;
+                    using (var project = _vbe.ActiveVBProject)
+                    {
+                        //A rubberduck.json in the folder the active project is synced with overrides the user's settings.
+                        return GitSyncIndenterSettings.For(kernel.Resolve<IFileSystem>(), project?.FileName, userSettings);
+                    }
+                }))
                 .LifestyleTransient()); //todo: clean up this registration
         }
 
