@@ -212,6 +212,9 @@
   <data name="CodeExplorer_AddModule" xml:space="preserve">
     <value>Add</value>
   </data>
+  <data name="CodeExplorer_AddNoteText" xml:space="preserve">
+    <value>Note (.md)</value>
+  </data>
   <data name="CodeExplorer_AddStdModuleText" xml:space="preserve">
     <value>Standard module (.bas)</value>
     <comment>TC</comment>

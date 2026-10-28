@@ -491,6 +491,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         public AddMDIFormCommand AddMDIFormCommand { get; set; }
         public AddUserFormCommand AddUserFormCommand { get; set; }
         public AddStdModuleCommand AddStdModuleCommand { get; set; }
+        public AddNoteCommand AddNoteCommand { get; set; }
         public AddClassModuleCommand AddClassModuleCommand { get; set; }                
         public AddUserControlCommand AddUserControlCommand { get; set; }
         public AddPropertyPageCommand AddPropertyPageCommand { get; set; }

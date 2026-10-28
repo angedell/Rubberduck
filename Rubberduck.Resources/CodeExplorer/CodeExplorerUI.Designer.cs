@@ -176,6 +176,15 @@ namespace Rubberduck.Resources.CodeExplorer {
         /// <summary>
         ///   Looks up a localized string similar to Standard module (.bas).
         /// </summary>
+        public static string CodeExplorer_AddNoteText {
+            get {
+                return ResourceManager.GetString("CodeExplorer_AddNoteText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Standard module (.bas).
+        /// </summary>
         public static string CodeExplorer_AddStdModuleText {
             get {
                 return ResourceManager.GetString("CodeExplorer_AddStdModuleText", resourceCulture);
