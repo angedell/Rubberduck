@@ -24,12 +24,15 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly RefactorRenameApi _renameRefactor;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            RefactorRenameApi renameRefactor = null)
         {
             _log = log;
             _dump = dump;
+            _renameRefactor = renameRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -171,7 +174,12 @@ namespace Rubberduck.Api
             .Concat(_check != null ? CheckTools() : Enumerable.Empty<Tool>())
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
+            .Concat(_renameRefactor != null ? FromSpecs(_renameRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
+
+        //Tools that come with their feature, described by the feature (see RefactorToolSpec).
+        private static IEnumerable<Tool> FromSpecs(IEnumerable<RefactorToolSpec> specs)
+            => specs.Select(s => new Tool { Name = s.Name, Description = s.Description, Properties = s.Properties, Required = s.Required, Run = s.Run });
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
 
