@@ -2375,6 +2375,15 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Duplicate.
+        /// </summary>
+        public static string NoteEditor_Duplicate {
+            get {
+                return ResourceManager.GetString("NoteEditor_Duplicate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

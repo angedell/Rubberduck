@@ -130,10 +130,13 @@ namespace RubberduckTests.Api
             var result = _notes.Write("c", "P", "CLAUDE.md", "# Rules\r\n\r\ntext", null, "Api.Core");
 
             Assert.IsTrue(result.Created);
-            Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n'@Folder(\"Api.Core\")\r\n' # Rules\r\n'\r\n' text", _store.Modules_["CLAUDE_md"].Value);
-            Assert.AreEqual("standard", _store.Modules_["CLAUDE_md"].Key);
+            var module = _store.Modules_.Single();
+            StringAssert.IsMatch("^Note_[0-9a-f]{8}$", module.Key, "a generated module name");
+            Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n'@Folder(\"Api.Core\")\r\n' # Rules\r\n'\r\n' text", module.Value.Value);
+            Assert.AreEqual("standard", module.Value.Key);
             Assert.AreEqual("CLAUDE.md", result.Note.Name);
-            Assert.AreEqual("CLAUDE_md", result.Note.Module);
+            Assert.AreEqual("Api/Core/CLAUDE.md", result.Note.Path);
+            Assert.AreEqual(module.Key, result.Note.Module);
         }
 
         [Test]
@@ -141,10 +144,64 @@ namespace RubberduckTests.Api
         {
             _store.Add("CLAUDE_md", "standard", "Sub Real()\r\nEnd Sub");
 
-            var conflict = Assert.Throws<ApiException>(() => _notes.Write("c", "P", "CLAUDE.md", "x", null, null));
+            var result = _notes.Write("c", "P", "CLAUDE.md", "x", null, null);
 
-            Assert.AreEqual(409, conflict.Status);
-            Assert.AreEqual(0, _store.Writes);
+            Assert.IsTrue(result.Created);
+            Assert.AreEqual("Sub Real()\r\nEnd Sub", _store.Modules_["CLAUDE_md"].Value, "the ordinary module is untouched");
+            Assert.AreEqual(2, _store.Modules_.Count);
+        }
+
+        [Test]
+        public void TheSameName_CanBeUsedInEveryFolder()
+        {
+            _store.Add("Rules", "standard", Claude);
+            var api = _notes.Write("c", "P", "CLAUDE.md", "# Api", null, "Api");
+            var models = _notes.Write("c", "P", "Models/CLAUDE.md", "# Models", null, null);
+
+            Assert.IsTrue(api.Created);
+            Assert.IsTrue(models.Created);
+            CollectionAssert.AreEquivalent(new[] { "CLAUDE.md", "Api/CLAUDE.md", "Models/CLAUDE.md" }, _notes.List("P").Notes.Select(n => n.Path).ToArray());
+            Assert.AreEqual("# Models", _notes.Read("P", "Models/CLAUDE.md").Markdown);
+            Assert.AreEqual("# Rules", _notes.Read("P", "CLAUDE.md", "").Markdown, "the root's, asked for by folder");
+        }
+
+        [Test]
+        public void APlainNameThatIsAmbiguous_AsksForThePath()
+        {
+            _store.Add("Rules", "standard", Claude);
+            _notes.Write("c", "P", "CLAUDE.md", "# Api", null, "Api");
+
+            var ambiguous = Assert.Throws<ApiException>(() => _notes.Read("P", "CLAUDE.md"));
+
+            Assert.AreEqual("ambiguous_note", ambiguous.Code);
+            StringAssert.Contains("Api/CLAUDE.md", ambiguous.Message);
+            Assert.AreEqual("# Api", _notes.Read("P", "api/claude.MD").Markdown, "paths ignore case, like folders");
+        }
+
+        [Test]
+        public void APathAndAFolderThatDisagree_AreRefused()
+        {
+            Assert.AreEqual(400, Assert.Throws<ApiException>(() => _notes.Write("c", "P", "Api/CLAUDE.md", "x", null, "Other")).Status);
+        }
+
+        [Test]
+        public void MovingOntoANoteOfTheSameName_IsRefused()
+        {
+            _store.Add("Rules", "standard", Claude);
+            var api = _notes.Write("c", "P", "CLAUDE.md", "# Api", null, "Api");
+
+            var clash = Assert.Throws<ApiException>(() => _notes.Write("c", "P", "Api/CLAUDE.md", "# Api", api.Note.Hash, null, ""));
+
+            Assert.AreEqual(409, clash.Status);
+        }
+
+        [Test]
+        public void Names_AreFreeText_WithinFileNameRules()
+        {
+            Assert.IsTrue(_notes.Write("c", "P", "my notes \u00E9.md", "x", null, null).Created);
+            Assert.IsTrue(_notes.Write("c", "P", new string('a', 90) + ".md", "x", null, null).Created);
+            Assert.AreEqual("my notes \u00E9.md", _notes.List("P").Notes.First(n => n.Name.StartsWith("my")).Name);
+            StringAssert.Contains("&#xE9;", _store.Modules_.Values.Select(m => m.Value).First(c => c.Contains("my notes")), "stored as ASCII");
         }
 
         [Test]
@@ -164,15 +221,15 @@ namespace RubberduckTests.Api
         }
 
         [Test]
-        public void Write_FolderGiven_MovesTheNote_EmptyFolderTakesItOut()
+        public void Write_MoveToFolder_MovesTheNote_EmptyTakesItOut()
         {
             _store.Add("Rules", "standard", "'@Notes(\"CLAUDE.md\")\r\n'@Folder(\"Api\")\r\n' old");
             var hash = _notes.Read("P", "CLAUDE.md").Hash;
 
-            var moved = _notes.Write("c", "P", "CLAUDE.md", "old", hash, "Other");
+            var moved = _notes.Write("c", "P", "CLAUDE.md", "old", hash, null, "Other");
             Assert.AreEqual("Other", moved.Note.Folder);
 
-            var root = _notes.Write("c", "P", "CLAUDE.md", "old", moved.Note.Hash, string.Empty);
+            var root = _notes.Write("c", "P", "CLAUDE.md", "old", moved.Note.Hash, null, string.Empty);
             Assert.IsNull(root.Note.Folder);
             Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n' old", _store.Modules_["Rules"].Value);
         }
@@ -192,8 +249,9 @@ namespace RubberduckTests.Api
 
         [TestCase("CLAUDE")]
         [TestCase("CLAUDE_md")]
-        [TestCase("1st.md")]
-        [TestCase("a b.md")]
+        [TestCase(".md")]
+        [TestCase("x:y.md")]
+        [TestCase("a\"b.md")]
         [TestCase("")]
         public void BadNames_AreRefused(string name)
         {
@@ -310,7 +368,7 @@ namespace RubberduckTests.Api
             StringAssert.Contains("ASCII", instructions);
             StringAssert.Contains("never overrides the user", instructions);
             Assert.IsFalse((bool)written["result"]["isError"]);
-            Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n' # Hi", _store.Modules_["CLAUDE_md"].Value);
+            Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n' # Hi", _store.Modules_.Single(m => m.Key.StartsWith("Note_")).Value.Value);
         }
 
         [Test]

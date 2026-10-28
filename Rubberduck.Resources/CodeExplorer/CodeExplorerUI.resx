@@ -887,7 +887,7 @@ They are taken out of the document's file when the document is closed.</value>
     <value>Drag to resize; double-click for half and half</value>
   </data>
   <data name="NoteEditor_NameInvalid" xml:space="preserve">
-    <value>The name cannot be empty or hold quotes or brackets.</value>
+    <value>A name ends in .md and cannot hold quotes, brackets, slashes or characters a file name cannot have.</value>
   </data>
   <data name="NoteEditor_FolderInvalid" xml:space="preserve">
     <value>The folder is dot-separated names such as Api.Core, without quotes or brackets.</value>
@@ -921,5 +921,8 @@ They are taken out of the document's file when the document is closed.</value>
   </data>
   <data name="FolderPicker_TopLevel" xml:space="preserve">
     <value>(top level)</value>
+  </data>
+  <data name="NoteEditor_Duplicate" xml:space="preserve">
+    <value>There is already a note at {0}. Save anyway?</value>
   </data>
 </root>

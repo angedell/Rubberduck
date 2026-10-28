@@ -458,25 +458,27 @@ namespace Rubberduck.Api
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),
-                    ["name"] = String("Note name from list_notes, e.g. CLAUDE.md.")
+                    ["name"] = String("Note path from list_notes (Api/Core/CLAUDE.md; just CLAUDE.md at the root), or its plain name while that is unique."),
+                    ["folder"] = String("Only to tell two notes of the same name apart: the folder of the one you mean (an empty string: the root).")
                 },
                 Required = new[] { "project", "name" },
-                Run = (args, client) => _notes.Read(Arg(args, "project"), Arg(args, "name"))
+                Run = (args, client) => _notes.Read(Arg(args, "project"), Arg(args, "name"), args.Value<string>("folder"))
             },
             new Tool
             {
                 Name = "write_note",
-                Description = "Creates a note or replaces the markdown of an existing one; you send plain markdown and the tool does the comment marks and keeps the folder annotation. The name ends in .md (CLAUDE.md is stored as the module CLAUDE_md). Lines of at most " + (NoteModule.MaxLineLength - 2) + " characters once encoded (any character outside ASCII, emoji included, is fine but counts about 8 characters of the line). Replacing needs the hash from your last read. The first write has to be approved by the user.",
+                Description = "Creates a note or replaces the markdown of an existing one; you send plain markdown and the tool does the comment marks and keeps the folder annotation. The name ends in .md; a note is identified by its folder and name, so the same name can be used in several folders. Lines of at most " + (NoteModule.MaxLineLength - 2) + " characters once encoded (any character outside ASCII, emoji included, is fine but counts about 8 characters of the line). Replacing needs the hash from your last read. The first write has to be approved by the user.",
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),
-                    ["name"] = String("Note name ending in .md, e.g. CLAUDE.md."),
+                    ["name"] = String("Note name ending in .md, e.g. CLAUDE.md, or its path (Api/Core/CLAUDE.md) to say the folder."),
                     ["markdown"] = String("The whole markdown of the note."),
-                    ["folder"] = String("Code Explorer folder such as \"Api.Core\", which makes the note guidance for that folder. Leave out to keep the folder as it is; an empty string moves the note to the root."),
+                    ["folder"] = String("Code Explorer folder such as \"Api.Core\", which makes the note guidance for that folder: where a new note goes, or which note is meant when two share the name. An empty string is the root. Not needed when the name is a path."),
+                    ["moveToFolder"] = String("Moves an existing note to this folder (an empty string: the root)."),
                     ["expectedHash"] = String("The hash from the read this write is based on. Not needed for a new note.")
                 },
                 Required = new[] { "project", "name", "markdown" },
-                Run = (args, client) => _notes.Write(client, Arg(args, "project"), Arg(args, "name"), Arg(args, "markdown"), args.Value<string>("expectedHash"), args.Value<string>("folder"))
+                Run = (args, client) => _notes.Write(client, Arg(args, "project"), Arg(args, "name"), Arg(args, "markdown"), args.Value<string>("expectedHash"), args.Value<string>("folder"), args.Value<string>("moveToFolder"))
             },
             new Tool
             {
@@ -485,11 +487,12 @@ namespace Rubberduck.Api
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),
-                    ["name"] = String("Note name from list_notes."),
+                    ["name"] = String("Note path from list_notes, or its plain name while that is unique."),
+                    ["folder"] = String("Only to tell two notes of the same name apart: the folder of the one you mean (an empty string: the root)."),
                     ["expectedHash"] = String("The hash from your last read of the note.")
                 },
                 Required = new[] { "project", "name", "expectedHash" },
-                Run = (args, client) => { _notes.Delete(client, Arg(args, "project"), Arg(args, "name"), Arg(args, "expectedHash")); return new { deleted = Arg(args, "name") }; }
+                Run = (args, client) => { _notes.Delete(client, Arg(args, "project"), Arg(args, "name"), Arg(args, "expectedHash"), args.Value<string>("folder")); return new { deleted = Arg(args, "name") }; }
             }
         }.ToList());
 

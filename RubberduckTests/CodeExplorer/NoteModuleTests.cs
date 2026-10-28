@@ -36,18 +36,67 @@ namespace RubberduckTests.CodeExplorer
             Assert.AreEqual("M.md", NoteModule.DisplayNameFromArgument("M", null));
         }
 
-        [TestCase("CLAUDE.md", "CLAUDE_md")]
-        [TestCase("claude.MD", "claude_md")]
-        [TestCase("CLAUDE", null)]
-        [TestCase("CLAUDE_md", null)]
-        [TestCase(".md", null)]
-        [TestCase("a b.md", null)]
-        [TestCase("1a.md", null)]
-        [TestCase("abcdefghijklmnopqrstuvwxyzab.md", "abcdefghijklmnopqrstuvwxyzab_md")]
-        [TestCase("abcdefghijklmnopqrstuvwxyzabc.md", null)]
-        public void ModuleNameFor_AcceptsOnlyWhatTheVbeAccepts(string name, string expected)
+        [Test]
+        public void NewModuleName_IsAValidVbaName_AndNeverOneTaken()
         {
-            Assert.AreEqual(expected, NoteModule.ModuleNameFor(name));
+            var taken = new[] { "Module1", "Note_00000000" };
+            var names = Enumerable.Range(0, 200).Select(_ => NoteModule.NewModuleName(taken)).ToList();
+
+            Assert.IsTrue(names.All(n => System.Text.RegularExpressions.Regex.IsMatch(n, "^[A-Za-z][A-Za-z0-9_]{0,30}$")));
+            Assert.IsFalse(names.Intersect(taken, System.StringComparer.OrdinalIgnoreCase).Any());
+            Assert.Greater(names.Distinct().Count(), 190, "random");
+        }
+
+        [TestCase(null, "CLAUDE.md", "CLAUDE.md")]
+        [TestCase("", "CLAUDE.md", "CLAUDE.md")]
+        [TestCase("Api", "CLAUDE.md", "Api/CLAUDE.md")]
+        [TestCase("Api.Core", "CLAUDE.md", "Api/Core/CLAUDE.md")]
+        public void PathOf_AndSplitPath_AreInverse(string folder, string name, string path)
+        {
+            Assert.AreEqual(path, NoteModule.PathOf(folder, name));
+
+            NoteModule.SplitPath(path, out var splitFolder, out var splitName);
+            Assert.AreEqual(name, splitName);
+            Assert.IsTrue(NoteModule.SameFolder(folder, splitFolder));
+        }
+
+        [Test]
+        public void SplitPath_TakesEitherSlash_AndTellsNoFolderFromTheRoot()
+        {
+            NoteModule.SplitPath(@"Api\Core/CLAUDE.md", out var folder, out var name);
+            Assert.AreEqual("Api.Core", folder);
+            Assert.AreEqual("CLAUDE.md", name);
+
+            NoteModule.SplitPath("CLAUDE.md", out folder, out _);
+            Assert.IsNull(folder, "no folder was named");
+
+            NoteModule.SplitPath("/CLAUDE.md", out folder, out _);
+            Assert.AreEqual(string.Empty, folder, "the root was named");
+        }
+
+        [TestCase("CLAUDE.md", true)]
+        [TestCase("my notes \u00E9.md", true)]
+        [TestCase("1st.md", true)]
+        [TestCase("claude.MD", true)]
+        [TestCase("CLAUDE", false)]
+        [TestCase(".md", false)]
+        [TestCase("a/b.md", false)]
+        [TestCase("a\\b.md", false)]
+        [TestCase("a\"b.md", false)]
+        [TestCase("a(b).md", false)]
+        [TestCase("a:b.md", false)]
+        [TestCase(null, false)]
+        public void IsValidName_IsWhatAMarkdownFileCanBeCalled(string name, bool expected)
+        {
+            Assert.AreEqual(expected, NoteModule.IsValidName(name));
+        }
+
+        [Test]
+        public void ANameWithNonAscii_IsStoredEncoded_AndShownDecoded()
+        {
+            var annotations = NoteModule.WithMarker(null, "caf\u00E9.md");
+            Assert.AreEqual("'@Notes(\"caf&#xE9;.md\")", annotations[0]);
+            Assert.AreEqual("caf\u00E9.md", NoteModule.DisplayName("Note_1", annotations[0] + "\r\n' x"));
         }
 
         [Test]

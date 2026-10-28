@@ -89,6 +89,16 @@ namespace Rubberduck.UI.CodeExplorer
                     }
                 }
 
+                //A note is found by its folder and name: two of them with the same pair could not be told apart by an agent or by the sync.
+                var savedAs = NoteModule.PathOf(savedFolder, savedName);
+                if (!string.Equals(savedAs, NoteModule.PathOf(NoteModule.FolderOf(annotations), displayName), StringComparison.OrdinalIgnoreCase)
+                    && AnotherNoteIsAt(module, savedName, savedFolder)
+                    && !_messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.NoteEditor_Duplicate, savedAs), displayName, false))
+                {
+                    Logger.Info("Note '{0}': another note is already at '{1}'; the user chose not to save.", displayName, savedAs);
+                    return true;
+                }
+
                 codeModule.Clear();
                 codeModule.InsertLines(1, NoteModule.ToModuleCode(saved, NoteModule.WithFolder(NoteModule.WithMarker(annotations, savedName), savedFolder)));
                 Logger.Info("Note '{0}' saved from the editor as '{1}' in folder '{2}' ({3} characters of markdown).", displayName, savedName, savedFolder, saved.Length);
@@ -127,6 +137,42 @@ namespace Rubberduck.UI.CodeExplorer
             }
 
             return folders.ToList();
+        }
+
+        private bool AnotherNoteIsAt(QualifiedModuleName module, string name, string folder)
+        {
+            try
+            {
+                using (var components = _projects.ComponentsCollection(module.ProjectId))
+                {
+                    foreach (var component in components)
+                    {
+                        using (component)
+                        using (var codeModule = component.CodeModule)
+                        {
+                            if (string.Equals(component.Name, module.ComponentName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            var count = Math.Min(codeModule.CountOfLines, 40);
+                            var head = count == 0 ? string.Empty : codeModule.GetLines(1, count);
+                            if (NoteModule.HasMarker(head)
+                                && string.Equals(NoteModule.DisplayName(component.Name, head), name, StringComparison.OrdinalIgnoreCase)
+                                && NoteModule.SameFolder(NoteModule.FolderOf(NoteModule.Annotations(head)), folder))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Runtime.InteropServices.COMException exception)
+            {
+                Logger.Debug(exception, "Could not look for another note at '{0}' in project '{1}'.", name, module.ProjectId);
+            }
+
+            return false;
         }
 
         private string ProjectFile(QualifiedModuleName module)

@@ -13,7 +13,7 @@ namespace Rubberduck.Navigation.CodeExplorer
     public static class NoteModule
     {
         private const string Extension = ".md";
-        private const string DefaultSuffix = "_md";
+        private const string ModulePrefix = "Note_";
         private const string NewLine = "\r\n";
 
         /// <summary>The longest line the VBE accepts.</summary>
@@ -51,29 +51,60 @@ namespace Rubberduck.Navigation.CodeExplorer
         }
 
         /// <summary>What the note is called: the annotation's name, or the module name with ".md" after it.</summary>
-        public static string DisplayName(string moduleName, string moduleCode) => NameOf(moduleCode) ?? moduleName + Extension;
+        public static string DisplayName(string moduleName, string moduleCode) => Decode(NameOf(moduleCode)) ?? moduleName + Extension;
 
         /// <summary>The same from a parsed annotation's argument, which still has its quotes (null if there was none).</summary>
-        public static string DisplayNameFromArgument(string moduleName, string argument) => NameFromArgument(argument?.Trim().Trim('"')) ?? moduleName + Extension;
+        public static string DisplayNameFromArgument(string moduleName, string argument) => Decode(NameFromArgument(argument?.Trim().Trim('"'))) ?? moduleName + Extension;
 
-        /// <summary>The module name for a note name: "CLAUDE.md" gives "CLAUDE_md". Null if the name does not end in .md or is not one the VBE accepts for a module.</summary>
-        public static string ModuleNameFor(string noteName)
+        /// <summary>
+        /// A module name for a new note, such as Note_7f3a9c21. The name a note is shown and found by is the annotation's, never the module's, so the module can be anything the VBE accepts:
+        /// notes with the same name in different folders, or copied from another project, never clash.
+        /// </summary>
+        /// <param name="taken">The names the project's modules have already.</param>
+        public static string NewModuleName(IEnumerable<string> taken)
         {
-            var name = (noteName ?? string.Empty).Trim();
-            if (!name.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+            var used = new HashSet<string>(taken ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            string name;
+            do
             {
-                return null;
+                name = ModulePrefix + Guid.NewGuid().ToString("N").Substring(0, 8);
+            }
+            while (used.Contains(name));
+
+            return name;
+        }
+
+        /// <summary>The note's place as a path, the way its file is named in a repository: folder "Api.Core" and name "CLAUDE.md" give "Api/Core/CLAUDE.md".</summary>
+        public static string PathOf(string folder, string name)
+        {
+            var segments = (folder ?? string.Empty).Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries).Select(segment => segment.Trim());
+            return string.Join("/", segments.Concat(new[] { name }));
+        }
+
+        /// <summary>Splits "Api/Core/CLAUDE.md" into the folder ("Api.Core") and the name; a text without a slash has no folder (null).</summary>
+        public static void SplitPath(string path, out string folder, out string name)
+        {
+            var text = (path ?? string.Empty).Trim().Replace('\\', '/');
+            var slash = text.LastIndexOf('/');
+            if (slash < 0)
+            {
+                folder = null;
+                name = text;
+                return;
             }
 
-            name = name.Substring(0, name.Length - Extension.Length) + DefaultSuffix;
-            return ValidModuleName.IsMatch(name) ? name : null;
+            name = text.Substring(slash + 1);
+            folder = string.Join(".", text.Substring(0, slash).Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries).Select(segment => segment.Trim()));
         }
+
+        /// <summary>Whether two folders (null and empty are both the root) are the same one.</summary>
+        public static bool SameFolder(string a, string b) => string.Equals((a ?? string.Empty).Trim(), (b ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
 
         /// <summary>The annotations with the @Notes marker for <paramref name="displayName"/> first, every other annotation as it was.</summary>
         public static IReadOnlyList<string> WithMarker(IEnumerable<string> annotations, string displayName)
         {
             var result = (annotations ?? Enumerable.Empty<string>()).Where(line => !NotesAnnotation.IsMatch(line)).ToList();
-            result.Insert(0, "'@Notes(\"" + displayName + "\")");
+            result.Insert(0, "'@Notes(\"" + Encode(displayName) + "\")");
             return result;
         }
 
@@ -105,9 +136,16 @@ namespace Rubberduck.Navigation.CodeExplorer
             return result;
         }
 
-        /// <summary>Whether the text can be the argument of '@Notes: something to show, nothing that would end the annotation.</summary>
+        /// <summary>
+        /// Whether the text can be a note's name: it ends in .md and is the name of a file as well, because a note is a markdown file in a repository.
+        /// Nothing that would end the annotation either, and no slash, which separates the folders of a path.
+        /// </summary>
         public static bool IsValidName(string name)
-            => !string.IsNullOrWhiteSpace(name) && name.IndexOfAny(new[] { '"', '\'', '(', ')', '\r', '\n' }) < 0;
+            => name != null
+               && name.Trim().Length > Extension.Length
+               && name.Length <= 100
+               && name.Trim().EndsWith(Extension, StringComparison.OrdinalIgnoreCase)
+               && name.IndexOfAny(new[] { '"', '\'', '(', ')', '\r', '\n', '/', '\\', ':', '*', '?', '<', '>', '|' }) < 0;
 
         /// <summary>Whether the text can be an '@Folder argument: dot-separated names, nothing that would end the annotation.</summary>
         public static bool IsValidFolder(string folder)

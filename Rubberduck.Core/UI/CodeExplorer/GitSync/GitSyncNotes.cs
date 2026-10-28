@@ -183,21 +183,18 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
                 if (component == null)
                 {
-                    var moduleName = NoteModule.ModuleNameFor(displayName);
-                    if (moduleName == null)
+                    //The module's name is nobody's business: the note is found by its folder and name, so it never clashes with another module.
+                    var names = new List<string>();
+                    foreach (var other in components)
                     {
-                        throw new InvalidOperationException($"'{displayName}' does not make a module name the VBE accepts.");
-                    }
-
-                    var taken = GitSyncService.FindComponent(components, moduleName);
-                    if (taken != null)
-                    {
-                        taken.Dispose();
-                        throw new InvalidOperationException($"the project already has a module named '{moduleName}'.");
+                        using (other)
+                        {
+                            names.Add(other.Name);
+                        }
                     }
 
                     component = components.Add(ComponentType.StandardModule);
-                    component.Name = moduleName;
+                    component.Name = NoteModule.NewModuleName(names);
                 }
 
                 var annotations = existing == null ? new List<string>() : NoteModule.Annotations(existing).ToList();

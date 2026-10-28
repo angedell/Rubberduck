@@ -256,7 +256,8 @@ namespace Rubberduck.Api
             }
 
             // /projects/{p}/notes[/{name}]: markdown in plain text; the comment marks of the module behind them are not the caller's business.
-            if (segments.Length >= 3 && segments.Length <= 4 && segments[0] == "projects" && segments[2] == "notes")
+            // The name of a note in a folder is its path (Api/Core/CLAUDE.md), so it can take several segments.
+            if (segments.Length >= 3 && segments[0] == "projects" && segments[2] == "notes")
             {
                 if (_notes == null)
                 {
@@ -268,7 +269,7 @@ namespace Rubberduck.Api
                     return method == "GET" ? ApiResponse.Json(_notes.List(segments[1])) : throw MethodNotAllowed("GET");
                 }
 
-                return Note(request, method, segments[1], segments[3]);
+                return Note(request, method, segments[1], string.Join("/", segments.Skip(3)));
             }
 
             if (segments.Length >= 3 && segments[0] == "projects")
@@ -432,16 +433,16 @@ namespace Rubberduck.Api
             switch (method)
             {
                 case "GET":
-                    var content = _notes.Read(project, name);
+                    var content = _notes.Read(project, name, request.Query.TryGetValue("folder", out var folderQuery) ? folderQuery : null);
                     return ApiResponse.Json(content, content.Hash);
 
                 case "PUT":
-                    //A new note needs no hash, like a new resource; 'folder' left out keeps the folder, an empty one takes the note out of it.
+                    //A new note needs no hash, like a new resource. 'folder' says where a new note goes, or which of two notes of one name is meant; 'moveToFolder' moves an existing one.
                     var put = Body(request);
-                    return ApiResponse.Json(_notes.Write(request.Client, project, name, Text(put, "markdown"), ExpectedHashOrNull(request, put), Text(put, "folder")));
+                    return ApiResponse.Json(_notes.Write(request.Client, project, name, Text(put, "markdown"), ExpectedHashOrNull(request, put), Text(put, "folder"), Text(put, "moveToFolder")));
 
                 case "DELETE":
-                    _notes.Delete(request.Client, project, name, request.IfMatch?.Trim('"'));
+                    _notes.Delete(request.Client, project, name, request.IfMatch?.Trim('"'), request.Query.TryGetValue("folder", out var deleteFolder) ? deleteFolder : null);
                     return ApiResponse.Json(new { deleted = name });
 
                 default:
