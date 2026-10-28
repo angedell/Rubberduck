@@ -2303,6 +2303,69 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Title.
+        /// </summary>
+        public static string FolderPicker_Title {
+            get {
+                return ResourceManager.GetString("FolderPicker_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_None.
+        /// </summary>
+        public static string FolderPicker_None {
+            get {
+                return ResourceManager.GetString("FolderPicker_None", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_New.
+        /// </summary>
+        public static string FolderPicker_New {
+            get {
+                return ResourceManager.GetString("FolderPicker_New", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_NewNode.
+        /// </summary>
+        public static string FolderPicker_NewNode {
+            get {
+                return ResourceManager.GetString("FolderPicker_NewNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Selected.
+        /// </summary>
+        public static string FolderPicker_Selected {
+            get {
+                return ResourceManager.GetString("FolderPicker_Selected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Invalid.
+        /// </summary>
+        public static string FolderPicker_Invalid {
+            get {
+                return ResourceManager.GetString("FolderPicker_Invalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_FolderBrowse.
+        /// </summary>
+        public static string NoteEditor_FolderBrowse {
+            get {
+                return ResourceManager.GetString("NoteEditor_FolderBrowse", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.IO.Abstractions;
+using System.Linq;
 using System.Windows.Forms;
 using NLog;
 using Rubberduck.Interaction;
@@ -54,7 +57,7 @@ namespace Rubberduck.UI.CodeExplorer
             string savedName;
             string savedFolder;
             var title = string.Format(CodeExplorerUI.ResourceEditor_Title, displayName, projectName);
-            using (var dialog = new NoteEditorDialog(title, NoteModule.ToMarkdown(opened), displayName, NoteModule.FolderOf(annotations), layouts.Get(layoutKey), preferences))
+            using (var dialog = new NoteEditorDialog(title, NoteModule.ToMarkdown(opened), displayName, NoteModule.FolderOf(annotations), layouts.Get(layoutKey), preferences, ProjectFolders(module)))
             {
                 var result = dialog.ShowDialog();
                 preferences.Save(_fileSystem);
@@ -92,6 +95,38 @@ namespace Rubberduck.UI.CodeExplorer
             }
 
             return true;
+        }
+
+        //The folders of the project are those its modules name in '@Folder; the annotations sit at the top of a module, so only the top is read.
+        private IReadOnlyList<string> ProjectFolders(QualifiedModuleName module)
+        {
+            var folders = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using (var components = _projects.ComponentsCollection(module.ProjectId))
+                {
+                    foreach (var component in components)
+                    {
+                        using (component)
+                        using (var codeModule = component.CodeModule)
+                        {
+                            var count = Math.Min(codeModule.CountOfLines, 40);
+                            var folder = count == 0 ? null : GitSync.GitSyncText.GetFolderAnnotation(codeModule.GetLines(1, count));
+                            if (!string.IsNullOrWhiteSpace(folder))
+                            {
+                                folders.Add(folder.Trim());
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Runtime.InteropServices.COMException exception)
+            {
+                //The picker still works, with the folder the note has and whatever the user makes.
+                Logger.Debug(exception, "Could not list the folders of project '{0}'.", module.ProjectId);
+            }
+
+            return folders.ToList();
         }
 
         private string ProjectFile(QualifiedModuleName module)

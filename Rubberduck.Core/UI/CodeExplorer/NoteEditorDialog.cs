@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Controls;
 using System.Windows.Forms;
@@ -44,8 +45,12 @@ namespace Rubberduck.UI.CodeExplorer
         private readonly Timer _debounce;
         private bool _previewStale = true;
 
-        public NoteEditorDialog(string title, string markdown, string name, string folder, NoteEditorLayout layout = null, ResourceEditorPreferences preferences = null)
+        private readonly IReadOnlyList<string> _knownFolders;
+
+        /// <param name="knownFolders">The folders the project has, for the folder picker.</param>
+        public NoteEditorDialog(string title, string markdown, string name, string folder, NoteEditorLayout layout = null, ResourceEditorPreferences preferences = null, IReadOnlyList<string> knownFolders = null)
         {
+            _knownFolders = knownFolders ?? new string[0];
             _original = Crlf(markdown);
             _originalName = name ?? string.Empty;
             _originalFolder = folder ?? string.Empty;
@@ -55,7 +60,7 @@ namespace Rubberduck.UI.CodeExplorer
             Text = title;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1100, 700);
-            MinimumSize = new Size(640, 360);
+            MinimumSize = new Size(960, 360);
             ShowIcon = false;
             ShowInTaskbar = false;
             KeyPreview = true;
@@ -110,6 +115,16 @@ namespace Rubberduck.UI.CodeExplorer
             top.Controls.Add(_name);
             top.Controls.Add(Caption(CodeExplorerUI.NoteEditor_Folder));
             top.Controls.Add(_folder);
+            var browse = SmallButton("…", CodeExplorerUI.NoteEditor_FolderBrowse, (sender, args) =>
+            {
+                var chosen = FolderPickerDialog.Pick(this, _knownFolders, _folder.Text.Trim());
+                if (chosen != null)
+                {
+                    _folder.Text = chosen;
+                }
+            });
+            browse.Margin = new Padding(0, 0, 1, 0);
+            top.Controls.Add(browse);
             top.Controls.Add(new Label { Width = 18 });
             top.Controls.Add(_viewSource);
             top.Controls.Add(_viewSplit);

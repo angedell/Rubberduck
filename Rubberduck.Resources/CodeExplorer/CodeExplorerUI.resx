@@ -898,4 +898,25 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="sticky_note_pin" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Icons\Fugue\sticky-note-pin.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="FolderPicker_Title" xml:space="preserve">
+    <value>Choose a folder</value>
+  </data>
+  <data name="FolderPicker_None" xml:space="preserve">
+    <value>(none: the project's own folder)</value>
+  </data>
+  <data name="FolderPicker_New" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FolderPicker_NewNode" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FolderPicker_Selected" xml:space="preserve">
+    <value>Folder: {0}</value>
+  </data>
+  <data name="FolderPicker_Invalid" xml:space="preserve">
+    <value>A folder name cannot be empty or hold dots, quotes or brackets.</value>
+  </data>
+  <data name="NoteEditor_FolderBrowse" xml:space="preserve">
+    <value>Choose from the folders of the project, or make a new one</value>
+  </data>
 </root>
