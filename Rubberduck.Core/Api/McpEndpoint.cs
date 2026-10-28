@@ -24,10 +24,12 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly IFirewallCheck _firewall;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null)
         {
+            _firewall = firewall;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -528,9 +530,9 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "get_info",
-                Description = "Says which build of Rubberduck is answering: the full version (the last number counts up with every build) and the git commit. Mention it when you report a problem.",
+                Description = "Says which build of Rubberduck is answering: the full version (the last number counts up with every build) and the git commit. Mention it when you report a problem. Also says how Windows Firewall treats agents on the network (firewall: profile, firewall, inboundRule, networkReachable, hint); \"unknown\" means it could not be read.",
                 Properties = new JObject(), Required = new string[0],
-                Run = (args, client) => ApiRouter.InfoReport()
+                Run = (args, client) => ApiRouter.InfoReport(_firewall)
             },
             new Tool
             {

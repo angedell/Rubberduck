@@ -46,11 +46,13 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly IFirewallCheck _firewall;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null)
         {
+            _firewall = firewall;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -61,7 +63,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -94,10 +96,10 @@ namespace Rubberduck.Api
         }
 
         /// <summary>Which build is running, the same as the splash screen says. Public so the MCP tool can give the same answer.</summary>
-        public static InfoReport InfoReport()
+        public static InfoReport InfoReport(IFirewallCheck firewall = null)
         {
             var build = BuildInfo.Current;
-            return new InfoReport { Name = "Rubberduck", Version = build.Version, Commit = build.Commit, Display = build.Display, Api = "v1" };
+            return new InfoReport { Name = "Rubberduck", Version = build.Version, Commit = build.Commit, Display = build.Display, Api = "v1", Firewall = firewall?.Check() };
         }
 
         /// <summary>
@@ -166,7 +168,7 @@ namespace Rubberduck.Api
             if (segments.Length == 1 && segments[0] == "info")
             {
                 Allow(method, "GET");
-                return ApiResponse.Json(InfoReport());
+                return ApiResponse.Json(InfoReport(_firewall));
             }
 
             // /log: Rubberduck's own log and its level
