@@ -507,7 +507,8 @@ namespace Rubberduck.Api
         //Told to agents up front, with the caveats, because a note looks like code to every other tool.
         private string NoteInstructions() => _notes == null
             ? string.Empty
-            : "\n- Notes: list_notes, read_note, write_note, delete_note work on markdown notes kept inside the project itself (CLAUDE.md at the root, or in a folder). Start with list_notes and read the notes at the root and in the folders you will work in. You send and get plain markdown; the plumbing is done for you. CAVEATS: "
+            : "\n- Notes: THIS IS NOT A REGULAR REPOSITORY. The project lives inside an Office document (its VBA): there is no folder of files to put a CLAUDE.md or AGENTS.md in, and a file you create on disk is not part of the project. Instead list_notes, read_note, write_note and delete_note keep markdown notes inside the project itself, and you can create a CLAUDE.md or an AGENTS.md there (at the root, or in a folder for the modules of that folder) to set up your own work and that of the agents after you: conventions, how to build and test, what not to touch. Start with list_notes and read the notes at the root and in the folders you will work in. You send and get plain markdown; the plumbing is done for you. MIND THE LINE LENGTH: a note is stored as VBA comments and the editor holds at most "
+              + (NoteModule.MaxLineLength - 2) + " characters in a line, so keep every line short (break paragraphs at sentence ends); write_note refuses a longer one. Every character outside ASCII (accents, emoji, typographic quotes) counts about 8. CAVEATS: "
               + string.Join(" ", NotesApi.Caveats.Select((caveat, index) => (index + 1) + ") " + caveat));
 
         private IList<Tool> _noteTools;
