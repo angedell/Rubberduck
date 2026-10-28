@@ -50,10 +50,14 @@ namespace Rubberduck.UI.Refactorings.MoveToFolder
             }
         }
 
-        /// <summary>The folders the project has, for the folder picker.</summary>
+        //A folder belongs to a project: the folders of the others are not places to move to.
+        private HashSet<string> ProjectIds => new HashSet<string>(Targets?.Select(target => target.ProjectId) ?? Enumerable.Empty<string>());
+
+        /// <summary>The folders of the project the modules are in, for the folder picker.</summary>
         public IReadOnlyList<string> KnownFolders => (_finder?.DeclarationFinder
             .UserDeclarations(DeclarationType.Module)
             .OfType<ModuleDeclaration>()
+            .Where(module => ProjectIds.Contains(module.ProjectId))
             .Select(module => module.CustomFolder)
             .Where(folder => !string.IsNullOrWhiteSpace(folder))
             .Distinct(System.StringComparer.OrdinalIgnoreCase)
