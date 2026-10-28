@@ -198,7 +198,8 @@ namespace Rubberduck.Api
             var (id, _) = _parser.ResolveProject(project);
             _parser.CatchUp();
             return _parser.State.AllUserDeclarations
-                .Where(d => SameProject(d.ProjectId, id) && d.DeclarationType.HasFlag(DeclarationType.Module))
+                .Where(d => SameProject(d.ProjectId, id) && d.DeclarationType.HasFlag(DeclarationType.Module)
+                            && !d.Annotations.Any(pta => pta.Annotation is Rubberduck.Parsing.Annotations.Concrete.NotesAnnotation))
                 .GroupBy(d => d.CustomFolder ?? string.Empty)
                 .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(g => new StructureFolder { Folder = g.Key, Modules = g.Select(d => d.IdentifierName).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList() })

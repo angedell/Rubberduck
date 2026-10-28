@@ -59,9 +59,10 @@ namespace Rubberduck.CodeAnalysis.Inspections.Extensions
         
         private static bool HasModuleIgnoreFor(this Declaration declaration, string inspectionName)
         {
+            //A note is text, not code: no inspection has anything to say about it.
             return Declaration.GetModuleParent(declaration)?.Annotations
-                .Where(pta => pta.Annotation is IgnoreModuleAnnotation)
-                .Any(ignoreModule => !ignoreModule.AnnotationArguments.Any() || ignoreModule.AnnotationArguments.Contains(inspectionName)) ?? false;
+                .Where(pta => pta.Annotation is IgnoreModuleAnnotation || pta.Annotation is NotesAnnotation)
+                .Any(ignoreModule => ignoreModule.Annotation is NotesAnnotation || !ignoreModule.AnnotationArguments.Any() || ignoreModule.AnnotationArguments.Contains(inspectionName)) ?? false;
         }
 
         private static bool HasIgnoreFor(this Declaration declaration, string inspectionName)

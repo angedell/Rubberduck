@@ -23,6 +23,8 @@ namespace Rubberduck.UI.Converters
         private static readonly ImageSource ConfigResourceIcon = ToImageSource(CodeExplorerUI.pencil_ruler);
         private static readonly ImageSource ImageResourceIcon = ToImageSource(CodeExplorerUI.document_globe);
 
+        private static readonly ImageSource NoteIcon = ToImageSource(CodeExplorerUI.sticky_note_pin);
+
         private static readonly ImageSource LockedReferenceIcon = ToImageSource(CodeExplorerUI.LockedReference);
         private static readonly ImageSource BrokenReferenceIcon = ToImageSource(CodeExplorerUI.BrokenReference);
 
@@ -58,6 +60,8 @@ namespace Rubberduck.UI.Converters
                     return resource.IsRibbonXml ? RibbonXmlIcon : resource.IsConfig ? ConfigResourceIcon : ImageResourceIcon;
                 case CodeExplorerCustomFolderViewModel folder:
                     return folder.IsExpanded ? OpenFolderIcon : ClosedFolderIcon;
+                case CodeExplorerComponentViewModel note when note.IsNote:
+                    return NoteIcon;
                 case CodeExplorerComponentViewModel component:
                     return base.Convert(component.Declaration, targetType, parameter, culture);
                 default:

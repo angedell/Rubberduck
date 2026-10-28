@@ -46,6 +46,7 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly NotesApi _notes;
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
         private readonly SyncAttributesApi _syncAttributes;
@@ -62,8 +63,10 @@ namespace Rubberduck.Api
             SyncAttributesApi syncAttributes = null,
             RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
             RefactorMoveToFolderApi moveRefactor = null,
-            QuickFixApi quickFix = null)
+            QuickFixApi quickFix = null,
+            NotesApi notes = null)
         {
+            _notes = notes;
             _syncAttributes = syncAttributes;
             _firewall = firewall;
             _vbeReset = vbeReset;
@@ -82,7 +85,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -280,6 +283,23 @@ namespace Rubberduck.Api
                 return Resource(request, method, segments[1], segments[3]);
             }
 
+            // /projects/{p}/notes[/{name}]: markdown in plain text; the comment marks of the module behind them are not the caller's business.
+            // The name of a note in a folder is its path (Api/Core/CLAUDE.md), so it can take several segments.
+            if (segments.Length >= 3 && segments[0] == "projects" && segments[2] == "notes")
+            {
+                if (_notes == null)
+                {
+                    throw ApiException.NotFound("No such route.");
+                }
+
+                if (segments.Length == 3)
+                {
+                    return method == "GET" ? ApiResponse.Json(_notes.List(segments[1])) : throw MethodNotAllowed("GET");
+                }
+
+                return Note(request, method, segments[1], string.Join("/", segments.Skip(3)));
+            }
+
             // /projects/{p}/modules/{m}/sync-attributes: GET previews, POST applies
             if (segments.Length == 5 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "sync-attributes" && _syncAttributes != null)
             {
@@ -472,6 +492,28 @@ namespace Rubberduck.Api
 
                 case "DELETE":
                     return ApiResponse.Json(_resources.Delete(request.Client, project, name, request.IfMatch?.Trim('"')));
+
+                default:
+                    throw MethodNotAllowed("GET, PUT, DELETE");
+            }
+        }
+
+        private ApiResponse Note(ApiRequest request, string method, string project, string name)
+        {
+            switch (method)
+            {
+                case "GET":
+                    var content = _notes.Read(project, name, request.Query.TryGetValue("folder", out var folderQuery) ? folderQuery : null);
+                    return ApiResponse.Json(content, content.Hash);
+
+                case "PUT":
+                    //A new note needs no hash, like a new resource. 'folder' says where a new note goes, or which of two notes of one name is meant; 'moveToFolder' moves an existing one.
+                    var put = Body(request);
+                    return ApiResponse.Json(_notes.Write(request.Client, project, name, Text(put, "markdown"), ExpectedHashOrNull(request, put), Text(put, "folder"), Text(put, "moveToFolder")));
+
+                case "DELETE":
+                    _notes.Delete(request.Client, project, name, request.IfMatch?.Trim('"'), request.Query.TryGetValue("folder", out var deleteFolder) ? deleteFolder : null);
+                    return ApiResponse.Json(new { deleted = name });
 
                 default:
                     throw MethodNotAllowed("GET, PUT, DELETE");

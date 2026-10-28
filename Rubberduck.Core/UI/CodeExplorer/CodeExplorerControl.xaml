@@ -30,6 +30,7 @@
             <BitmapImage x:Key="PrintImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/printer.png" />
             <BitmapImage x:Key="AddMdiFormImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/AddMdiForm.png" />
             <BitmapImage x:Key="AddTestModuleImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/ListOfTests.png" />
+            <BitmapImage x:Key="AddNoteImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/sticky-note-pin.png" />
             <BitmapImage x:Key="AddStdModuleImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/AddModule.png" />
             <BitmapImage x:Key="AddClassModuleImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/AddClass.png" />
             <BitmapImage x:Key="AddUserControlImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/AddUserControl.png" />
@@ -47,6 +48,8 @@
             <BitmapImage x:Key="GitSyncNowImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/arrow-circle-double.png" />
             <BitmapImage x:Key="SelectModeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/node-select-all.png" />
             <BitmapImage x:Key="RemoveSelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/cross-circle.png" />
+            <BitmapImage x:Key="CopySelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/document-copy.png" />
+            <BitmapImage x:Key="MoveSelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/document-import.png" />
             <BitmapImage x:Key="SyncImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/SyncArrows.png" />
             <BitmapImage x:Key="FontSizeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/edit-size.png" />
             <BitmapImage x:Key="ExtractInterfaceImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/ExtractInterface.png" />
@@ -99,6 +102,13 @@
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}">
                     <MenuItem.Icon>
                         <Image Height="16" Source="{StaticResource AddStdModuleImage}" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddNoteText}"
+                                  Command="{Binding AddNoteCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}">
+                    <MenuItem.Icon>
+                        <Image Height="16" Source="{StaticResource AddNoteImage}" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddClassModuleText}"
@@ -362,6 +372,22 @@
                     </Button.ToolTip>
                 </Button>
 
+                <Button Command="{Binding CopyToProjectCommand}" CommandParameter="{Binding Projects}"
+                        Visibility="{Binding IsSelectionMode, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource CopySelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_CopySelectedToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
+                <Button Command="{Binding MoveToProjectCommand}" CommandParameter="{Binding Projects}"
+                        Visibility="{Binding IsSelectionMode, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource MoveSelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveSelectedToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
                 <Separator />
 
                 <Button Command="{Binding CopyResultsCommand}" CommandParameter="{Binding ElementName=ProjectTree}">
@@ -460,6 +486,10 @@
                       FontWeight="Bold"
                       Command="{Binding OpenCommand}"
                       CommandParameter="{Binding SelectedItem, Mode=OneWay}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_OpenAsCode}"
+                      Command="{Binding OpenAsCodeCommand}"
+                      CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                      Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_OpenDesigner}"
                       Command="{Binding OpenDesignerCommand}"
                       CommandParameter="{Binding SelectedItem, Mode=OneWay}"
@@ -481,6 +511,14 @@
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveToFolder}"
                               Command="{Binding MoveToFolderCommand}"
                               CommandParameter="{Binding SelectedItem, Mode=OneWay}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_CopyToProject}"
+                              Command="{Binding CopyToProjectCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveToProject}"
+                              Command="{Binding MoveToProjectCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_Annotate}" IsEnabled="{Binding CanBeAnnotated}">
                         <MenuItem.ItemsSource>
                             <CompositeCollection>

@@ -25,14 +25,29 @@ namespace Rubberduck.Api
 
         public IReadOnlyList<ProjectInfo> Projects() => _store.Projects();
 
-        public IReadOnlyList<ModuleInfo> Modules(string project) => _store.Modules(project);
+        /// <summary>The modules, forms and classes of the project. Notes are not among them: they have their own tools (see <see cref="NotesApi"/>).</summary>
+        public IReadOnlyList<ModuleInfo> Modules(string project) => _store.Modules(project).Where(module => !module.IsNote).ToList();
 
-        public ModuleContent Read(string project, string module, bool includeText) => _store.Read(project, module, includeText);
+        public ModuleContent Read(string project, string module, bool includeText) => RejectNote(_store.Read(project, module, includeText));
+
+        //A note is markdown behind comment marks. Through these tools an agent would have to keep the marks, the annotations and the line limit right by itself, so it is sent to the tools that do.
+        private static T RejectNote<T>(T module) where T : ModuleInfo
+        {
+            if (module.IsNote)
+            {
+                throw new ApiException(409, "is_a_note",
+                    $"'{module.Name}' is a note, not a code module. Use list_notes, read_note, write_note and delete_note (or the /notes routes) for it.");
+            }
+
+            return module;
+        }
+
+        private void RejectNote(string project, string module) => RejectNote(_store.Read(project, module, false));
 
         /// <summary>Like <see cref="Read(string, string, bool)"/>, and with the hidden attributes as data if asked for.</summary>
         public ModuleContent Read(string project, string module, bool includeText, bool includeAttributes)
         {
-            var content = _store.Read(project, module, includeText || includeAttributes);
+            var content = RejectNote(_store.Read(project, module, includeText || includeAttributes));
             if (includeAttributes)
             {
                 content.Attributes = ModuleAttributes.Parse(content.Text);
@@ -57,7 +72,7 @@ namespace Rubberduck.Api
             }
 
             //Looks at the text first, so a bad name or value is refused before the user is asked anything.
-            var current = _store.Read(project, module, true);
+            var current = RejectNote(_store.Read(project, module, true));
             if (!string.Equals(current.Hash, expectedHash, StringComparison.OrdinalIgnoreCase))
             {
                 throw ApiException.PreconditionFailed($"'{module}' changed since you read it. Read it again.");
@@ -142,6 +157,7 @@ namespace Rubberduck.Api
             Require(code, "code");
             RequireHash(expectedHash);
             RejectHeaderLines(code);
+            RejectNote(project, module);
             _approval.Require(client);
             return KeepingMemberAttributes(project, module, () => _store.ReplaceCode(project, module, code, expectedHash));
         }
@@ -151,6 +167,7 @@ namespace Rubberduck.Api
             Require(text, "text");
             RequireHash(expectedHash);
             RequireWholeModule(module, text);
+            RejectNote(project, module);
             _approval.Require(client);
             return _store.ReplaceText(project, module, text, expectedHash);
         }
@@ -165,6 +182,7 @@ namespace Rubberduck.Api
             }
 
             RejectHeaderLines(replacement);
+            RejectNote(project, module);
             _approval.Require(client);
             return KeepingMemberAttributes(project, module, () => _store.EditLines(project, module, startLine, endLine, replacement, expectedHash));
         }
@@ -190,6 +208,7 @@ namespace Rubberduck.Api
         public void Delete(string client, string project, string module, string expectedHash)
         {
             RequireHash(expectedHash);
+            RejectNote(project, module);
             _approval.Require(client);
             _store.Delete(project, module, expectedHash);
         }
@@ -242,7 +261,7 @@ namespace Rubberduck.Api
                     continue;
                 }
 
-                var current = _store.Read(project, edit.Module, false);
+                var current = RejectNote(_store.Read(project, edit.Module, false));
                 if (!string.Equals(current.Hash, edit.ExpectedHash, StringComparison.OrdinalIgnoreCase))
                 {
                     throw ApiException.PreconditionFailed($"'{edit.Module}' changed since you read it. Nothing was changed. Read it again and redo the batch.");

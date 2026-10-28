@@ -491,6 +491,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         public AddMDIFormCommand AddMDIFormCommand { get; set; }
         public AddUserFormCommand AddUserFormCommand { get; set; }
         public AddStdModuleCommand AddStdModuleCommand { get; set; }
+        public AddNoteCommand AddNoteCommand { get; set; }
         public AddClassModuleCommand AddClassModuleCommand { get; set; }                
         public AddUserControlCommand AddUserControlCommand { get; set; }
         public AddPropertyPageCommand AddPropertyPageCommand { get; set; }
@@ -500,6 +501,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         public AddTemplateCommand AddTemplateCommand { get; set; }
         public AnnotateDeclarationCommand AnnotateDeclarationCommand { get; set; }
         public OpenDesignerCommand OpenDesignerCommand { get; set; }
+        public OpenAsCodeCommand OpenAsCodeCommand { get; set; }
         public OpenProjectPropertiesCommand OpenProjectPropertiesCommand { get; set; }
         public SetAsStartupProjectCommand SetAsStartupProjectCommand { get; set; }
         public RenameCommand RenameCommand { get; set; }
@@ -542,6 +544,46 @@ namespace Rubberduck.Navigation.CodeExplorer
         private void BulkRemoveCompleted(object sender, EventArgs e)
         {
             IsSelectionMode = false;
+        }
+
+        private CopyToProjectCommand _copyToProjectCommand;
+        public CopyToProjectCommand CopyToProjectCommand
+        {
+            get => _copyToProjectCommand;
+            set
+            {
+                if (_copyToProjectCommand != null)
+                {
+                    _copyToProjectCommand.Completed -= BulkRemoveCompleted;
+                }
+
+                _copyToProjectCommand = value;
+
+                if (_copyToProjectCommand != null)
+                {
+                    _copyToProjectCommand.Completed += BulkRemoveCompleted;
+                }
+            }
+        }
+
+        private MoveToProjectCommand _moveToProjectCommand;
+        public MoveToProjectCommand MoveToProjectCommand
+        {
+            get => _moveToProjectCommand;
+            set
+            {
+                if (_moveToProjectCommand != null)
+                {
+                    _moveToProjectCommand.Completed -= BulkRemoveCompleted;
+                }
+
+                _moveToProjectCommand = value;
+
+                if (_moveToProjectCommand != null)
+                {
+                    _moveToProjectCommand.Completed += BulkRemoveCompleted;
+                }
+            }
         }
 
         public ExportCommand ExportCommand { get; set; }

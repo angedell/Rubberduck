@@ -176,6 +176,15 @@ namespace Rubberduck.Resources.CodeExplorer {
         /// <summary>
         ///   Looks up a localized string similar to Standard module (.bas).
         /// </summary>
+        public static string CodeExplorer_AddNoteText {
+            get {
+                return ResourceManager.GetString("CodeExplorer_AddNoteText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Standard module (.bas).
+        /// </summary>
         public static string CodeExplorer_AddStdModuleText {
             get {
                 return ResourceManager.GetString("CodeExplorer_AddStdModuleText", resourceCulture);
@@ -2136,6 +2145,376 @@ namespace Rubberduck.Resources.CodeExplorer {
         public static string ResourceEditor_Note {
             get {
                 return ResourceManager.GetString("ResourceEditor_Note", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_CharacterNotKept.
+        /// </summary>
+        public static string NoteEditor_CharacterNotKept {
+            get {
+                return ResourceManager.GetString("NoteEditor_CharacterNotKept", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Name.
+        /// </summary>
+        public static string NoteEditor_Name {
+            get {
+                return ResourceManager.GetString("NoteEditor_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Folder.
+        /// </summary>
+        public static string NoteEditor_Folder {
+            get {
+                return ResourceManager.GetString("NoteEditor_Folder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSource.
+        /// </summary>
+        public static string NoteEditor_ViewSource {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSource", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSplit.
+        /// </summary>
+        public static string NoteEditor_ViewSplit {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSplit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewPreview.
+        /// </summary>
+        public static string NoteEditor_ViewPreview {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewPreview", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSourceTip.
+        /// </summary>
+        public static string NoteEditor_ViewSourceTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSourceTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSplitTip.
+        /// </summary>
+        public static string NoteEditor_ViewSplitTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSplitTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewPreviewTip.
+        /// </summary>
+        public static string NoteEditor_ViewPreviewTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewPreviewTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomOutTip.
+        /// </summary>
+        public static string NoteEditor_ZoomOutTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomOutTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomInTip.
+        /// </summary>
+        public static string NoteEditor_ZoomInTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomInTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomResetTip.
+        /// </summary>
+        public static string NoteEditor_ZoomResetTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomResetTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_SplitterTip.
+        /// </summary>
+        public static string NoteEditor_SplitterTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_SplitterTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_NameInvalid.
+        /// </summary>
+        public static string NoteEditor_NameInvalid {
+            get {
+                return ResourceManager.GetString("NoteEditor_NameInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_FolderInvalid.
+        /// </summary>
+        public static string NoteEditor_FolderInvalid {
+            get {
+                return ResourceManager.GetString("NoteEditor_FolderInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_OpenAsCode.
+        /// </summary>
+        public static string CodeExplorer_OpenAsCode {
+            get {
+                return ResourceManager.GetString("CodeExplorer_OpenAsCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap sticky_note_pin {
+            get {
+                object obj = ResourceManager.GetObject("sticky_note_pin", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Title.
+        /// </summary>
+        public static string FolderPicker_Title {
+            get {
+                return ResourceManager.GetString("FolderPicker_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_None.
+        /// </summary>
+        public static string FolderPicker_None {
+            get {
+                return ResourceManager.GetString("FolderPicker_None", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_New.
+        /// </summary>
+        public static string FolderPicker_New {
+            get {
+                return ResourceManager.GetString("FolderPicker_New", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_NewNode.
+        /// </summary>
+        public static string FolderPicker_NewNode {
+            get {
+                return ResourceManager.GetString("FolderPicker_NewNode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Selected.
+        /// </summary>
+        public static string FolderPicker_Selected {
+            get {
+                return ResourceManager.GetString("FolderPicker_Selected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_Invalid.
+        /// </summary>
+        public static string FolderPicker_Invalid {
+            get {
+                return ResourceManager.GetString("FolderPicker_Invalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_FolderBrowse.
+        /// </summary>
+        public static string NoteEditor_FolderBrowse {
+            get {
+                return ResourceManager.GetString("NoteEditor_FolderBrowse", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_TopLevel.
+        /// </summary>
+        public static string FolderPicker_TopLevel {
+            get {
+                return ResourceManager.GetString("FolderPicker_TopLevel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Duplicate.
+        /// </summary>
+        public static string NoteEditor_Duplicate {
+            get {
+                return ResourceManager.GetString("NoteEditor_Duplicate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_CopyToProject.
+        /// </summary>
+        public static string CodeExplorer_CopyToProject {
+            get {
+                return ResourceManager.GetString("CodeExplorer_CopyToProject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_MoveToProject.
+        /// </summary>
+        public static string CodeExplorer_MoveToProject {
+            get {
+                return ResourceManager.GetString("CodeExplorer_MoveToProject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_CopyTitle.
+        /// </summary>
+        public static string ProjectPicker_CopyTitle {
+            get {
+                return ResourceManager.GetString("ProjectPicker_CopyTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_MoveTitle.
+        /// </summary>
+        public static string ProjectPicker_MoveTitle {
+            get {
+                return ResourceManager.GetString("ProjectPicker_MoveTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Prompt.
+        /// </summary>
+        public static string ProjectPicker_Prompt {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Prompt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Ok.
+        /// </summary>
+        public static string ProjectPicker_Ok {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Ok", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Cancel.
+        /// </summary>
+        public static string ProjectPicker_Cancel {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Cancel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Unsaved.
+        /// </summary>
+        public static string ProjectPicker_Unsaved {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Unsaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_NameTaken.
+        /// </summary>
+        public static string Transfer_NameTaken {
+            get {
+                return ResourceManager.GetString("Transfer_NameTaken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_NoteTaken.
+        /// </summary>
+        public static string Transfer_NoteTaken {
+            get {
+                return ResourceManager.GetString("Transfer_NoteTaken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_Referrers.
+        /// </summary>
+        public static string Transfer_Referrers {
+            get {
+                return ResourceManager.GetString("Transfer_Referrers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_Failed.
+        /// </summary>
+        public static string Transfer_Failed {
+            get {
+                return ResourceManager.GetString("Transfer_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_CopySelectedToolTip.
+        /// </summary>
+        public static string CodeExplorer_CopySelectedToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_CopySelectedToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_MoveSelectedToolTip.
+        /// </summary>
+        public static string CodeExplorer_MoveSelectedToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_MoveSelectedToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_LineTooLong.
+        /// </summary>
+        public static string NoteEditor_LineTooLong {
+            get {
+                return ResourceManager.GetString("NoteEditor_LineTooLong", resourceCulture);
             }
         }
         

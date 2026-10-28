@@ -96,7 +96,8 @@ namespace Rubberduck.Api
                                 Project = found.Name,
                                 Name = component.Name,
                                 Kind = KindOf(component.Type),
-                                LineCount = LineCount(component)
+                                LineCount = LineCount(component),
+                                IsNote = IsNoteComponent(component)
                             });
                         }
                     }
@@ -121,7 +122,8 @@ namespace Rubberduck.Api
                         Kind = KindOf(component.Type),
                         LineCount = LineCount(component),
                         Hash = ModuleApi.HashOf(code),
-                        Code = code
+                        Code = code,
+                        IsNote = component.Type == ComponentType.StandardModule && Rubberduck.Navigation.CodeExplorer.NoteModule.IsNote(code)
                     };
 
                     if (includeText)
@@ -452,8 +454,29 @@ namespace Rubberduck.Api
                 Name = component.Name,
                 Kind = KindOf(component.Type),
                 LineCount = LineCount(component),
-                Hash = ModuleApi.HashOf(code)
+                Hash = ModuleApi.HashOf(code),
+                IsNote = component.Type == ComponentType.StandardModule && Rubberduck.Navigation.CodeExplorer.NoteModule.IsNote(code)
             };
+        }
+
+        //Looks at the first lines for the marker before it reads the whole module, so listing a project with many modules stays cheap.
+        private static bool IsNoteComponent(IVBComponent component)
+        {
+            if (component.Type != ComponentType.StandardModule)
+            {
+                return false;
+            }
+
+            using (var codeModule = component.CodeModule)
+            {
+                var count = codeModule.CountOfLines;
+                if (count == 0 || !Rubberduck.Navigation.CodeExplorer.NoteModule.HasMarker(codeModule.GetLines(1, Math.Min(count, 12))))
+                {
+                    return false;
+                }
+            }
+
+            return Rubberduck.Navigation.CodeExplorer.NoteModule.IsNote(CodeOf(component));
         }
 
         private static void CheckHash(IVBComponent component, string expected)

@@ -13,6 +13,12 @@ namespace Rubberduck.UI.Refactorings.MoveFolder
             Loaded += AfterLoadHandler;
         }
 
+        private void Browse_Click(object sender, RoutedEventArgs e)
+        {
+            UI.CodeExplorer.FolderPickerDialog.Browse(this);
+            MoveToFolderTextBox.Focus();
+        }
+
         private void AfterLoadHandler(object sender, RoutedEventArgs e)
         {
             MoveToFolderTextBox.Focus();

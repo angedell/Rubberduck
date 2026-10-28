@@ -23,7 +23,7 @@ namespace Rubberduck.UI.CodeExplorer
             _vbe = vbe;
         }
 
-        public void AddComponent(CodeExplorerItemViewModel node, ComponentType componentType, string code = null)
+        public void AddComponent(CodeExplorerItemViewModel node, ComponentType componentType, string code = null, string componentName = null)
         {
             var projectId = ProjectId(node);
             if (projectId == null)
@@ -36,7 +36,7 @@ namespace Rubberduck.UI.CodeExplorer
             var suspensionResult = _parseManager.OnSuspendParser(
                 this,
                 Enum.GetValues(typeof(ParserState)).Cast<ParserState>(),
-                () => _addComponentService.AddComponent(projectId, componentType, code, prefixInModule));
+                () => _addComponentService.AddComponent(projectId, componentType, code, prefixInModule, componentName));
 
             if (suspensionResult.Outcome == SuspensionOutcome.UnexpectedError 
                 && suspensionResult.EncounteredException != null)

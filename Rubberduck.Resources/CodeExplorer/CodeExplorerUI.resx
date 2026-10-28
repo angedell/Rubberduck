@@ -212,6 +212,9 @@
   <data name="CodeExplorer_AddModule" xml:space="preserve">
     <value>Add</value>
   </data>
+  <data name="CodeExplorer_AddNoteText" xml:space="preserve">
+    <value>Note (.md)</value>
+  </data>
   <data name="CodeExplorer_AddStdModuleText" xml:space="preserve">
     <value>Standard module (.bas)</value>
     <comment>TC</comment>
@@ -840,5 +843,134 @@ They are taken out of the document's file when the document is closed.</value>
   </data>
   <data name="Resources_ReplaceConfirm" xml:space="preserve">
     <value>A picture named {0} is already in the document. Replace it?</value>
+  </data>
+  <data name="NoteEditor_LineTooLong" xml:space="preserve">
+    <value>Line {0} is longer than {1} characters, which the editor of the VBA project cannot hold. Break it up to save.</value>
+  </data>
+  <data name="NoteEditor_CharacterNotKept" xml:space="preserve">
+    <value>The character {0} (U+{1}) is not in your Windows code page; the editor of the VBA project would turn it into a "?". Replace it to save.</value>
+  </data>
+  <data name="NoteEditor_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NoteEditor_Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="NoteEditor_ViewSource" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="NoteEditor_ViewSplit" xml:space="preserve">
+    <value>Split</value>
+  </data>
+  <data name="NoteEditor_ViewPreview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="NoteEditor_ViewSourceTip" xml:space="preserve">
+    <value>Show only the markdown</value>
+  </data>
+  <data name="NoteEditor_ViewSplitTip" xml:space="preserve">
+    <value>Show the markdown and the preview side by side</value>
+  </data>
+  <data name="NoteEditor_ViewPreviewTip" xml:space="preserve">
+    <value>Show only the preview</value>
+  </data>
+  <data name="NoteEditor_ZoomOutTip" xml:space="preserve">
+    <value>Zoom the preview out (Ctrl+-)</value>
+  </data>
+  <data name="NoteEditor_ZoomInTip" xml:space="preserve">
+    <value>Zoom the preview in (Ctrl++)</value>
+  </data>
+  <data name="NoteEditor_ZoomResetTip" xml:space="preserve">
+    <value>Back to 100% (Ctrl+0)</value>
+  </data>
+  <data name="NoteEditor_SplitterTip" xml:space="preserve">
+    <value>Drag to resize; double-click for half and half</value>
+  </data>
+  <data name="NoteEditor_NameInvalid" xml:space="preserve">
+    <value>A name ends in .md and cannot hold quotes, brackets, slashes or characters a file name cannot have.</value>
+  </data>
+  <data name="NoteEditor_FolderInvalid" xml:space="preserve">
+    <value>The folder is dot-separated names such as Api.Core, without quotes or brackets.</value>
+  </data>
+  <data name="CodeExplorer_OpenAsCode" xml:space="preserve">
+    <value>Open as code</value>
+  </data>
+  <data name="sticky_note_pin" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Icons\Fugue\sticky-note-pin.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="FolderPicker_Title" xml:space="preserve">
+    <value>Choose a folder</value>
+  </data>
+  <data name="FolderPicker_None" xml:space="preserve">
+    <value>(none: the project's own folder)</value>
+  </data>
+  <data name="FolderPicker_New" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FolderPicker_NewNode" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FolderPicker_Selected" xml:space="preserve">
+    <value>Folder: {0}</value>
+  </data>
+  <data name="FolderPicker_Invalid" xml:space="preserve">
+    <value>A folder name cannot be empty or hold dots, quotes or brackets.</value>
+  </data>
+  <data name="NoteEditor_FolderBrowse" xml:space="preserve">
+    <value>Choose from the folders of the project, or make a new one</value>
+  </data>
+  <data name="FolderPicker_TopLevel" xml:space="preserve">
+    <value>(top level)</value>
+  </data>
+  <data name="NoteEditor_Duplicate" xml:space="preserve">
+    <value>There is already a note at {0}. Save anyway?</value>
+  </data>
+  <data name="CodeExplorer_CopyToProject" xml:space="preserve">
+    <value>Copy to project...</value>
+  </data>
+  <data name="CodeExplorer_MoveToProject" xml:space="preserve">
+    <value>Move to project...</value>
+  </data>
+  <data name="ProjectPicker_CopyTitle" xml:space="preserve">
+    <value>Copy to project</value>
+  </data>
+  <data name="ProjectPicker_MoveTitle" xml:space="preserve">
+    <value>Move to project</value>
+  </data>
+  <data name="ProjectPicker_Prompt" xml:space="preserve">
+    <value>Choose the project:</value>
+  </data>
+  <data name="ProjectPicker_Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="ProjectPicker_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ProjectPicker_Unsaved" xml:space="preserve">
+    <value>(not saved)</value>
+  </data>
+  <data name="Transfer_NameTaken" xml:space="preserve">
+    <value>The project {0} already has these (the new name is after the arrow):
+{1}
+
+Keep both?</value>
+  </data>
+  <data name="Transfer_NoteTaken" xml:space="preserve">
+    <value>The project {0} already has a note at {1}. Keep both and name the new one {2}?</value>
+  </data>
+  <data name="Transfer_Referrers" xml:space="preserve">
+    <value>These modules are used by modules that stay behind, which will no longer find them once they are moved:
+{0}
+
+Move anyway?</value>
+  </data>
+  <data name="Transfer_Failed" xml:space="preserve">
+    <value>{0} of {1} modules were transferred. The rest were not: {2}</value>
+  </data>
+  <data name="CodeExplorer_CopySelectedToolTip" xml:space="preserve">
+    <value>Copy the selected modules to another project</value>
+  </data>
+  <data name="CodeExplorer_MoveSelectedToolTip" xml:space="preserve">
+    <value>Move the selected modules to another project</value>
   </data>
 </root>

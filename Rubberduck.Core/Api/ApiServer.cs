@@ -54,7 +54,7 @@ namespace Rubberduck.Api
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
+        internal static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
@@ -262,7 +262,7 @@ namespace Rubberduck.Api
             string body = null;
             if (request.HasEntityBody)
             {
-                using (var reader = new System.IO.StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+                using (var reader = new System.IO.StreamReader(request.InputStream, BodyEncoding(request.ContentType)))
                 {
                     body = reader.ReadToEnd();
                 }
@@ -277,6 +277,27 @@ namespace Rubberduck.Api
                 Body = body,
                 Client = string.IsNullOrWhiteSpace(request.UserAgent) ? remote : $"{request.UserAgent} at {remote}"
             });
+        }
+
+        /// <summary>JSON is UTF-8. HttpListener falls back to the ANSI code page when the content type names no charset, which garbles every non-ASCII character, so a charset is honoured only when the client states one.</summary>
+        internal static Encoding BodyEncoding(string contentType)
+        {
+            var marker = "charset=";
+            var at = (contentType ?? string.Empty).IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                return Encoding.UTF8;
+            }
+
+            var name = contentType.Substring(at + marker.Length).Split(';')[0].Trim().Trim('"');
+            try
+            {
+                return Encoding.GetEncoding(name);
+            }
+            catch (ArgumentException)
+            {
+                return Encoding.UTF8;
+            }
         }
 
         private static void Write(HttpListenerResponse response, ApiResponse result)
