@@ -48,16 +48,19 @@ namespace Rubberduck.Api
         private readonly DumpApi _dump;
         private readonly RefactorRenameApi _renameRefactor;
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
+        private readonly RefactorMoveToFolderApi _moveRefactor;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
-            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
+            RefactorMoveToFolderApi moveRefactor = null)
         {
             _log = log;
             _dump = dump;
             _renameRefactor = renameRefactor;
             _encapsulateRefactor = encapsulateRefactor;
+            _moveRefactor = moveRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -66,7 +69,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, renameRefactor, encapsulateRefactor);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, renameRefactor, encapsulateRefactor, moveRefactor);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -352,6 +355,9 @@ namespace Rubberduck.Api
 
                 case "refactor" when rest == "encapsulate-field" && _encapsulateRefactor != null:
                     return _encapsulateRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "move-to-folder" && _moveRefactor != null:
+                    return _moveRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");
