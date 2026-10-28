@@ -20,10 +20,22 @@ namespace Rubberduck.UI.CodeExplorer
 
         private void TreeView_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            if (e.Handled)
+            {
+                return;
+            }
+
+            //MouseDoubleClick is raised on every item from the clicked one up to the root, each on its own (marking it handled stops nothing),
+            //and each would open the selected item again. Only the item that is the selected one acts.
+            if (sender is TreeViewItem item && !ReferenceEquals(item.DataContext, ViewModel?.SelectedItem))
+            {
+                return;
+            }
+
             if (ViewModel != null && ViewModel.OpenCommand.CanExecute(ViewModel.SelectedItem))
             {
-                ViewModel.OpenCommand.Execute(ViewModel.SelectedItem);
                 e.Handled = true;
+                ViewModel.OpenCommand.Execute(ViewModel.SelectedItem);
             }
         }
 
@@ -37,6 +49,17 @@ namespace Rubberduck.UI.CodeExplorer
         {
             if (e.Key == Key.Delete)
             {
+                if (ViewModel.SelectedItem is CodeExplorerResourceViewModel)
+                {
+                    if (ViewModel.RemoveResourceCommand.CanExecute(ViewModel.SelectedItem))
+                    {
+                        ViewModel.RemoveResourceCommand.Execute(ViewModel.SelectedItem);
+                    }
+
+                    e.Handled = true;
+                    return;
+                }
+
                 ViewModel.RemoveCommand.Execute(ViewModel.SelectedItem);
                 e.Handled = true;
             }

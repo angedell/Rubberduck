@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
+using Rubberduck.PackageResources;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.Settings;
@@ -67,8 +68,12 @@ namespace Rubberduck.Navigation.CodeExplorer
             IVBE vbe,
             ITemplateProvider templateProvider,
             ICodeExplorerSyncProvider syncProvider,
-            IEnumerable<IAnnotation> annotations)
+            IEnumerable<IAnnotation> annotations,
+            IPackageResourceService packageResources = null)
         {
+            //Windsor only fills command properties of view models, so this one has to come through the constructor.
+            PackageResources = packageResources;
+
             _state = state;
             _state.StateChanged += HandleStateChanged;
             _state.ModuleStateChanged += ParserState_ModuleStateChanged;
@@ -353,7 +358,7 @@ namespace Rubberduck.Navigation.CodeExplorer
 
                 foreach (var project in adding)
                 {
-                    var model = new CodeExplorerProjectViewModel(project, ref updates, _state, _vbe, _state.ProjectsProvider) { Filter = Search };
+                    var model = new CodeExplorerProjectViewModel(project, ref updates, _state, _vbe, _state.ProjectsProvider, true, PackageResources) { Filter = Search };
                     Projects.Add(model);
                 }
 
@@ -445,6 +450,41 @@ namespace Rubberduck.Navigation.CodeExplorer
             _externalRemoveCommand.Execute(param);
         }
 
+        private IPackageResourceService _packageResources;
+        /// <summary>
+        /// The ribbon XML and pictures inside the documents. When staged changes are made, discarded or applied the Resources nodes are brought up to date.
+        /// </summary>
+        public IPackageResourceService PackageResources
+        {
+            get => _packageResources;
+            set
+            {
+                if (_packageResources != null)
+                {
+                    _packageResources.Changed -= PackageResourcesChanged;
+                }
+
+                _packageResources = value;
+
+                if (_packageResources != null)
+                {
+                    _packageResources.Changed += PackageResourcesChanged;
+                }
+            }
+        }
+
+        //May come from the API's threads; the tree belongs to the UI thread.
+        private void PackageResourcesChanged(object sender, EventArgs e)
+        {
+            _uiDispatcher.StartTask(() =>
+            {
+                foreach (var project in Projects.OfType<CodeExplorerProjectViewModel>())
+                {
+                    project.SynchronizeResources();
+                }
+            });
+        }
+
         public ReparseCommand RefreshCommand { get; set; }
         public OpenCommand OpenCommand { get; set; }
         public AddVBFormCommand AddVBFormCommand { get; set; }
@@ -474,6 +514,10 @@ namespace Rubberduck.Navigation.CodeExplorer
         public UpdateFromFilesCommand UpdateFromFilesCommand { get; set; }
         public ReplaceProjectContentsFromFilesCommand ReplaceProjectContentsFromFilesCommand { get; set; }
         public GitSyncCommand GitSyncCommand { get; set; }
+        public AddResourceImagesCommand AddResourceImagesCommand { get; set; }
+        public AddRibbonXmlCommand AddRibbonXmlCommand { get; set; }
+        public RemoveResourceCommand RemoveResourceCommand { get; set; }
+        public DiscardResourceChangesCommand DiscardResourceChangesCommand { get; set; }
         private BulkRemoveCommand _bulkRemoveCommand;
         public BulkRemoveCommand BulkRemoveCommand
         {
@@ -665,6 +709,8 @@ namespace Rubberduck.Navigation.CodeExplorer
                 _state.ModuleStateChanged -= ParserState_ModuleStateChanged;
                 _generalSettingsProvider.SettingsChanged -= GeneralSettingsChanged;
             }
+
+            PackageResources = null;
         }
 
         // IPeekDefinitionPopupProvider.PeekDefinition

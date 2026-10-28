@@ -201,6 +201,58 @@
   <data name="ErrorLogLevel" xml:space="preserve">
     <value>Error</value>
   </data>
+  <data name="ApiEnable" xml:space="preserve">
+    <value>Let AI agents read and edit modules and forms (local API and MCP server)</value>
+  </data>
+  <data name="ApiAllowNetwork" xml:space="preserve">
+    <value>Also accept agents from the network (sandboxes, VMs)</value>
+  </data>
+  <data name="ApiAllowNetwork_Tooltip" xml:space="preserve">
+    <value>Agents still need the token, but the traffic is not encrypted. Only use this on a network you trust. Windows may ask for a one-time permission for the port.</value>
+  </data>
+  <data name="ApiApproval_Text" xml:space="preserve">
+    <value>An AI agent ({0}) wants to change code in your open VBA projects through Rubberduck's API.
+
+If you allow it, it can edit, add and delete modules and forms until you switch the API off or ask for a new token. Rubberduck keeps a copy of each module before it is first changed.
+
+Allow writes?</value>
+  </data>
+  <data name="ApiApproval_Caption" xml:space="preserve">
+    <value>Rubberduck API: allow writes?</value>
+  </data>
+  <data name="ApiAllowImmediate" xml:space="preserve">
+    <value>Also let agents run code: the Immediate window and the unit tests</value>
+  </data>
+  <data name="ApiAllowImmediate_Tooltip" xml:space="preserve">
+    <value>Anything typed into the Immediate window, and every unit test, is executed with your rights: it can call any procedure of your projects, and those can read, change or delete files. Agents can only do it after you approve the first command or test run.</value>
+  </data>
+  <data name="ApiExecuteApproval_Text" xml:space="preserve">
+    <value>An AI agent ({0}) wants to RUN CODE in your editor through the Immediate window.
+
+Whatever it types is executed with your rights: it can call any procedure in your open projects, and those can read, change or delete files, or start programs.
+
+If you allow it, it can keep running commands until you switch the API or the Immediate window option off, or ask for a new token.
+
+Allow it to run code?</value>
+  </data>
+  <data name="ApiExecuteApproval_Caption" xml:space="preserve">
+    <value>Rubberduck API: allow running code?</value>
+  </data>
+  <data name="ApiPort" xml:space="preserve">
+    <value>Port:</value>
+  </data>
+  <data name="ApiCopyConnection" xml:space="preserve">
+    <value>Copy connection details</value>
+  </data>
+  <data name="ApiRegenerateToken" xml:space="preserve">
+    <value>New token</value>
+  </data>
+  <data name="ApiRegenerateToken_Confirm" xml:space="preserve">
+    <value>Agents using the current token will be locked out until you give them the new one, and the next write will ask for your approval again. Continue?</value>
+  </data>
+  <data name="ApiRegenerateToken_Caption" xml:space="preserve">
+    <value>New API token</value>
+  </data>
   <data name="EnableDragAndDrop" xml:space="preserve">
     <value>Enable _drag and drop in Code Explorer</value>
   </data>

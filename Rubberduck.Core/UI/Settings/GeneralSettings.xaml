@@ -98,7 +98,33 @@
                               IsChecked="{Binding SetDpiUnaware}" />
                     <CheckBox Margin="5,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=EnableDragAndDrop}"
                               IsChecked="{Binding EnableFolderDragAndDrop}" />
-                    <StackPanel Orientation="Horizontal"/>
+
+                    <CheckBox Margin="5,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiEnable}"
+                              IsChecked="{Binding ApiEnabled}"
+                              x:Name="IsApiEnabled"/>
+                    <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowNetwork}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowNetwork_Tooltip}"
+                              IsChecked="{Binding ApiAllowNetwork}"
+                              IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
+                    <TextBlock Margin="35,0,0,5" TextWrapping="Wrap" Text="{Binding FirewallHint}"
+                               Visibility="{Binding HasFirewallHint, Converter={StaticResource BoolToVisibility}}"/>
+                    <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate_Tooltip}"
+                              IsChecked="{Binding ApiAllowImmediate}"
+                              IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0,0,5"
+                                IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}">
+                        <Label Target="{Binding ElementName=ApiPortBox}"
+                               Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiPort}" />
+                        <TextBox x:Name="ApiPortBox" Width="60" VerticalContentAlignment="Center"
+                                 Text="{Binding ApiPort, UpdateSourceTrigger=LostFocus}" />
+                        <Button Margin="10,0,0,0" Padding="5,2"
+                                Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiCopyConnection}"
+                                Command="{Binding CopyApiConnectionCommand}"/>
+                        <Button Margin="5,0,0,0" Padding="5,2"
+                                Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiRegenerateToken}"
+                                Command="{Binding RegenerateApiTokenCommand}"/>
+                    </StackPanel>
 
                     <Label Target="{Binding ElementName=minimumLogLevel}"
                            Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=MinimumLogLevelLabel}" FontWeight="SemiBold" Margin="1,0,-1,0" />

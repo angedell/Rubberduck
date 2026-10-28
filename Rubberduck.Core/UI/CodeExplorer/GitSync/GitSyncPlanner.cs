@@ -93,6 +93,13 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         public bool CanCompare => ModuleText != null && FileText != null;
 
+        /// <summary>For a resource of the document (ribbon XML, picture, config) rather than a module: its name in the package. Null for modules.</summary>
+        public string ResourceName { get; set; }
+
+        public Rubberduck.PackageResources.PackageResourceKind ResourceKind { get; set; }
+
+        public bool IsResource => ResourceName != null;
+
         /// <summary>The action the user went for, set by the review.</summary>
         public SyncAction Chosen { get; set; }
 
@@ -303,7 +310,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         private static string Normalize(string path) => path.Replace('/', '\\');
 
-        private static (SyncStatus, SyncAction) Classify(SyncItem item, ModuleBaseline baseline)
+        /// <summary>Which side changed since the last sync, from the signatures of both sides and the history.</summary>
+        public static (SyncStatus, SyncAction) Classify(SyncItem item, ModuleBaseline baseline)
         {
             if (!item.FileExists)
             {

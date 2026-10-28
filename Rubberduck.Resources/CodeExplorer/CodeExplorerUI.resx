@@ -758,4 +758,87 @@ It holds your current indenter settings and the default sync settings, with a co
   <data name="GitSync_Compare_DiscardEdits" xml:space="preserve">
     <value>This part of the result was edited by hand. Replace your edits?</value>
   </data>
+  <data name="CodeExplorer_Resources" xml:space="preserve">
+    <value>Resources</value>
+  </data>
+  <data name="CodeExplorer_ResourcesPending" xml:space="preserve">
+    <value>Changed. Written into the document's file when the document is closed.</value>
+  </data>
+  <data name="CodeExplorer_ResourceRemoved" xml:space="preserve">
+    <value>(removed)</value>
+  </data>
+  <data name="CodeExplorer_AddResourceImages" xml:space="preserve">
+    <value>Add Pictures...</value>
+  </data>
+  <data name="CodeExplorer_AddRibbonXml" xml:space="preserve">
+    <value>Add Ribbon XML</value>
+  </data>
+  <data name="CodeExplorer_RemoveResource" xml:space="preserve">
+    <value>Remove Picture</value>
+  </data>
+  <data name="CodeExplorer_DiscardResourceChanges" xml:space="preserve">
+    <value>Discard Pending Resource Changes</value>
+  </data>
+  <data name="Resources_Caption" xml:space="preserve">
+    <value>Resources</value>
+  </data>
+  <data name="Resources_RemoveConfirm" xml:space="preserve">
+    <value>Remove {0} picture(s) from the document?
+
+They are taken out of the document's file when the document is closed.</value>
+  </data>
+  <data name="Resources_AddFailed" xml:space="preserve">
+    <value>Could not add {0}: {1}</value>
+  </data>
+  <data name="Resources_FilterPictures" xml:space="preserve">
+    <value>Pictures</value>
+  </data>
+  <data name="Resources_DiscardConfirm" xml:space="preserve">
+    <value>Throw away the changes to the ribbon XML and pictures that are not written into the file yet?</value>
+  </data>
+  <data name="Resources_Failed" xml:space="preserve">
+    <value>{0}</value>
+  </data>
+  <data name="ResourceEditor_Title" xml:space="preserve">
+    <value>{0} - {1}</value>
+  </data>
+  <data name="ResourceEditor_Format" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="ResourceEditor_Linearize" xml:space="preserve">
+    <value>Linearize</value>
+  </data>
+  <data name="ResourceEditor_Font" xml:space="preserve">
+    <value>Font...</value>
+  </data>
+  <data name="ResourceEditor_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="ResourceEditor_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ResourceEditor_WellFormed" xml:space="preserve">
+    <value>No problems found</value>
+  </data>
+  <data name="ResourceEditor_NotWellFormed" xml:space="preserve">
+    <value>Line {0}, column {1}: {2}</value>
+  </data>
+  <data name="ResourceEditor_Position" xml:space="preserve">
+    <value>Ln {0}, Col {1}</value>
+  </data>
+  <data name="ResourceEditor_Note" xml:space="preserve">
+    <value>Saved changes are written into the document's file when the document is closed.</value>
+  </data>
+  <data name="ResourceEditor_Stale" xml:space="preserve">
+    <value>{0} was changed by someone else since you opened it. Overwrite their change with yours?</value>
+  </data>
+  <data name="ResourceEditor_DiscardEdits" xml:space="preserve">
+    <value>Close without saving your changes?</value>
+  </data>
+  <data name="ResourceEditor_Namespace" xml:space="preserve">
+    <value>Root element is not &lt;customUI&gt; with the namespace this file needs.</value>
+  </data>
+  <data name="Resources_ReplaceConfirm" xml:space="preserve">
+    <value>A picture named {0} is already in the document. Replace it?</value>
+  </data>
 </root>

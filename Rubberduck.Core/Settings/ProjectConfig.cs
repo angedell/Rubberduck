@@ -125,18 +125,47 @@ namespace Rubberduck.Settings
             }
 
             config.Path = path;
+            string text;
+            try
+            {
+                text = _fileSystem.File.ReadAllText(path);
+            }
+            catch (System.IO.IOException exception)
+            {
+                config.Errors.Add($"{ProjectConfig.FileName} could not be read: {exception.Message}");
+                config.Indenter = Copy(baseSettings);
+                return config;
+            }
+
+            Fill(config, text, baseSettings);
+            return config;
+        }
+
+        /// <summary>
+        /// Reads the text of a <c>rubberduck.json</c> that is not a file on disk, e.g. the one stored in a document. <see cref="ProjectConfig.Path"/> is left null.
+        /// Whatever is wrong with it is in <see cref="ProjectConfig.Errors"/>.
+        /// </summary>
+        public ProjectConfig Parse(string text, IIndenterSettings baseSettings)
+        {
+            var config = new ProjectConfig();
+            Fill(config, text, baseSettings);
+            return config;
+        }
+
+        private static void Fill(ProjectConfig config, string text, IIndenterSettings baseSettings)
+        {
             var settings = Copy(baseSettings);
 
             JObject root;
             try
             {
-                root = JObject.Parse(_fileSystem.File.ReadAllText(path));
+                root = JObject.Parse(text);
             }
-            catch (Exception exception) when (exception is JsonException || exception is System.IO.IOException)
+            catch (JsonException exception)
             {
                 config.Errors.Add($"{ProjectConfig.FileName} could not be read: {exception.Message}");
                 config.Indenter = settings;
-                return config;
+                return;
             }
 
             foreach (var section in root.Properties())
@@ -171,7 +200,6 @@ namespace Rubberduck.Settings
             }
 
             config.Indenter = settings;
-            return config;
         }
 
         private static void ReadSync(JObject section, SyncConfig sync, ICollection<string> errors)

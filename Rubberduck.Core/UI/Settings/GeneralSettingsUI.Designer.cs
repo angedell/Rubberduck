@@ -107,6 +107,90 @@ namespace Rubberduck.UI.Settings {
             }
         }
         
+        public static string ApiEnable {
+            get {
+                return ResourceManager.GetString("ApiEnable", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowNetwork {
+            get {
+                return ResourceManager.GetString("ApiAllowNetwork", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowNetwork_Tooltip {
+            get {
+                return ResourceManager.GetString("ApiAllowNetwork_Tooltip", resourceCulture);
+            }
+        }
+
+        public static string ApiApproval_Text {
+            get {
+                return ResourceManager.GetString("ApiApproval_Text", resourceCulture);
+            }
+        }
+
+        public static string ApiApproval_Caption {
+            get {
+                return ResourceManager.GetString("ApiApproval_Caption", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowImmediate {
+            get {
+                return ResourceManager.GetString("ApiAllowImmediate", resourceCulture);
+            }
+        }
+        
+        public static string ApiAllowImmediate_Tooltip {
+            get {
+                return ResourceManager.GetString("ApiAllowImmediate_Tooltip", resourceCulture);
+            }
+        }
+        
+        public static string ApiExecuteApproval_Text {
+            get {
+                return ResourceManager.GetString("ApiExecuteApproval_Text", resourceCulture);
+            }
+        }
+        
+        public static string ApiExecuteApproval_Caption {
+            get {
+                return ResourceManager.GetString("ApiExecuteApproval_Caption", resourceCulture);
+            }
+        }
+        
+        public static string ApiPort {
+            get {
+                return ResourceManager.GetString("ApiPort", resourceCulture);
+            }
+        }
+
+        public static string ApiCopyConnection {
+            get {
+                return ResourceManager.GetString("ApiCopyConnection", resourceCulture);
+            }
+        }
+
+        public static string ApiRegenerateToken {
+            get {
+                return ResourceManager.GetString("ApiRegenerateToken", resourceCulture);
+            }
+        }
+
+        public static string ApiRegenerateToken_Confirm {
+            get {
+                return ResourceManager.GetString("ApiRegenerateToken_Confirm", resourceCulture);
+            }
+        }
+
+        public static string ApiRegenerateToken_Caption {
+            get {
+                return ResourceManager.GetString("ApiRegenerateToken_Caption", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   Looks up a localized string similar to Enable drag and drop in Code Explorer.
         /// </summary>
