@@ -1348,6 +1348,9 @@ namespace Rubberduck.Root
             container.Register(Component.For<RefactorMoveToFolderApi>()
                 .UsingFactoryMethod(kernel => RubberduckMoveToFolderSource.CreateApi(type => kernel.Resolve(type)))
                 .LifestyleSingleton());
+            container.Register(Component.For<ReadyWait>()
+                .UsingFactoryMethod(kernel => ReadyWait.For(kernel.Resolve<ParserSync>()))
+                .LifestyleSingleton());
             container.Register(Component.For<QuickFixApi>()
                 .UsingFactoryMethod(kernel => new QuickFixApi(
                     new RubberduckQuickFixSource(new RefactorHost(kernel.Resolve<ParserSync>(), kernel.Resolve<IUiDispatcher>()), (InspectorDiagnosticsSource)kernel.Resolve<IDiagnosticsSource>(), kernel.Resolve<IQuickFixProvider>()),
