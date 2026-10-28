@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -1328,6 +1328,13 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<IFirewallCheck>()
                 .ImplementedBy<FirewallCheck>()
+                .LifestyleSingleton());
+            container.Register(Component.For<VbeResetApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var parser = kernel.Resolve<ParserSync>();
+                    return new VbeResetApi(kernel.Resolve<ApiWriteApproval>(), parser.EditorMode, parser.ResetIfStopped, kernel.Resolve<IDialogWatcher>());
+                })
                 .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());
