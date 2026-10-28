@@ -1329,6 +1329,9 @@ namespace Rubberduck.Root
             container.Register(Component.For<RefactorRenameApi>()
                 .UsingFactoryMethod(kernel => RubberduckRenameSource.CreateApi(type => kernel.Resolve(type)))
                 .LifestyleSingleton());
+            container.Register(Component.For<RefactorEncapsulateFieldApi>()
+                .UsingFactoryMethod(kernel => RubberduckEncapsulateFieldSource.CreateApi(type => kernel.Resolve(type)))
+                .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());
             container.Register(Component.For<ApiServer>()

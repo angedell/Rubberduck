@@ -70,6 +70,22 @@ namespace Rubberduck.Api
             return token.Type == JTokenType.Boolean ? token.Value<bool>() : throw ApiException.BadRequest($"'{name}' must be true or false.");
         }
 
+        public static void AllowPost(string method)
+        {
+            if (method != "POST")
+            {
+                throw new ApiException(405, "method_not_allowed", "Allowed: POST.");
+            }
+        }
+
+        public static string Required(JObject args, string name)
+        {
+            var token = args[name];
+            return token != null && token.Type == JTokenType.String
+                ? token.Value<string>()
+                : throw ApiException.BadRequest($"'{name}' is required and must be a string.");
+        }
+
         public static JObject String(string description) => new JObject { ["type"] = "string", ["description"] = description };
         public static JObject Integer(string description) => new JObject { ["type"] = "integer", ["description"] = description };
         public static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };

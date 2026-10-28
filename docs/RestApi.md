@@ -109,6 +109,20 @@ The preview answers with `target`; `resolvedTarget` and `resolvedBecause` when R
 
 MCP tools: `preview_rename` and `rename_symbol`, with the same fields plus `project`.
 
+#### Encapsulate field
+
+`POST /api/v1/projects/{p}/refactor/encapsulate-field/preview` and `POST /api/v1/projects/{p}/refactor/encapsulate-field`, with the same body:
+
+```
+{ "module": "Module1", "name": "count", "propertyName": "Count", "readOnly": false, "strategy": "backingField" }
+```
+
+The field is a module-level variable (not one inside a procedure), named as for rename: `module`, `name`, and `line`/`column` where the name is declared if it is not unique. All the rest is optional: `propertyName` (default: the field's name capitalised, without clashing with anything), `readOnly` (`true`: a Property Get only; default read/write, except arrays), `strategy` (`backingField`: the field is renamed and stays behind the property; `udtMember`: the field becomes a member of the module's private Type; default: Rubberduck's choice, which is `udtMember` if the module already has such a Type).
+
+The preview answers with the `strategy` in effect, `properties` (per field: `propertyName`, `backingField`, `readOnly`, `canBeReadWrite`, `assignedExternally`), `valid` and `problems` (a name that clashes or is not an identifier, `readOnly: false` on an array, `readOnly: true` on a field that other modules assign...), and `code`, the text the refactoring's own dialog previews. Applying refuses what the preview flags with 422 `refactoring_refused`, and otherwise encapsulates the field and rewrites its uses to go through the property. The answer is `{ "module", "field", "strategy", "properties", "note" }`.
+
+MCP tools: `preview_encapsulate_field` and `encapsulate_field`, with the same fields plus `project`.
+
 ### Ribbon XML and pictures
 
 The ribbon XML and pictures stored inside the project's document file: `customUI.xml` (Office 2007) or `customUI14.xml` (2010 and later), and the pictures in `customUI/images` (png, jpg, gif, bmp, ico; 5 MB at most). Only saved Open XML documents have them; for others `supported` is `false`. `{r}` is the resource's file name.

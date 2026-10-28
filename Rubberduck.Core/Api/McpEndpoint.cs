@@ -25,14 +25,16 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly RefactorRenameApi _renameRefactor;
+        private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
-            RefactorRenameApi renameRefactor = null)
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
         {
             _log = log;
             _dump = dump;
             _renameRefactor = renameRefactor;
+            _encapsulateRefactor = encapsulateRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -175,6 +177,7 @@ namespace Rubberduck.Api
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
             .Concat(_renameRefactor != null ? FromSpecs(_renameRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
 
         //Tools that come with their feature, described by the feature (see RefactorToolSpec).
