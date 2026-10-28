@@ -45,12 +45,22 @@ namespace Rubberduck.UI.CodeExplorer
             var displayName = NoteModule.DisplayName(module.ComponentName, opened);
             Logger.Debug("Opening note '{0}' (module '{1}', project '{2}', {3} characters).", displayName, module.ComponentName, projectName, opened.Length);
 
-            string saved;
+            var annotations = NoteModule.Annotations(opened);
+            var layoutKey = NoteEditorLayouts.KeyFor(ProjectFile(module), projectName, module.ComponentName);
+            var layouts = NoteEditorLayouts.Load(_fileSystem);
             var preferences = ResourceEditorPreferences.Load(_fileSystem);
-            using (var dialog = new NoteEditorDialog(string.Format(CodeExplorerUI.ResourceEditor_Title, displayName, projectName), NoteModule.ToMarkdown(opened), preferences))
+
+            string saved;
+            string savedName;
+            string savedFolder;
+            var title = string.Format(CodeExplorerUI.ResourceEditor_Title, displayName, projectName);
+            using (var dialog = new NoteEditorDialog(title, NoteModule.ToMarkdown(opened), displayName, NoteModule.FolderOf(annotations), layouts.Get(layoutKey), preferences))
             {
                 var result = dialog.ShowDialog();
                 preferences.Save(_fileSystem);
+                //How the window looked is remembered whether or not the note was saved.
+                layouts.Set(layoutKey, dialog.Layout);
+                layouts.Save(_fileSystem);
                 if (result != DialogResult.OK || !dialog.IsModified)
                 {
                     Logger.Debug("Note '{0}' closed without saving.", displayName);
@@ -58,6 +68,8 @@ namespace Rubberduck.UI.CodeExplorer
                 }
 
                 saved = dialog.EditedText;
+                savedName = dialog.EditedName;
+                savedFolder = dialog.EditedFolder;
             }
 
             using (var component = _projects.Component(module))
@@ -75,11 +87,27 @@ namespace Rubberduck.UI.CodeExplorer
                 }
 
                 codeModule.Clear();
-                codeModule.InsertLines(1, NoteModule.ToModuleCode(saved, NoteModule.Annotations(opened)));
-                Logger.Info("Note '{0}' saved from the editor ({1} characters of markdown).", displayName, saved.Length);
+                codeModule.InsertLines(1, NoteModule.ToModuleCode(saved, NoteModule.WithFolder(NoteModule.WithMarker(annotations, savedName), savedFolder)));
+                Logger.Info("Note '{0}' saved from the editor as '{1}' in folder '{2}' ({3} characters of markdown).", displayName, savedName, savedFolder, saved.Length);
             }
 
             return true;
+        }
+
+        private string ProjectFile(QualifiedModuleName module)
+        {
+            try
+            {
+                using (var project = _projects.Project(module.ProjectId))
+                {
+                    return project?.FileName;
+                }
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                //A project that was never saved has no file name.
+                return null;
+            }
         }
     }
 }

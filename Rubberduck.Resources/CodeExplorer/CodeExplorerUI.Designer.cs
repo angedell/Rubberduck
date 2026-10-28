@@ -2149,6 +2149,151 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Name.
+        /// </summary>
+        public static string NoteEditor_Name {
+            get {
+                return ResourceManager.GetString("NoteEditor_Name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_Folder.
+        /// </summary>
+        public static string NoteEditor_Folder {
+            get {
+                return ResourceManager.GetString("NoteEditor_Folder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSource.
+        /// </summary>
+        public static string NoteEditor_ViewSource {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSource", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSplit.
+        /// </summary>
+        public static string NoteEditor_ViewSplit {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSplit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewPreview.
+        /// </summary>
+        public static string NoteEditor_ViewPreview {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewPreview", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSourceTip.
+        /// </summary>
+        public static string NoteEditor_ViewSourceTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSourceTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewSplitTip.
+        /// </summary>
+        public static string NoteEditor_ViewSplitTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewSplitTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ViewPreviewTip.
+        /// </summary>
+        public static string NoteEditor_ViewPreviewTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ViewPreviewTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomOutTip.
+        /// </summary>
+        public static string NoteEditor_ZoomOutTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomOutTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomInTip.
+        /// </summary>
+        public static string NoteEditor_ZoomInTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomInTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_ZoomResetTip.
+        /// </summary>
+        public static string NoteEditor_ZoomResetTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_ZoomResetTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_SplitterTip.
+        /// </summary>
+        public static string NoteEditor_SplitterTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_SplitterTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_NameInvalid.
+        /// </summary>
+        public static string NoteEditor_NameInvalid {
+            get {
+                return ResourceManager.GetString("NoteEditor_NameInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_FolderInvalid.
+        /// </summary>
+        public static string NoteEditor_FolderInvalid {
+            get {
+                return ResourceManager.GetString("NoteEditor_FolderInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_OpenAsCode.
+        /// </summary>
+        public static string CodeExplorer_OpenAsCode {
+            get {
+                return ResourceManager.GetString("CodeExplorer_OpenAsCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        public static System.Drawing.Bitmap sticky_note_pin {
+            get {
+                object obj = ResourceManager.GetObject("sticky_note_pin", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

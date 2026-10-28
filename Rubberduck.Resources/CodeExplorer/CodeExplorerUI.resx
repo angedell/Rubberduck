@@ -847,4 +847,52 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="NoteEditor_CharacterNotKept" xml:space="preserve">
     <value>The character {0} (U+{1}) is not in your Windows code page; the editor of the VBA project would turn it into a "?". Replace it to save.</value>
   </data>
+  <data name="NoteEditor_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="NoteEditor_Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="NoteEditor_ViewSource" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="NoteEditor_ViewSplit" xml:space="preserve">
+    <value>Split</value>
+  </data>
+  <data name="NoteEditor_ViewPreview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="NoteEditor_ViewSourceTip" xml:space="preserve">
+    <value>Show only the markdown</value>
+  </data>
+  <data name="NoteEditor_ViewSplitTip" xml:space="preserve">
+    <value>Show the markdown and the preview side by side</value>
+  </data>
+  <data name="NoteEditor_ViewPreviewTip" xml:space="preserve">
+    <value>Show only the preview</value>
+  </data>
+  <data name="NoteEditor_ZoomOutTip" xml:space="preserve">
+    <value>Zoom the preview out (Ctrl+-)</value>
+  </data>
+  <data name="NoteEditor_ZoomInTip" xml:space="preserve">
+    <value>Zoom the preview in (Ctrl++)</value>
+  </data>
+  <data name="NoteEditor_ZoomResetTip" xml:space="preserve">
+    <value>Back to 100% (Ctrl+0)</value>
+  </data>
+  <data name="NoteEditor_SplitterTip" xml:space="preserve">
+    <value>Drag to resize; double-click for half and half</value>
+  </data>
+  <data name="NoteEditor_NameInvalid" xml:space="preserve">
+    <value>The name cannot be empty or hold quotes or brackets.</value>
+  </data>
+  <data name="NoteEditor_FolderInvalid" xml:space="preserve">
+    <value>The folder is dot-separated names such as Api.Core, without quotes or brackets.</value>
+  </data>
+  <data name="CodeExplorer_OpenAsCode" xml:space="preserve">
+    <value>Open as code</value>
+  </data>
+  <data name="sticky_note_pin" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Icons\Fugue\sticky-note-pin.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
 </root>

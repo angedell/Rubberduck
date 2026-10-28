@@ -500,6 +500,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         public AddTemplateCommand AddTemplateCommand { get; set; }
         public AnnotateDeclarationCommand AnnotateDeclarationCommand { get; set; }
         public OpenDesignerCommand OpenDesignerCommand { get; set; }
+        public OpenAsCodeCommand OpenAsCodeCommand { get; set; }
         public OpenProjectPropertiesCommand OpenProjectPropertiesCommand { get; set; }
         public SetAsStartupProjectCommand SetAsStartupProjectCommand { get; set; }
         public RenameCommand RenameCommand { get; set; }

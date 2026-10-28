@@ -105,6 +105,10 @@ namespace Rubberduck.Navigation.CodeExplorer
             return result;
         }
 
+        /// <summary>Whether the text can be the argument of '@Notes: something to show, nothing that would end the annotation.</summary>
+        public static bool IsValidName(string name)
+            => !string.IsNullOrWhiteSpace(name) && name.IndexOfAny(new[] { '"', '\'', '(', ')', '\r', '\n' }) < 0;
+
         /// <summary>Whether the text can be an '@Folder argument: dot-separated names, nothing that would end the annotation.</summary>
         public static bool IsValidFolder(string folder)
             => string.IsNullOrEmpty(folder) || (folder.Trim().Length > 0 && folder.IndexOfAny(new[] { '"', '\'', '(', ')', '\r', '\n' }) < 0);
