@@ -113,24 +113,58 @@ namespace Rubberduck.Navigation.CodeExplorer
         public static bool IsValidFolder(string folder)
             => string.IsNullOrEmpty(folder) || (folder.Trim().Length > 0 && folder.IndexOfAny(new[] { '"', '\'', '(', ')', '\r', '\n' }) < 0);
 
-        /// <summary>The first character of the text that the VBE cannot keep (it stores code in the system's ANSI code page, and anything else becomes a "?"), or null.</summary>
-        public static char? FirstUnsupportedCharacter(string text)
-        {
-            var encoding = System.Text.Encoding.GetEncoding(System.Globalization.CultureInfo.CurrentCulture.TextInfo.ANSICodePage);
-            foreach (var character in text ?? string.Empty)
-            {
-                if (character == '\r' || character == '\n' || character == '\t')
-                {
-                    continue;
-                }
+        //The VBE stores code in the ANSI code page of the machine, and anything outside it becomes a "?" (accented letters differ from one machine to the next, too).
+        //So the module holds ASCII only: every other character is written as a numeric character reference, which markdown renders as the character itself.
+        private static readonly Regex CharacterReference = new Regex(@"&#(?:[xX](?<hex>[0-9A-Fa-f]{1,6})|(?<dec>[0-9]{1,7}));");
 
-                if (char.IsSurrogate(character) || encoding.GetString(encoding.GetBytes(new[] { character })) != character.ToString())
+        /// <summary>The line with every character outside ASCII written as a reference such as <c>&amp;#x1F680;</c>. Tabs stay.</summary>
+        public static string Encode(string line)
+        {
+            if (line == null || line.All(character => character < 127))
+            {
+                return line;
+            }
+
+            var result = new System.Text.StringBuilder(line.Length + 16);
+            for (var i = 0; i < line.Length; i++)
+            {
+                var character = line[i];
+                if (character < 127)
                 {
-                    return character;
+                    result.Append(character);
+                }
+                else if (char.IsHighSurrogate(character) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+                {
+                    result.Append("&#x").Append(char.ConvertToUtf32(character, line[++i]).ToString("X")).Append(';');
+                }
+                else
+                {
+                    result.Append("&#x").Append(((int)character).ToString("X")).Append(';');
                 }
             }
 
-            return null;
+            return result.ToString();
+        }
+
+        /// <summary>The line with its numeric character references turned back into the characters. What is not a valid reference stays as it is.</summary>
+        public static string Decode(string line)
+        {
+            if (line == null || line.IndexOf("&#", StringComparison.Ordinal) < 0)
+            {
+                return line;
+            }
+
+            return CharacterReference.Replace(line, match =>
+            {
+                var code = match.Groups["hex"].Success
+                    ? Convert.ToInt32(match.Groups["hex"].Value, 16)
+                    : int.Parse(match.Groups["dec"].Value, System.Globalization.CultureInfo.InvariantCulture);
+
+                //Zero, the control characters other than tab, the surrogates and what lies beyond Unicode are not characters to bring back.
+                return code < 32 && code != 9 || code >= 127 && code < 160 || code >= 0xD800 && code <= 0xDFFF || code > 0x10FFFF
+                    ? match.Value
+                    : char.ConvertFromUtf32(code);
+            });
         }
 
         /// <summary>The markdown in the code of a note: the comment mark and the space after it are taken off; a line without a mark is kept as it is. Annotation lines ('@Notes, '@Folder...) are not text; see <see cref="Annotations"/>.</summary>
@@ -138,7 +172,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         {
             var lines = Lines(moduleCode)
                 .Where(line => !line.StartsWith("Attribute VB_", StringComparison.OrdinalIgnoreCase) && !IsAnnotation(line))
-                .Select(Unmark)
+                .Select(line => Decode(Unmark(line)))
                 .ToList();
 
             while (lines.Count > 0 && lines[lines.Count - 1].Length == 0)
@@ -155,7 +189,7 @@ namespace Rubberduck.Navigation.CodeExplorer
 
         /// <summary>The code for the markdown: the annotations first, then a comment mark in front of every line and a space where the line has text.</summary>
         public static string ToModuleCode(string markdown, IEnumerable<string> annotations = null)
-            => string.Join(NewLine, (annotations ?? Enumerable.Empty<string>()).Concat(Lines(markdown).Select(line => line.Length == 0 ? "'" : "' " + line)));
+            => string.Join(NewLine, (annotations ?? Enumerable.Empty<string>()).Concat(Lines(markdown).Select(line => line.Length == 0 ? "'" : "' " + Encode(line))));
 
         /// <summary>The 1-based number of the first line that is too long for the VBE once marked, or 0.</summary>
         public static int FirstLineTooLong(string markdown)
@@ -164,7 +198,7 @@ namespace Rubberduck.Navigation.CodeExplorer
             foreach (var line in Lines(markdown))
             {
                 number++;
-                if (line.Length + 2 > MaxLineLength)
+                if (Encode(line).Length + 2 > MaxLineLength)
                 {
                     return number;
                 }

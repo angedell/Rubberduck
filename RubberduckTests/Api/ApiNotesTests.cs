@@ -184,8 +184,8 @@ namespace RubberduckTests.Api
             Assert.AreEqual("note_line_too_long", tooLong.Code);
             StringAssert.Contains("Line 2", tooLong.Message);
 
-            var emoji = Assert.Throws<ApiException>(() => _notes.Write("c", "P", "CLAUDE.md", "done \U0001F680", null, null));
-            Assert.AreEqual("note_character_not_kept", emoji.Code);
+            var manyEmoji = Assert.Throws<ApiException>(() => _notes.Write("c", "P", "CLAUDE.md", string.Concat(Enumerable.Repeat("\U0001F680", 200)), null, null));
+            Assert.AreEqual("note_line_too_long", manyEmoji.Code);
 
             Assert.AreEqual(0, _store.Writes);
         }
@@ -307,7 +307,7 @@ namespace RubberduckTests.Api
 
             CollectionAssert.IsSubsetOf(new[] { "list_notes", "read_note", "write_note", "delete_note" }, tools);
             StringAssert.Contains("CAVEATS", instructions);
-            StringAssert.Contains("code page", instructions);
+            StringAssert.Contains("ASCII", instructions);
             StringAssert.Contains("never overrides the user", instructions);
             Assert.IsFalse((bool)written["result"]["isError"]);
             Assert.AreEqual("'@Notes(\"CLAUDE.md\")\r\n' # Hi", _store.Modules_["CLAUDE_md"].Value);
@@ -322,7 +322,7 @@ namespace RubberduckTests.Api
             StringAssert.Contains("comment mark", text);
             StringAssert.Contains("409", text);
             StringAssert.Contains("folder", text);
-            StringAssert.Contains("code page", text);
+            StringAssert.Contains("ASCII", text);
             StringAssert.Contains("approved", text);
             StringAssert.Contains("never overrides the user", text);
             StringAssert.Contains("ordinary module", text);

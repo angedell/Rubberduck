@@ -250,16 +250,13 @@ namespace Rubberduck.UI.CodeExplorer
         private void RefreshProblem()
         {
             var tooLong = NoteModule.FirstLineTooLong(_editor.Text);
-            var unsupported = NoteModule.FirstUnsupportedCharacter(_editor.Text);
             _problem.Text = !NoteModule.IsValidName(_name.Text)
                 ? CodeExplorerUI.NoteEditor_NameInvalid
                 : !NoteModule.IsValidFolder(_folder.Text)
                     ? CodeExplorerUI.NoteEditor_FolderInvalid
                     : tooLong > 0
                         ? string.Format(CodeExplorerUI.NoteEditor_LineTooLong, tooLong, NoteModule.MaxLineLength - 2)
-                        : unsupported.HasValue
-                            ? string.Format(CodeExplorerUI.NoteEditor_CharacterNotKept, unsupported.Value, ((int)unsupported.Value).ToString("X4"))
-                            : string.Empty;
+                        : string.Empty;
             _save.Enabled = _problem.Text.Length == 0;
         }
 

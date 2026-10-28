@@ -164,12 +164,6 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 throw new InvalidOperationException($"line {tooLong} is longer than the {NoteModule.MaxLineLength - 2} characters a note keeps.");
             }
 
-            var unsupported = NoteModule.FirstUnsupportedCharacter(markdown);
-            if (unsupported.HasValue)
-            {
-                throw new InvalidOperationException($"the character '{unsupported.Value}' (U+{(int)unsupported.Value:X4}) is not kept by the VBE; nothing was imported.");
-            }
-
             var directory = System.IO.Path.GetDirectoryName(item.RelativePath.Replace('/', '\\')) ?? string.Empty;
             var folder = GitSyncText.FolderPath(directory);
 

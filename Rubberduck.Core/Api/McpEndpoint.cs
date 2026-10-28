@@ -466,7 +466,7 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "write_note",
-                Description = "Creates a note or replaces the markdown of an existing one; you send plain markdown and the tool does the comment marks and keeps the folder annotation. The name ends in .md (CLAUDE.md is stored as the module CLAUDE_md). Lines of at most " + (NoteModule.MaxLineLength - 2) + " characters, and only characters of the user's Windows code page (no emoji): anything else is refused. Replacing needs the hash from your last read. The first write has to be approved by the user.",
+                Description = "Creates a note or replaces the markdown of an existing one; you send plain markdown and the tool does the comment marks and keeps the folder annotation. The name ends in .md (CLAUDE.md is stored as the module CLAUDE_md). Lines of at most " + (NoteModule.MaxLineLength - 2) + " characters once encoded (any character outside ASCII, emoji included, is fine but counts about 8 characters of the line). Replacing needs the hash from your last read. The first write has to be approved by the user.",
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),

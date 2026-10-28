@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using Rubberduck.Navigation.CodeExplorer;
 
@@ -96,11 +97,21 @@ namespace RubberduckTests.CodeExplorer
         }
 
         [Test]
-        public void FirstUnsupportedCharacter_FindsWhatTheCodePageLoses()
+        public void NonAscii_IsStoredAsReferences_AndComesBack()
         {
-            Assert.IsNull(NoteModule.FirstUnsupportedCharacter("plain text\r\n\twith tab"));
-            Assert.AreEqual('☃', NoteModule.FirstUnsupportedCharacter("snow ☃ man"));
-            Assert.IsNotNull(NoteModule.FirstUnsupportedCharacter("rocket \U0001F680"));
+            var markdown = "rocket \U0001F680 snowman ☃ café “quoted”\r\n\ttab";
+            var code = NoteModule.ToModuleCode(markdown);
+
+            Assert.IsTrue(code.All(c => c < 127 || c == '\r' || c == '\n'), "only ASCII in the module");
+            StringAssert.Contains("&#x1F680;", code);
+            StringAssert.Contains("&#xE9;", code);
+            Assert.AreEqual(markdown, NoteModule.ToMarkdown(code));
+        }
+
+        [Test]
+        public void Decode_LeavesWhatIsNotAValidReference()
+        {
+            Assert.AreEqual("&#x110000; &#xD800; &#1; &#; &#xZZ; é é", NoteModule.Decode("&#x110000; &#xD800; &#1; &#; &#xZZ; &#233; &#xe9;"));
         }
 
         [Test]
@@ -108,6 +119,7 @@ namespace RubberduckTests.CodeExplorer
         {
             Assert.AreEqual(0, NoteModule.FirstLineTooLong("short\r\nlines"));
             Assert.AreEqual(2, NoteModule.FirstLineTooLong("short\r\n" + new string('x', NoteModule.MaxLineLength)));
+            Assert.AreEqual(1, NoteModule.FirstLineTooLong(string.Concat(System.Linq.Enumerable.Repeat("\U0001F680", 150))), "counted once encoded");
         }
     }
 }
