@@ -128,6 +128,21 @@ The preview answers with the `strategy` in effect, `properties` (per field: `pro
 
 MCP tools: `preview_encapsulate_field` and `encapsulate_field`, with the same fields plus `project`.
 
+#### Move to folder
+
+`POST /api/v1/projects/{p}/refactor/move-to-folder/preview` and `POST /api/v1/projects/{p}/refactor/move-to-folder`, with the same body:
+
+```
+{ "module": "Module1", "folder": "App.Core" }
+{ "modules": ["Module1", "Class1"], "folder": "App.Core" }
+```
+
+A folder is the `'@Folder` annotation that the Code Explorer groups modules by, with dots between levels. The refactoring writes or updates that annotation at the top of each module, in one rewrite for all of them (at most 50). Folder names cannot be empty, have an empty level (`"App..Core"`) or contain control characters.
+
+The preview answers with `moves` (per module: `fromFolder`, and `changes`, false if it is there already) and `valid` and `problems` for the folder name. Applying refuses a bad folder with 422 `refactoring_refused`; if no module would change it answers at once, without approval, with them in `unchanged`. Otherwise the answer is `{ "folder", "moved", "unchanged", "note" }`. A module that was edited and not parsed yet is refused with 409: ask for a reparse (`POST /api/v1/reparse`) and retry.
+
+MCP tools: `preview_move_to_folder` and `move_to_folder`, with the same fields plus `project`.
+
 ### Ribbon XML and pictures
 
 The ribbon XML and pictures stored inside the project's document file: `customUI.xml` (Office 2007) or `customUI14.xml` (2010 and later), and the pictures in `customUI/images` (png, jpg, gif, bmp, ico; 5 MB at most). Only saved Open XML documents have them; for others `supported` is `false`. `{r}` is the resource's file name.

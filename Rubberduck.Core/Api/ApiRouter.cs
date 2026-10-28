@@ -51,6 +51,7 @@ namespace Rubberduck.Api
         private readonly SyncAttributesApi _syncAttributes;
         private readonly RefactorRenameApi _renameRefactor;
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
+        private readonly RefactorMoveToFolderApi _moveRefactor;
         private readonly McpEndpoint _mcp;
         private readonly ReadyWait _ready;
 
@@ -58,7 +59,8 @@ namespace Rubberduck.Api
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
             ReadyWait ready = null,
             SyncAttributesApi syncAttributes = null,
-            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
+            RefactorMoveToFolderApi moveRefactor = null)
         {
             _syncAttributes = syncAttributes;
             _firewall = firewall;
@@ -68,6 +70,7 @@ namespace Rubberduck.Api
             _dump = dump;
             _renameRefactor = renameRefactor;
             _encapsulateRefactor = encapsulateRefactor;
+            _moveRefactor = moveRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -76,7 +79,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -399,6 +402,9 @@ namespace Rubberduck.Api
 
                 case "refactor" when rest == "encapsulate-field" && _encapsulateRefactor != null:
                     return _encapsulateRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "move-to-folder" && _moveRefactor != null:
+                    return _moveRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");

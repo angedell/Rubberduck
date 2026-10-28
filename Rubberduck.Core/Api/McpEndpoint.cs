@@ -30,12 +30,14 @@ namespace Rubberduck.Api
         private readonly SyncAttributesApi _syncAttributes;
         private readonly RefactorRenameApi _renameRefactor;
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
+        private readonly RefactorMoveToFolderApi _moveRefactor;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
             ReadyWait ready = null,
             SyncAttributesApi syncAttributes = null,
-            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
+            RefactorMoveToFolderApi moveRefactor = null)
         {
             _firewall = firewall;
             _syncAttributes = syncAttributes;
@@ -45,6 +47,7 @@ namespace Rubberduck.Api
             _vbeReset = vbeReset;
             _renameRefactor = renameRefactor;
             _encapsulateRefactor = encapsulateRefactor;
+            _moveRefactor = moveRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -190,6 +193,7 @@ namespace Rubberduck.Api
             .Concat(_syncAttributes != null ? SyncAttributesTools() : Enumerable.Empty<Tool>())
             .Concat(_renameRefactor != null ? FromSpecs(_renameRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_moveRefactor != null ? FromSpecs(_moveRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
 
         //Tools that come with their feature, described by the feature (see RefactorToolSpec).
