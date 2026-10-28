@@ -267,6 +267,20 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private bool _apiAllowImmediateRead;
+        public bool ApiAllowImmediateRead
+        {
+            get => _apiAllowImmediateRead;
+            set
+            {
+                if (_apiAllowImmediateRead != value)
+                {
+                    _apiAllowImmediateRead = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private int _apiPort;
         public int ApiPort
         {
@@ -414,6 +428,7 @@ namespace Rubberduck.UI.Settings
                 ApiEnabled = ApiEnabled,
                 ApiAllowNetwork = ApiAllowNetwork,
                 ApiAllowImmediate = ApiAllowImmediate,
+                ApiAllowImmediateRead = ApiAllowImmediateRead,
                 ApiPort = ApiPort,
                 IsSmartIndenterPrompted = _indenterPrompted,
                 IsAutoSaveEnabled = AutoSaveEnabled,
@@ -445,6 +460,7 @@ namespace Rubberduck.UI.Settings
             ApiEnabled = general.ApiEnabled;
             ApiAllowNetwork = general.ApiAllowNetwork;
             ApiAllowImmediate = general.ApiAllowImmediate;
+            ApiAllowImmediateRead = general.ApiAllowImmediateRead;
             ApiPort = general.ApiPort;
             _indenterPrompted = general.IsSmartIndenterPrompted;
             AutoSaveEnabled = general.IsAutoSaveEnabled;

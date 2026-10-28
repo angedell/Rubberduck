@@ -17,6 +17,9 @@ namespace Rubberduck.Api
 
         /// <summary>The user allows agents to use the Immediate window, and the server is running.</summary>
         public volatile bool Immediate;
+
+        /// <summary>The user allows agents to read the Immediate window (running code includes it), and the server is running.</summary>
+        public volatile bool ImmediateRead;
     }
 
     public enum ApiStartProblem
@@ -51,7 +54,8 @@ namespace Rubberduck.Api
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
+        /// <summary>How answers are written, by the REST side and by the MCP tools alike: camelCase, no nulls.</summary>
+        internal static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
@@ -109,11 +113,12 @@ namespace Rubberduck.Api
         /// so does taking away the Immediate window.
         /// </summary>
         /// <exception cref="ApiStartException">The server could not listen; the message says what to do about it.</exception>
-        public void Apply(bool enabled, bool network, int port, bool allowImmediate)
+        public void Apply(bool enabled, bool network, int port, bool allowImmediate, bool allowImmediateRead = false)
         {
             lock (_lock)
             {
                 _state.Immediate = enabled && allowImmediate;
+                _state.ImmediateRead = enabled && (allowImmediate || allowImmediateRead);
                 if (!_state.Immediate)
                 {
                     _executeApproval.Reset();

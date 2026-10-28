@@ -1020,6 +1020,32 @@ namespace Rubberduck.Parsing.VBA
             return true;
         }
 
+        /// <summary>Why <see cref="IsNewOrModified(QualifiedModuleName)"/> is true, in words for the log; null if it is false.</summary>
+        public string WhyNewOrModified(QualifiedModuleName key)
+        {
+            if (key.ComponentType == ComponentType.ComComponent)
+            {
+                return null;
+            }
+
+            if (!_moduleStates.TryGetValue(key, out var moduleState))
+            {
+                return "new";
+            }
+
+            if (moduleState.IsNew)
+            {
+                return "not parsed yet";
+            }
+
+            if (moduleState.IsMarkedAsModified)
+            {
+                return "marked as modified";
+            }
+
+            return GetModuleContentHash(key) != moduleState.ModuleContentHashCode ? "content changed" : null;
+        }
+
         private int GetModuleContentHash(QualifiedModuleName module)
         {
             var component = ProjectsProvider.Component(module);

@@ -10,7 +10,7 @@ Settings > General > **Let AI agents read and edit modules and forms**. Then **C
   1. It explains why, and shows the exact command with a **Copy** button. **Run as administrator** runs it for you after the Windows permission prompt; or paste it into a Command Prompt opened as administrator.
   2. Only if the sandbox still cannot connect: a second command opens the firewall for private and domain networks. A checkbox adds it to what **Run as administrator** does.
   3. **Try again** starts the API. **Use this PC only** switches the network option off instead.
-- **Also let agents use the Immediate window (this runs code)** is separate and off by default; see [the Immediate window](#the-immediate-window).
+- **Also let agents read the Immediate window (Debug.Print output), without running anything** and **Also let agents run code** are two separate settings, both off by default; see [the Immediate window](#the-immediate-window).
 - **New token** locks out whoever has the current one.
 - The first write asks you to allow writes. Yes covers the rest until you switch the API off or ask for a new token.
 - Before a module is first changed, and whenever one is replaced or deleted, a copy goes to `%LOCALAPPDATA%\Rubberduck\ApiBackups`.
@@ -30,7 +30,7 @@ All requests need `Authorization: Bearer <token>`. Bodies and answers are JSON. 
 | `GET /api/v1/info` | Which build is answering: `version` (all four parts, e.g. `2.5.92.28`; the last number counts up with every `build.cmd` run), `commit` (the start of the git hash, if the build recorded one), `display` (what the splash screen shows) and `api`. The same build is in the MCP `initialize` answer (`serverInfo.version`, `serverInfo.build`) and the `get_info` tool. Say it when you report a problem. |
 | `GET /api/v1/log` | Rubberduck's own log: `configuredLevel` (the setting), `effectiveLevel` (what logging really runs at; a `note` says when they differ or logging is off), `path`, and `entries` (`time`, `level`, `logger`, `message`; a stack trace stays with its entry), oldest first. Query: `tail` (latest entries, default 200, at most 2000), `minLevel` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`), `contains` (in the message or class, any case), `logger` (part of the class name). Only the last 4 MB of the file are read; older entries are in the `archives` folder next to it. |
 | `PUT /api/v1/log` | `{ "level": "Debug" }` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal` or `Off`). Saved in the user's settings as their own choice (so Rubberduck does not reset a Trace level to Off at shutdown) and applied at once. Needs the same approval as writes. Answers like the read, without entries. |
-| `POST /api/v1/reparse` | Does what Refresh in the Code Explorer does: parses everything again, waits until the parser is done, and answers `{ "parserState": "Ready", "projects": [ ... ] }`. A workbook opened after Rubberduck started, or after a restart of the editor, does not show in `GET /projects` until this has run. 409 `vbe_not_in_design_mode` while code is running or stopped. No approval needed: it changes no code. MCP: `reparse`. |
+| `POST /api/v1/reparse` | Does what Refresh in the Code Explorer does: parses everything again, waits until the parser is done, and answers `{ "parserState": "Ready", "projects": [ ... ] }`. A workbook opened after Rubberduck started, or after a restart of the editor, does not show in `GET /projects` until this has run. 409 `vbe_not_in_design_mode` while code is running or stopped. No approval needed: it changes no code. MCP: `reparse`. Always asks for the parse; every other call that needs current results (diagnostics, check, references, tests...) asks for one only when a module's content or a project's references differ from what the parser last finished with, and otherwise answers from what it holds. The log says which: `API catch-up: parse requested because ...` or `... nothing changed ...; no parse requested`. |
 | `GET /api/v1/dump` | Whether a memory dump can be taken (`tool`: where Sysinternals ProcDump was found, or null with a `note` on where to put it) and the dumps already in `%LOCALAPPDATA%\Rubberduck\Dumps` (or in the folder the `RUBBERDUCK_DUMP_FOLDER` environment variable names, a shared one say, so the file can be read from another machine). |
 | `POST /api/v1/dump` | `{ "kind": "full", "waitSeconds": 120 }`, both optional. Takes a memory dump of the editor's process with ProcDump, for when the editor hangs (calls time out with 503, the parser stays `Busy`, Excel shows "waiting for an OLE action"). It runs on the API's own thread, so it works while the editor's UI thread is stuck. `kind` is `full` (all memory, what reading managed stacks needs) or `mini`. **The dump holds everything in memory, the open documents included**, so it needs the same approval as writes. Answers with `file` and `sizeBytes`. ProcDump is looked for in `RUBBERDUCK_PROCDUMP`, in `%LOCALAPPDATA%\Rubberduck\Tools\procdump.exe` and on the PATH; without it: 404 `procdump_not_found`. MCP: `capture_dump`. |
 | `GET /api/v1/projects` | Answers `{ "vbeMode": "design", "projects": [ ... ] }`. `vbeMode` is where the editor is: `design`, `running_or_break` (a macro runs or is stopped: writes, tests and the parser answer 409 `vbe_not_in_design_mode` until it is reset, and the editor cannot say which of the two it is), or `unresponsive` (no answer in 5 seconds, a dialog nobody can see, say; then there is no list, and a `note`). Each project has `id`, `name`, and the file's `path` and `extension` (both absent for a document that was never saved). Names are not unique (two `DevMacros`, say); the `id` addresses one project. It is made from the file's path (`p` and 8 hex digits, e.g. `p3fa9c1d2`: the same file always has the same id, different files never share one), or from the name for a project that was never saved (`u...`). The editor's own id, which older clients stored, still works, but it can be the same for two workbooks (409 then), so use the one listed here. Module answers carry `projectPath`, so the workbook a write went to is in the answer. |
@@ -111,12 +111,35 @@ The project's `rubberduck.json` lives in the same list, as the resource named `r
 
 ### The Immediate window
 
-Only with **Also let agents run code** switched on, otherwise 403 `immediate_disabled`.
+Two settings (General), both off by default:
+
+| Setting | Allows | Otherwise |
+|---|---|---|
+| **Also let agents read the Immediate window** | `GET /immediate` and `GET /immediate/output` (MCP: `read_immediate`, `read_debug_output`). Reads only, no approval dialog. What the window shows can include values from your data. | 403 `immediate_disabled` |
+| **Also let agents run code** | `POST /immediate` (MCP: `run_immediate`) and running tests, after your approval. **Includes reading**, so it needs no second setting. | 403 `immediate_disabled`; with only reading allowed, the message says so |
+
+With only reading allowed, an agent can still add `Debug.Print` lines to the code, but has to ask you to run it. The MCP instructions say so, and they leave the Debug.Print advice out when reading is off.
 
 | Request | Does |
 |---|---|
 | `GET /api/v1/immediate` | `{ "text": "..." }`: what the window shows (the last 20,000 characters). |
 | `POST /api/v1/immediate` | `{ "command": "?1+1", "waitMs": 5000 }`: enters the line(s) and runs them. Answers `{ "output": "...", "completed": true, "vbeMode": "design" }`. `vbeMode` is where the editor is after the command (as in `GET /projects`): `running_or_break` means the command left a macro running or stopped (`Stop`, `Debug.Assert False`), and writes, tests and the parser will answer 409 until the user resets it. |
+| `GET /api/v1/immediate/output?since=&limit=&contains=&waitMs=` | What was printed to the window, `Debug.Print` included, **also while nobody was asking** (a form event, a timer, a macro the user started). Answers `{ "text": "...", "lineCount": 3, "next": 42, "more": false, "missed": false }`. Pass `next` as `since` on the next call to get only what is new; without `since` you get the newest `limit` lines (default 200, at most 1,000). `contains` keeps lines with that text (any case), `waitMs` (at most 30,000) waits for output when there is none yet. MCP tool: `read_debug_output`. Runs nothing, so it needs no approval. |
+
+
+**How the output is captured.** The editor has no event for `Debug.Print`, so while the API is on and the Immediate window is allowed, Rubberduck looks at the window twice a second and keeps what was added as numbered lines (the newest 5,000). Text that was in the window before Rubberduck's first look is not included (`GET /immediate` still shows it). `missed` is true when lines after your `since` were lost: the buffer wrapped, or the window scrolled out more than it holds between two looks. A closed Immediate window is not opened by the background look (only a request does that), so output printed while it is closed is picked up when it is next open. The lines you or an agent typed into the window are part of its text and show up too. A line the user is still typing is not taken for output until it has stayed the same for a look.
+
+**Debugging with `Debug.Print`.** The MCP instructions encourage agents to make code report on itself instead of guessing: put `Debug.Print "[Module.Procedure] x=" & x` lines in the code, wrapped in a conditional compilation constant, run it, and read the lines back:
+
+```vb
+#Const DebugLog = True
+
+#If DebugLog Then
+    Debug.Print "[Orders.Total] qty=" & qty & " price=" & price
+#End If
+```
+
+`#Const` is private to its module, so it is switched on per module; the agent is asked to set it to `False` (or remove the lines) when it is done and to tell the user.
 
 **Entering a command runs it**, with your rights: `?expression` prints a value, a statement runs, a procedure name calls it. The first command shows a dialog (separate from the one for writes) that you have to accept. `completed: false` means the window was still changing when `waitMs` (at most 60,000) ran out, for example because the code is still running: read the window again later. Commands are limited to 50 lines and 10,000 characters, and to characters the editor's window can take (no Unicode beyond the ANSI code page). The editor has to be open; the window is shown if it was hidden.
 

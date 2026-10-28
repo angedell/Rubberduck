@@ -125,7 +125,7 @@ namespace Rubberduck.Api
                 throw ApiException.Unavailable("Reparsing is not available here.");
             }
 
-            var state = parser.CatchUp();
+            var state = parser.CatchUp(force: true);
             return new { parserState = state.ToString(), projects = api.Projects() };
         }
 
@@ -187,6 +187,13 @@ namespace Rubberduck.Api
                     default:
                         throw MethodNotAllowed("GET, PUT");
                 }
+            }
+
+            // /immediate/output: everything printed to the window (Debug.Print), also while nobody was asking
+            if (segments.Length == 2 && segments[0] == "immediate" && segments[1] == "output")
+            {
+                Allow(method, "GET");
+                return ApiResponse.Json(_immediate.Output(QueryLong(request, "since"), QueryInt(request, "limit"), Query(request, "contains"), QueryInt(request, "waitMs")));
             }
 
             // /immediate
@@ -496,6 +503,17 @@ namespace Rubberduck.Api
         }
 
         private static string Query(ApiRequest request, string name) => request.Query.TryGetValue(name, out var value) ? value : null;
+
+        private static long? QueryLong(ApiRequest request, string name)
+        {
+            var value = Query(request, name);
+            if (value == null)
+            {
+                return null;
+            }
+
+            return long.TryParse(value, out var number) ? number : throw ApiException.BadRequest($"{name} must be a whole number.");
+        }
 
         private static int? OptionalInt(JObject body, string name)
         {

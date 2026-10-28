@@ -1309,7 +1309,9 @@ namespace Rubberduck.Root
                 .UsingFactoryMethod(kernel =>
                 {
                     var state = kernel.Resolve<ApiState>();
-                    return new ImmediateApi(kernel.Resolve<IImmediateWindow>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate, dialogs: kernel.Resolve<IDialogWatcher>(), editorMode: () => kernel.Resolve<ParserSync>().EditorMode());
+                    var api = new ImmediateApi(kernel.Resolve<IImmediateWindow>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate, dialogs: kernel.Resolve<IDialogWatcher>(), canRead: () => state.ImmediateRead, editorMode: () => kernel.Resolve<ParserSync>().EditorMode());
+                    api.StartCapture();
+                    return api;
                 })
                 .LifestyleSingleton());
             container.Register(Component.For<ModuleApi>()

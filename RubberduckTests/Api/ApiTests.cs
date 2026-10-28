@@ -531,6 +531,30 @@ namespace RubberduckTests.Api
             Assert.AreEqual("rubberduck", (string)result["result"]["serverInfo"]["name"]);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TheDebugPrintAdvice_IsGivenOnlyWhileTheToolForItIsOffered(bool immediateOn)
+        {
+            _immediateOn = immediateOn;
+
+            var instructions = (string)Rpc("initialize", new { protocolVersion = "2025-03-26" })["result"]["instructions"];
+            var offered = Rpc("tools/list")["result"]["tools"].Any(t => (string)t["name"] == "read_debug_output");
+
+            Assert.AreEqual(immediateOn, offered);
+            Assert.AreEqual(immediateOn, instructions.Contains("DEBUGGING WITH Debug.Print"));
+            Assert.AreEqual(immediateOn, instructions.Contains("#Const DebugLog"));
+        }
+
+        [Test]
+        public void ToolResults_UseCamelCase_LikeTheRestApi()
+        {
+            _immediateOn = true;
+
+            var answer = JObject.Parse(TextOf(Call("read_debug_output", new { })));
+
+            CollectionAssert.AreEquivalent(new[] { "text", "lineCount", "next", "more", "missed" }, answer.Properties().Select(p => p.Name));
+        }
+
         [Test]
         public void Notification_Gets202_AndNoBody()
         {

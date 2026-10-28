@@ -48,6 +48,8 @@ namespace RubberduckTests.Api
             return Text;
         }
 
+        public string Peek() => Throws ? null : Text;
+
         public void Send(string line)
         {
             Sent.Add(line);
@@ -67,7 +69,7 @@ namespace RubberduckTests.Api
     {
         public static DiagnosticsApi Diagnostics() => new DiagnosticsApi(new FakeDiagnostics());
 
-        public static ImmediateFixture Immediate(Func<bool> enabled)
+        public static ImmediateFixture Immediate(Func<bool> enabled, Func<bool> canRead = null)
         {
             var fixture = new ImmediateFixture();
             var clock = TimeSpan.Zero;
@@ -76,7 +78,8 @@ namespace RubberduckTests.Api
                 new ApiExecuteApproval(_ => { fixture.Asked++; return fixture.Allow; }),
                 enabled,
                 step => clock += step,
-                () => clock);
+                () => clock,
+                canRead: canRead);
             return fixture;
         }
     }
@@ -363,6 +366,7 @@ namespace RubberduckTests.Api
             private int _text;
             public void Tick() => _text++;
             public string Read() { Reads++; return "line " + _text; }
+            public string Peek() => Read();
             public void Send(string line) { }
         }
     }

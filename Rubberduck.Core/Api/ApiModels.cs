@@ -258,6 +258,23 @@ namespace Rubberduck.Api
         public bool Truncated { get; set; }
     }
 
+    public class ImmediateOutput
+    {
+        /// <summary>The lines, one per line of the window, oldest first. Includes what the user and agents typed there, and what <c>Debug.Print</c> wrote.</summary>
+        public string Text { get; set; }
+
+        public int LineCount { get; set; }
+
+        /// <summary>Pass this as <c>since</c> next time to get only what was printed after this answer.</summary>
+        public long Next { get; set; }
+
+        /// <summary>There are more lines after these (the limit cut the answer); ask again with <c>Next</c>.</summary>
+        public bool More { get; set; }
+
+        /// <summary>Lines between <c>since</c> and the oldest line still kept were lost: the buffer holds the newest 5,000, and Rubberduck sees the window twice a second.</summary>
+        public bool Missed { get; set; }
+    }
+
     public class ImmediateRun
     {
         /// <summary>What appeared in the window after the command(s) were entered, the echo of the commands included.</summary>

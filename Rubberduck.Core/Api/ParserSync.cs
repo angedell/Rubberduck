@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using NLog;
 using Rubberduck.Parsing.UIContext;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 
@@ -15,6 +18,7 @@ namespace Rubberduck.Api
     /// </summary>
     public class ParserSync
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly TimeSpan ParseTimeout = TimeSpan.FromSeconds(90);
         private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(2);
 
@@ -145,14 +149,110 @@ namespace Rubberduck.Api
             => _state.AllUserDeclarations.Any(d => string.Equals(d.QualifiedName.QualifiedModuleName.ProjectId, projectId, StringComparison.OrdinalIgnoreCase)
                                                    && string.Equals(d.QualifiedName.QualifiedModuleName.ComponentName, module, StringComparison.OrdinalIgnoreCase));
 
-        /// <summary>Asks for a parse, waits until the parser is done, and says how it ended.</summary>
-        public ParserState CatchUp()
+        //What the editor held when the parser last finished well, and how many modules had been scheduled for a parse by then.
+        private ParseFingerprint _lastParsed;
+        private int _lastParsedScheduled;
+
+        private ParseFingerprint Capture()
+        {
+            var task = _dispatcher.StartTask(() =>
+            {
+                var modules = _projects.Components()
+                    .Select(c => new KeyValuePair<string, int>($"{c.QualifiedModuleName.ProjectName}.{c.QualifiedModuleName.ComponentName}", QualifiedModuleName.GetContentHash(c.Component)))
+                    .ToList();
+
+                var references = new List<string>();
+                foreach (var (projectId, project) in _projects.Projects())
+                {
+                    using (var projectReferences = project.References)
+                    {
+                        foreach (var reference in projectReferences)
+                        {
+                            using (reference)
+                            {
+                                references.Add($"{projectId}|{reference.Name}|{reference.Guid}|{reference.Major}.{reference.Minor}|{reference.FullPath}|{reference.IsBroken}");
+                            }
+                        }
+                    }
+                }
+
+                return new ParseFingerprint(modules, references);
+            }, CancellationToken.None);
+
+            if (!task.Wait(TimeSpan.FromSeconds(30)))
+            {
+                throw ApiException.Unavailable("The editor did not respond in time.");
+            }
+
+            return task.Result;
+        }
+
+        /// <summary>
+        /// Why a parse is needed, or null if it is not: the parser is Ready, nothing was scheduled for a parse since it last finished, and the editor holds the same modules and references.
+        /// A run with nothing to parse still takes seconds on a large project (it settles libraries and resolves references again), so it is worth not asking for one.
+        /// </summary>
+        private string WhyParseIsNeeded(ParseFingerprint now)
+        {
+            if (_lastParsed == null)
+            {
+                return "no parse of the current state is known to have finished well";
+            }
+
+            if (_state.Status != ParserState.Ready)
+            {
+                return $"the parser is {_state.Status}";
+            }
+
+            if (_lastParsedScheduled != Volatile.Read(ref _scheduled))
+            {
+                return "modules were scheduled for a parse since the last one finished";
+            }
+
+            var differences = now.DifferencesFrom(_lastParsed);
+            return differences.Count == 0 ? null : string.Join("; ", differences);
+        }
+
+        /// <summary>
+        /// Asks for a parse, waits until the parser is done, and says how it ended. Unless <paramref name="force"/> is set, it asks for none
+        /// when the parser is Ready and the editor holds what the parser last read.
+        /// </summary>
+        public ParserState CatchUp(bool force = false)
         {
             if (!IsEditorInDesignMode())
             {
                 throw ApiException.NotInDesignMode();
             }
 
+            var timing = Stopwatch.StartNew();
+            var fingerprint = Capture();
+            var why = force ? "a reparse was asked for" : WhyParseIsNeeded(fingerprint);
+            if (why == null)
+            {
+                Logger.Info($"API catch-up: parser is Ready and nothing changed in {fingerprint.ModuleCount} modules; no parse requested (checked in {timing.ElapsedMilliseconds} ms).");
+                return _state.Status;
+            }
+
+            Logger.Info($"API catch-up: parse requested because {why} (checked {fingerprint.ModuleCount} modules in {timing.ElapsedMilliseconds} ms).");
+            var state = RequestParseAndWait();
+            if (state == ParserState.Ready)
+            {
+                //The editor's list of modules may have been empty or stale before the run (the first one after a start), so read it again; but only trust what the run can have seen:
+                //a module that changed or went away meanwhile means somebody edited during the run, and the next call must parse again.
+                var after = Capture();
+                _lastParsed = after.OnlyAddsTo(fingerprint) ? after : fingerprint;
+                _lastParsedScheduled = Volatile.Read(ref _scheduled);
+            }
+            else
+            {
+                _lastParsed = null;
+            }
+
+            Logger.Info($"API catch-up: parser {state} after {timing.ElapsedMilliseconds} ms.");
+            return state;
+        }
+
+        private ParserState RequestParseAndWait()
+        {
             var changed = new ManualResetEventSlim(false);
             EventHandler<ParserStateEventArgs> onChange = (sender, args) => changed.Set();
             _state.StateChanged += onChange;

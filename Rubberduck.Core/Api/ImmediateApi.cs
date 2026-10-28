@@ -12,6 +12,9 @@ namespace Rubberduck.Api
         /// <exception cref="ApiException">The window could not be found or read.</exception>
         string Read();
 
+        /// <summary>The window's text if it is open right now, otherwise null. Unlike <see cref="Read"/> it never shows the window, and it avoids the editor's thread, so it can be called often.</summary>
+        string Peek();
+
         /// <summary>Types one line into the window and presses Enter, which makes the editor run it. Does not wait.</summary>
         void Send(string line);
     }
@@ -30,7 +33,7 @@ namespace Rubberduck.Api
     /// Lets an agent look at the Immediate window and enter commands in it. Entering a command <b>runs it</b>: <c>?expression</c>, a statement, or a call to any procedure of the open projects.
     /// So it is off unless the user switched it on in the settings, and the first command needs the user's approval, which is asked separately from writes.
     /// </summary>
-    public class ImmediateApi
+    public class ImmediateApi : IDisposable
     {
         public const int MaxLines = 50;
         public const int MaxCharacters = 10000;
@@ -55,8 +58,11 @@ namespace Rubberduck.Api
         /// <param name="dialogs">Looks for the editor's error dialogs while a command runs; without it, an error dialog is left for the user.</param>
         /// <param name="sleep">Waits between reads; replaceable so tests need not wait.</param>
         /// <param name="clock">Time since some fixed point; must move when <paramref name="sleep"/> is called.</param>
-        public ImmediateApi(IImmediateWindow window, ApiExecuteApproval approval, Func<bool> enabled, Action<TimeSpan> sleep = null, Func<TimeSpan> clock = null, IDialogWatcher dialogs = null, Func<string> editorMode = null)
+        /// <param name="enabled">Whether agents may run commands. That includes reading, whatever <paramref name="canRead"/> says.</param>
+        /// <param name="canRead">Whether agents may read the window; left out, reading is allowed exactly when running is.</param>
+        public ImmediateApi(IImmediateWindow window, ApiExecuteApproval approval, Func<bool> enabled, Action<TimeSpan> sleep = null, Func<TimeSpan> clock = null, IDialogWatcher dialogs = null, Func<string> editorMode = null, Func<bool> canRead = null)
         {
+            _canRead = () => enabled() || (canRead?.Invoke() ?? false);
             _dialogs = dialogs;
             _editorMode = editorMode;
             _window = window;
@@ -73,13 +79,34 @@ namespace Rubberduck.Api
                 _sleep = sleep;
                 _clock = clock ?? throw new ArgumentNullException(nameof(clock));
             }
+
+            _capture = new ImmediateCapture(window, _canRead, _sleep, _clock);
         }
 
+        private readonly ImmediateCapture _capture;
+        private readonly Func<bool> _canRead;
+
+        /// <summary>Starts keeping what the window prints, so <see cref="Output"/> has it even when nobody was asking at the time.</summary>
+        public void StartCapture() => _capture.Start();
+
+        public void Dispose() => _capture.Dispose();
+
+        /// <summary>Agents may run commands.</summary>
         public bool IsEnabled => _enabled();
+
+        /// <summary>Agents may read the window, which is also true wherever they may run commands.</summary>
+        public bool CanRead => _canRead();
+
+        /// <summary>What was printed to the window, <c>Debug.Print</c> included, from the line number <paramref name="since"/> on (the <c>Next</c> of the last answer); without it, the newest lines.</summary>
+        public ImmediateOutput Output(long? since, int? limit, string contains, int? waitMs)
+        {
+            RequireRead();
+            return _capture.Get(since, limit, contains, waitMs ?? 0);
+        }
 
         public ImmediateContent Read()
         {
-            RequireEnabled();
+            RequireRead();
             var text = _window.Read();
             return text.Length > ReadLimit
                 ? new ImmediateContent { Text = text.Substring(text.Length - ReadLimit), Truncated = true }
@@ -225,8 +252,18 @@ namespace Rubberduck.Api
         {
             if (!_enabled())
             {
+                throw ApiException.Forbidden("immediate_disabled", _canRead()
+                    ? "The user has allowed reading the Immediate window, but not running commands in it. 'Also let agents run code' can be switched on in Rubberduck's settings (General)."
+                    : "The user has not allowed access to the Immediate window. It can be switched on in Rubberduck's settings (General).");
+            }
+        }
+
+        private void RequireRead()
+        {
+            if (!_canRead())
+            {
                 throw ApiException.Forbidden("immediate_disabled",
-                    "The user has not allowed access to the Immediate window. It can be switched on in Rubberduck's settings (General).");
+                    "The user has not allowed access to the Immediate window. Reading it can be switched on in Rubberduck's settings (General).");
             }
         }
     }
