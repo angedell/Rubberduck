@@ -217,7 +217,14 @@ namespace Rubberduck.Api
                     throw ApiException.BadRequest("limit must be a whole number.");
                 }
 
-                return ApiResponse.Json(_diagnostics.Get(segments[1], module, Query(request, "minSeverity"), limit == null ? (int?)null : int.Parse(limit)));
+                var wait = Query(request, "waitSeconds");
+                if (wait != null && !int.TryParse(wait, out _))
+                {
+                    throw ApiException.BadRequest("waitSeconds must be a whole number.");
+                }
+
+                var found = _diagnostics.Get(segments[1], module, Query(request, "minSeverity"), limit == null ? (int?)null : int.Parse(limit), wait == null ? (int?)null : int.Parse(wait));
+                return found.Status == null ? ApiResponse.Json(found) : new ApiResponse { Status = 202, Body = found };
             }
 
             // /projects/{p}/resources[/{name}]
@@ -333,7 +340,7 @@ namespace Rubberduck.Api
                 case "check" when segments.Length == 3 && _check != null:
                     Allow(method, "POST");
                     var check = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
-                    return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests")));
+                    return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests"), OptionalInt(check, "waitSeconds")));
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");

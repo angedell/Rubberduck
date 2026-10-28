@@ -336,10 +336,12 @@ namespace Rubberduck.Api
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Limit the inspections (and tests) to this module."),
-                    ["runTests"] = Boolean("Also run the unit tests. Only works if the user allowed running code.")
+                    ["runTests"] = Boolean("Also run the unit tests. Only works if the user allowed running code."),
+                    ["waitSeconds"] = Integer("How long to wait for the inspections (default 60, at most 300). If they are not done, 'inspectionsStatus' is 'running' and 'clean' is false: call again, and they are there.")
                 },
                 Required = new[] { "project" },
-                Run = (args, client) => _check.Check(client, Arg(args, "project"), args.Value<string>("module"), args.Value<bool?>("runTests") ?? false)
+                Run = (args, client) => _check.Check(client, Arg(args, "project"), args.Value<string>("module"), args.Value<bool?>("runTests") ?? false,
+                    args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
             }
         }.ToList());
 
@@ -516,11 +518,12 @@ namespace Rubberduck.Api
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Only this module."),
                     ["minSeverity"] = new JObject { ["type"] = "string", ["enum"] = new JArray(DiagnosticsApi.Severities), ["description"] = "Leave out anything less severe. Default: everything." },
-                    ["limit"] = Integer("At most this many results. Default 200, maximum 1000.")
+                    ["limit"] = Integer("At most this many results. Default 200, maximum 1000."),
+                    ["waitSeconds"] = Integer("How long to wait for the inspections (default 60, at most 300; they can take minutes on a large project). If they are not done, the answer has status 'running' and no results: call again, and they are there.")
                 },
                 Required = new[] { "project" },
                 Run = (args, client) => _diagnostics.Get(Arg(args, "project"), args.Value<string>("module"), args.Value<string>("minSeverity"),
-                    args["limit"] != null ? Int(args, "limit") : (int?)null)
+                    args["limit"] != null ? Int(args, "limit") : (int?)null, args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
             },
             new Tool
             {

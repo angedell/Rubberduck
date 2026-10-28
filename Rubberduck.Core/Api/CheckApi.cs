@@ -18,7 +18,7 @@ namespace Rubberduck.Api
 
         public bool CanRunTests => _tests.IsEnabled;
 
-        public CheckReport Check(string client, string project, string module, bool runTests)
+        public CheckReport Check(string client, string project, string module, bool runTests, int? waitSeconds = null)
         {
             var report = new CheckReport { Project = project, Module = module };
             report.ParserErrors = _insight.ParserErrors(project);
@@ -28,7 +28,8 @@ namespace Rubberduck.Api
             var parsed = report.ParserErrors.Errors.Count == 0;
             if (parsed)
             {
-                report.Diagnostics = _diagnostics.Get(project, module, "warning", null);
+                report.Diagnostics = _diagnostics.Get(project, module, "warning", null, waitSeconds);
+                report.InspectionsStatus = report.Diagnostics.Status;
                 report.Suppressed = report.Diagnostics.CountsBySeverity
                     .Where(c => DiagnosticsApi.Severities.ToList().IndexOf(c.Key) < DiagnosticsApi.Severities.ToList().IndexOf("warning"))
                     .ToDictionary(c => c.Key, c => c.Value);
@@ -40,6 +41,7 @@ namespace Rubberduck.Api
             }
 
             report.Clean = parsed
+                           && report.InspectionsStatus == null
                            && report.Diagnostics.Diagnostics.Count == 0
                            && (report.Tests == null || (report.Tests.Failed == 0 && report.Tests.Completed));
             return report;

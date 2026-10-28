@@ -9,7 +9,8 @@ namespace Rubberduck.Api
     {
         /// <param name="project">Project id or name.</param>
         /// <param name="module">A module's name, or null for the whole project.</param>
-        DiagnosticsReport Run(string project, string module);
+        /// <param name="wait">How long to wait for the inspections; if they are not done by then the report says "running" and they carry on in the background. Null: a default.</param>
+        DiagnosticsReport Run(string project, string module, TimeSpan? wait = null);
     }
 
     /// <summary>Rubberduck's code inspections, for agents to check what they wrote. Read-only, so it needs no approval.</summary>
@@ -28,8 +29,15 @@ namespace Rubberduck.Api
             _source = source;
         }
 
-        public DiagnosticsReport Get(string project, string module, string minSeverity, int? limit)
+        public const int MaxWaitSeconds = 300;
+
+        public DiagnosticsReport Get(string project, string module, string minSeverity, int? limit, int? waitSeconds = null)
         {
+            if (waitSeconds < 0 || waitSeconds > MaxWaitSeconds)
+            {
+                throw ApiException.BadRequest($"waitSeconds must be between 0 and {MaxWaitSeconds}.");
+            }
+
             var minimum = 0;
             if (!string.IsNullOrWhiteSpace(minSeverity))
             {
@@ -45,7 +53,7 @@ namespace Rubberduck.Api
                 throw ApiException.BadRequest($"limit must be between 1 and {MaxLimit}.");
             }
 
-            var report = _source.Run(project, string.IsNullOrWhiteSpace(module) ? null : module);
+            var report = _source.Run(project, string.IsNullOrWhiteSpace(module) ? null : module, waitSeconds.HasValue ? TimeSpan.FromSeconds(waitSeconds.Value) : (TimeSpan?)null);
             report.CountsBySeverity = Severities
                 .Select(s => (Severity: s, Count: report.Diagnostics.Count(d => s.Equals(d.Severity, StringComparison.OrdinalIgnoreCase))))
                 .Where(x => x.Count > 0)

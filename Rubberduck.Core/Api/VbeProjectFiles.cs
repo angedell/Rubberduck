@@ -52,9 +52,7 @@ namespace Rubberduck.Api
 
         private string FileNameOf(string key)
         {
-            var all = _projects.Projects().ToList();
-            var byId = all.Where(p => string.Equals(p.ProjectId, key, StringComparison.OrdinalIgnoreCase)).ToList();
-            var matches = byId.Count > 0 ? byId : all.Where(p => string.Equals(p.Project.Name, key, StringComparison.OrdinalIgnoreCase)).ToList();
+            var matches = ProjectIds.Match(key, _projects.Projects().ToList(), p => (p.ProjectId, p.Project.Name, ProjectIds.PathOf(p.Project)));
             switch (matches.Count)
             {
                 case 0:

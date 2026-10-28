@@ -20,7 +20,7 @@ namespace RubberduckTests.Api
 
         public string AskedProject, AskedModule;
 
-        public DiagnosticsReport Run(string project, string module)
+        public DiagnosticsReport Run(string project, string module, TimeSpan? wait = null)
         {
             AskedProject = project;
             AskedModule = module;

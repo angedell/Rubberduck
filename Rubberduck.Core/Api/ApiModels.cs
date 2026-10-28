@@ -107,6 +107,9 @@ namespace Rubberduck.Api
     public class ModuleInfo
     {
         public string Project { get; set; }
+
+        /// <summary>The project's file (null if it was never saved), so the workbook a write went to can be seen in the answer.</summary>
+        public string ProjectPath { get; set; }
         public string Name { get; set; }
 
         /// <summary>standard, class, form or document (a worksheet, workbook or similar object's code).</summary>
@@ -180,6 +183,14 @@ namespace Rubberduck.Api
         public string ParserState { get; set; }
 
         public int Total { get; set; }
+
+        /// <summary>
+        /// "running" when the inspections were not done within the wait: the list is empty and says nothing yet. They go on in the background; ask again
+        /// (after <see cref="RetryAfterSeconds"/>) and the answer comes at once. Null when the results are in.
+        /// </summary>
+        public string Status { get; set; }
+
+        public int? RetryAfterSeconds { get; set; }
 
         /// <summary>How many results the inspections found of each severity, before any minimum severity or limit was applied.</summary>
         public Dictionary<string, int> CountsBySeverity { get; set; } = new Dictionary<string, int>();
@@ -439,6 +450,9 @@ namespace Rubberduck.Api
         /// <summary>What the inspections found below the severity that makes the code unclean (hints, suggestions), counted by severity and not listed. Ask for the diagnostics to see them.</summary>
         public Dictionary<string, int> Suppressed { get; set; } = new Dictionary<string, int>();
         public TestRunReport Tests { get; set; }
+
+        /// <summary>"running" when the inspections were not done within the wait, so Clean cannot be known (it is false). Ask again; the results are kept.</summary>
+        public string InspectionsStatus { get; set; }
     }
 
     /// <summary>One change in a batch. <see cref="Op"/> is replaceCode, editLines, replaceText, create or delete.</summary>

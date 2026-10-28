@@ -59,7 +59,7 @@ namespace Rubberduck.Api
                 var path = PathOf(p.Project);
                 return new ProjectInfo
                 {
-                    Id = p.ProjectId,
+                    Id = ProjectIds.Of(p.ProjectId, p.Project.Name, path),
                     Name = p.Project.Name,
                     Path = path,
                     Extension = string.IsNullOrEmpty(path) ? null : _fileSystem.Path.GetExtension(path)
@@ -116,6 +116,7 @@ namespace Rubberduck.Api
                     var content = new ModuleContent
                     {
                         Project = found.Name,
+                        ProjectPath = PathOf(found),
                         Name = component.Name,
                         Kind = KindOf(component.Type),
                         LineCount = LineCount(component),
@@ -386,9 +387,7 @@ namespace Rubberduck.Api
 
         private IVBProject FindProject(string key)
         {
-            var all = _projects.Projects().ToList();
-            var byId = all.Where(p => string.Equals(p.ProjectId, key, StringComparison.OrdinalIgnoreCase)).ToList();
-            var matches = byId.Count > 0 ? byId : all.Where(p => string.Equals(p.Project.Name, key, StringComparison.OrdinalIgnoreCase)).ToList();
+            var matches = ProjectIds.Match(key, _projects.Projects().ToList(), p => (p.ProjectId, p.Project.Name, PathOf(p.Project)));
             switch (matches.Count)
             {
                 case 0:
@@ -449,6 +448,7 @@ namespace Rubberduck.Api
             return new ModuleInfo
             {
                 Project = project.Name,
+                ProjectPath = PathOf(project),
                 Name = component.Name,
                 Kind = KindOf(component.Type),
                 LineCount = LineCount(component),

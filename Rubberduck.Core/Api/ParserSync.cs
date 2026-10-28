@@ -31,7 +31,24 @@ namespace Rubberduck.Api
             _projects = projects;
             _dispatcher = dispatcher;
             _vbe = vbe;
+            //Every call of CatchUp ends in a parse run, which ends in Ready even when nothing was edited, so counting runs would say "changed" every time.
+            //What counts is a module being scheduled for a parse (new, edited, marked as modified).
+            _state.ModuleStateChanged += (sender, args) =>
+            {
+                if (args.State == ParserState.Pending)
+                {
+                    Interlocked.Increment(ref _scheduled);
+                }
+            };
         }
+
+        private int _scheduled;
+
+        /// <summary>
+        /// Changes when the code the parser holds may have changed: a module was scheduled for a parse, or the number of declarations differs (a module was removed).
+        /// Results worked out from the parser state are good for as long as this stays the same.
+        /// </summary>
+        public int Generation => unchecked((Volatile.Read(ref _scheduled) * 397) ^ _state.AllUserDeclarations.Count());
 
         public RubberduckParserState State => _state;
 
@@ -103,15 +120,14 @@ namespace Rubberduck.Api
 
         public (string Id, string Name) ResolveProject(string key)
         {
-            var task = _dispatcher.StartTask(() => _projects.Projects().Select(p => (p.ProjectId, p.Project.Name)).ToList(), CancellationToken.None);
+            var task = _dispatcher.StartTask(() => _projects.Projects().Select(p => (p.ProjectId, p.Project.Name, Path: ProjectIds.PathOf(p.Project))).ToList(), CancellationToken.None);
             if (!task.Wait(TimeSpan.FromSeconds(30)))
             {
                 throw ApiException.Unavailable("The editor did not respond in time.");
             }
 
             var all = task.Result;
-            var byId = all.Where(p => string.Equals(p.ProjectId, key, StringComparison.OrdinalIgnoreCase)).ToList();
-            var matches = byId.Count > 0 ? byId : all.Where(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase)).ToList();
+            var matches = ProjectIds.Match(key, all, p => (p.ProjectId, p.Name, p.Path));
             if (matches.Count == 0)
             {
                 throw ApiException.NotFound($"No open project '{key}'.");
