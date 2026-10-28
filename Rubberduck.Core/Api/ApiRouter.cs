@@ -157,6 +157,13 @@ namespace Rubberduck.Api
         {
             var method = request.Method.ToUpperInvariant();
 
+            // the root: what this is and where to go from here
+            if (segments.Length == 0)
+            {
+                Allow(method, "GET");
+                return ApiResponse.Json(new { info = InfoReport(_firewall), mcp = McpPath, routes = Routes() });
+            }
+
             // /projects
             if (segments.Length == 1 && segments[0] == "projects")
             {
@@ -364,6 +371,45 @@ namespace Rubberduck.Api
             }
 
             throw ApiException.NotFound("No such route.");
+        }
+
+        /// <summary>The routes this router answers, as "METHODS path". Only the ones whose part is present here, like Route does.</summary>
+        private IEnumerable<string> Routes()
+        {
+            var routes = new List<string> { "GET /info", "GET /projects", "GET,POST /projects/{p}/modules", "GET,PUT,PATCH,DELETE /projects/{p}/modules/{m}", "POST /projects/{p}/edits",
+                "GET /projects/{p}/modules/{m}/diagnostics", "GET /projects/{p}/diagnostics", "GET,POST /immediate", "GET /immediate/output" };
+            void Add(bool present, string route)
+            {
+                if (present)
+                {
+                    routes.Add(route);
+                }
+            }
+
+            Add(_parser != null, "POST /reparse");
+            Add(_vbeReset != null, "POST /vbe/reset");
+            Add(_dump != null, "GET,POST /dump");
+            Add(_log != null, "GET,PUT /log");
+            Add(_resources != null, "GET,DELETE /projects/{p}/resources");
+            Add(_resources != null, "GET,PUT,DELETE /projects/{p}/resources/{name}");
+            Add(_notes != null, "GET /projects/{p}/notes");
+            Add(_notes != null, "GET,PUT,DELETE /projects/{p}/notes/{name}");
+            Add(_syncAttributes != null, "GET,POST /projects/{p}/modules/{m}/sync-attributes");
+            Add(_insight != null, "GET /projects/{p}/parser-errors");
+            Add(_insight != null, "GET /projects/{p}/symbols");
+            Add(_insight != null, "GET /projects/{p}/symbols/references");
+            Add(_insight != null, "GET /projects/{p}/symbols/definition");
+            Add(_insight != null, "GET /projects/{p}/libraries");
+            Add(_insight != null, "GET /projects/{p}/structure");
+            Add(_insight != null, "GET /projects/{p}/metrics");
+            Add(_tests != null, "GET /projects/{p}/tests");
+            Add(_tests != null, "POST /projects/{p}/tests/run");
+            Add(_check != null, "POST /projects/{p}/check");
+            Add(_quickFix != null, "* /projects/{p}/quickfix");
+            Add(_renameRefactor != null, "* /projects/{p}/refactor/rename");
+            Add(_encapsulateRefactor != null, "* /projects/{p}/refactor/encapsulate-field");
+            Add(_moveRefactor != null, "* /projects/{p}/refactor/move-to-folder");
+            return routes.Select(r => r.Replace(" /", " " + Base + "/"));
         }
 
         //What Rubberduck knows about a project beyond its code: /projects/{p}/<what>. Null if the route is not one of these.
