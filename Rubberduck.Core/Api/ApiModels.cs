@@ -154,6 +154,9 @@ namespace Rubberduck.Api
 
     public class Diagnostic
     {
+        /// <summary>Names this result for the quick fix routes; valid for the latest run only.</summary>
+        public string Id { get; set; }
+
         public string Module { get; set; }
 
         /// <summary>The inspection's name, as Rubberduck shows it.</summary>

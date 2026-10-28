@@ -143,6 +143,15 @@ The preview answers with `moves` (per module: `fromFolder`, and `changes`, false
 
 MCP tools: `preview_move_to_folder` and `move_to_folder`, with the same fields plus `project`.
 
+### Quick fixes
+
+Rubberduck's own quick fixes, applied to the diagnostics the API reported. Every diagnostic from `GET /api/v1/projects/{p}/diagnostics` (and `check`) carries an `id`. It names the result of the latest inspection run only: once the code has changed the ids are refused with 409, so run diagnostics again. An id that is not in the latest run is a 404.
+
+- `GET /api/v1/projects/{p}/quickfix?result=<id>` lists the fixes on offer (`fixes`: `name`, `description`, `canFixInModule`) together with the diagnostic's `module`, `inspection` and `description`. A read; needs no approval.
+- `POST /api/v1/projects/{p}/quickfix` with `{ "result": "<id>", "fix": "<name>", "scope": "result" }` applies one. `scope` is `result` (default: this diagnostic) or `module` (every result of the same inspection in the same module; 422 for a fix with `canFixInModule` false). A fix that is not offered for the diagnostic is a 422 that lists the ones that are. The request is checked before the user is asked; applying needs the same approval as writes and the editor in design mode (409 `vbe_not_in_design_mode`). The fix runs through Rubberduck's own fix classes on the editor's thread. The answer says how many results it was applied to (`fixed`); it does not prove the diagnostic is gone, so run diagnostics again. A fix can touch several places, so re-read the module afterwards (its hash changes).
+
+MCP tools: `list_quick_fixes` and `apply_quick_fix`, with the same fields plus `project`.
+
 ### Ribbon XML and pictures
 
 The ribbon XML and pictures stored inside the project's document file: `customUI.xml` (Office 2007) or `customUI14.xml` (2010 and later), and the pictures in `customUI/images` (png, jpg, gif, bmp, ico; 5 MB at most). Only saved Open XML documents have them; for others `supported` is `false`. `{r}` is the resource's file name.
