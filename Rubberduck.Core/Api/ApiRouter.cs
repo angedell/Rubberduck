@@ -46,11 +46,13 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly VbeResetApi _vbeReset;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, VbeResetApi vbeReset = null)
         {
+            _vbeReset = vbeReset;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -61,7 +63,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, vbeReset);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -145,6 +147,13 @@ namespace Rubberduck.Api
             {
                 Allow(method, "POST");
                 return ApiResponse.Json(ReparseReport(_parser, _api));
+            }
+
+            // /vbe/reset: Run > Reset
+            if (segments.Length == 2 && segments[0] == "vbe" && segments[1] == "reset" && _vbeReset != null)
+            {
+                Allow(method, "POST");
+                return ApiResponse.Json(_vbeReset.Reset(request.Client));
             }
 
             // /dump: a memory dump of the editor's process, for when it hangs

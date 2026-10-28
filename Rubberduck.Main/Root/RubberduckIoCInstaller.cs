@@ -1326,6 +1326,13 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<DumpApi>()
                 .LifestyleSingleton());
+            container.Register(Component.For<VbeResetApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var parser = kernel.Resolve<ParserSync>();
+                    return new VbeResetApi(kernel.Resolve<ApiWriteApproval>(), parser.EditorMode, parser.ResetIfStopped, kernel.Resolve<IDialogWatcher>());
+                })
+                .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());
             container.Register(Component.For<ApiServer>()

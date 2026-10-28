@@ -24,12 +24,14 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly VbeResetApi _vbeReset;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, VbeResetApi vbeReset = null)
         {
             _log = log;
             _dump = dump;
+            _vbeReset = vbeReset;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -171,6 +173,7 @@ namespace Rubberduck.Api
             .Concat(_check != null ? CheckTools() : Enumerable.Empty<Tool>())
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
+            .Concat(_vbeReset != null ? VbeResetTools() : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
@@ -303,6 +306,20 @@ namespace Rubberduck.Api
                 Properties = new JObject { ["level"] = String("Trace, Debug, Info, Warn, Error, Fatal or Off.") },
                 Required = new[] { "level" },
                 Run = (args, client) => _log.SetLevel(client, Arg(args, "level"))
+            }
+        }.ToList());
+
+        private IList<Tool> _vbeResetTools;
+
+        private IEnumerable<Tool> VbeResetTools() => _vbeResetTools ?? (_vbeResetTools = new[]
+        {
+            new Tool
+            {
+                Name = "reset_vbe",
+                Description = "Presses Run > Reset in the editor, for when list_projects says 'running_or_break' (a macro is stopped, after an error dialog was closed with End, say) and writes, tests and the parser are refused with vbe_not_in_design_mode. It runs no code but ends the stopped program and its variables, so the user has to approve it like a write. Answers with 'vbeMode' as the editor reports it afterwards. If the editor is not back in design mode (a dialog is open, the editor does not answer) it is an error that says why, never a success. Does nothing if the editor is in design mode already.",
+                Properties = new JObject(),
+                Required = new string[0],
+                Run = (args, client) => _vbeReset.Reset(client)
             }
         }.ToList());
 
