@@ -269,6 +269,12 @@ namespace Rubberduck.PackageResources
             document = document ?? new XDocument(new XElement(Relationships + "Relationships"));
             var root = document.Root;
 
+            //A relationship to a part that is gone makes Office report a damaged file.
+            if (!config)
+            {
+                root.Elements(Relationships + "Relationship").Where(r => (string)r.Attribute("Type") == ConfigRelationship).ToList().ForEach(r => r.Remove());
+            }
+
             if (config && !root.Elements(Relationships + "Relationship").Any(r => (string)r.Attribute("Type") == ConfigRelationship))
             {
                 root.Add(new XElement(Relationships + "Relationship",

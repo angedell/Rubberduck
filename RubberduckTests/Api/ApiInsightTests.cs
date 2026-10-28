@@ -289,6 +289,22 @@ namespace RubberduckTests.Api
         }
 
         [Test]
+        public void SkippedTests_AreReported_SoCleanIsNotMistakenForTested()
+        {
+            var report = Check().Check("agent", "p", null, false);
+
+            Assert.IsTrue(report.Clean);
+            Assert.IsNull(report.Tests);
+            StringAssert.Contains("runTests", report.TestsNotRun);
+        }
+
+        [Test]
+        public void TestsThatRan_NeedNoSkippedNote()
+        {
+            Assert.IsNull(Check().Check("agent", "p", null, true).TestsNotRun);
+        }
+
+        [Test]
         public void Tests_RunOnlyWhenAsked()
         {
             Check().Check("agent", "p", null, false);

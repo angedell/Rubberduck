@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -16,12 +17,39 @@ namespace Rubberduck.UI.CodeExplorer
     {
         private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UseSupportedExtensions().Build();
 
-        public static FlowDocument ToDocument(string markdown)
+        //Fonts WPF falls back to, in order, for a character the chosen font lacks. Whichever are installed are used: the newest emoji need a recent Segoe UI Emoji (Windows 11) or one of the others.
+        //WPF draws a font's glyphs in the text colour; colour glyphs (COLR/CBDT) are not supported by the framework, so emoji come out as monochrome outlines whatever the font.
+        private static readonly string[] EmojiFonts = { "Segoe UI Emoji", "Noto Emoji", "Noto Color Emoji", "Twemoji Mozilla", "Segoe UI Symbol" };
+
+        /// <summary>The font family string for the document: the chosen font, then the emoji fonts.</summary>
+        public static string FontChain(string fontName)
+        {
+            var name = string.IsNullOrWhiteSpace(fontName) ? ResourceEditorPreferences.DefaultPreviewFontName : fontName.Trim();
+            return string.Join(", ", new[] { name }.Concat(EmojiFonts).Distinct(StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Marks the paragraph of a code block, where emoji stay text.</summary>
+        public const string CodeBlockTag = "code-block";
+
+        /// <summary>
+        /// The document for the markdown. Emoji are pictures in colour (see <see cref="EmojiLayer"/>); the layer is in the document's Tag, and wants to be told the zoom.
+        /// <paramref name="allowDownload"/> lets a big zoom fetch the SVG of an emoji from the internet, where the connection is not metered.
+        /// </summary>
+        public static FlowDocument ToDocument(string markdown, string fontName = null, bool allowDownload = false)
         {
             var renderer = new WpfRenderer();
             //First in the list, so it is asked before the stock code block renderer.
             renderer.ObjectRenderers.Insert(0, new HighlightingCodeBlockRenderer());
-            return Markdig.Wpf.Markdown.ToFlowDocument(markdown ?? string.Empty, Pipeline, renderer);
+            var document = Markdig.Wpf.Markdown.ToFlowDocument(markdown ?? string.Empty, Pipeline, renderer);
+            document.FontFamily = new FontFamily(FontChain(fontName));
+            document.Tag = EmojiLayer.Apply(document, EmojiImages.Shared, allowDownload);
+            if (allowDownload)
+            {
+                //The emoji that are not packaged are fetched in the background, the ones this document waits for first.
+                EmojiImages.Shared.StartFetching();
+            }
+
+            return document;
         }
 
         private static MarkdownPipelineBuilder UseSupportedExtensions(this MarkdownPipelineBuilder builder)
@@ -90,7 +118,7 @@ namespace Rubberduck.UI.CodeExplorer
         {
             protected override void Write(WpfRenderer renderer, CodeBlock block)
             {
-                var paragraph = new Paragraph();
+                var paragraph = new Paragraph { Tag = CodeBlockTag };
                 paragraph.SetResourceReference(FrameworkContentElement.StyleProperty, Markdig.Wpf.Styles.CodeBlockStyleKey);
 
                 var code = block.Lines.ToString();

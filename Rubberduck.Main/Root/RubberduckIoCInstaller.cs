@@ -66,6 +66,7 @@ using System.IO.Abstractions;
 using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.UI.Command.ComCommands;
 using Rubberduck.UI.CodeExplorer.GitSync;
+using Rubberduck.Ship;
 using Rubberduck.VBEditor.ComManagement.NonDisposalDecorators;
 using Rubberduck.Api;
 using Rubberduck.PackageResources;
@@ -187,6 +188,10 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
 
             container.Register(Component.For<GitSyncService>()
+                .LifestyleSingleton());
+
+            container.Register(Component.For<IShipService>()
+                .ImplementedBy<ShipService>()
                 .LifestyleSingleton());
 
             RegisterPackageResources(container);
@@ -1274,8 +1279,10 @@ namespace Rubberduck.Root
                     });
                 })
                 .LifestyleSingleton());
-            container.Register(Component.For<IModuleStore>()
+            container.Register(Component.For<IModuleStore, IFormControlStore>()
                 .ImplementedBy<VbeModuleStore>()
+                .LifestyleSingleton());
+            container.Register(Component.For<FormApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<ParserSync>()
                 .LifestyleSingleton());
@@ -1291,7 +1298,12 @@ namespace Rubberduck.Root
             container.Register(Component.For<InsightApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<ITestSource>()
-                .ImplementedBy<EngineTestSource>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var dispatcher = kernel.Resolve<IUiDispatcher>();
+                    return new EngineTestSource(kernel.Resolve<ITestEngine>(), kernel.Resolve<ParserSync>(), kernel.Resolve<IDialogWatcher>(),
+                        () => dispatcher.StartTask(() => kernel.Resolve<TestExplorerDockablePresenter>().Show(), CancellationToken.None).Wait(TimeSpan.FromSeconds(10)));
+                })
                 .LifestyleSingleton());
             container.Register(Component.For<TestsApi>()
                 .UsingFactoryMethod(kernel =>
@@ -1324,6 +1336,11 @@ namespace Rubberduck.Root
             container.Register(Component.For<ResourceApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<NotesApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IShipProjects>()
+                .ImplementedBy<VbeShipProjects>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ShipApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<ILogControl>()
                 .ImplementedBy<RubberduckLogControl>()

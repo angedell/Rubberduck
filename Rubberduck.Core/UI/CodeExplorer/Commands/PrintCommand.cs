@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Printing;
+using System.IO.Abstractions;
 using Path = System.IO.Path;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -17,13 +18,16 @@ namespace Rubberduck.UI.CodeExplorer.Commands
         private static readonly Type[] ApplicableNodes = { typeof(CodeExplorerComponentViewModel) };
 
         private readonly IProjectsProvider _projectsProvider;
+        private readonly IFileSystem _fileSystem;
 
         public PrintCommand(
-            IProjectsProvider projectsProvider, 
-            IVbeEvents vbeEvents) 
+            IProjectsProvider projectsProvider,
+            IFileSystem fileSystem,
+            IVbeEvents vbeEvents)
             : base(vbeEvents)
         {
             _projectsProvider = projectsProvider;
+            _fileSystem = fileSystem;
 
             AddToCanExecuteEvaluation(EvaluateCanExecute);
         }
@@ -67,13 +71,23 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Rubberduck",
                 qualifiedComponentName.ComponentName + ".txt");
 
-            List<string> text;
+            string content;
             var component = _projectsProvider.Component(qualifiedComponentName);
             using (var codeModule = component.CodeModule)
             {
-                text = codeModule.GetLines(1, codeModule.CountOfLines)
-                    .Split(new[] {Environment.NewLine}, StringSplitOptions.None).ToList();
+                content = codeModule.GetLines(1, codeModule.CountOfLines);
             }
+
+            //A note prints as the rendered markdown, not as the comments of its module.
+            if (NoteModule.IsNote(content))
+            {
+                var fontName = ResourceEditorPreferences.Load(_fileSystem).PreviewFontName;
+                //Paper is printed with the PNGs: 128 px is about 5 mm at 600 dpi, enough for emoji in body text (a little soft in big headings), and nothing is fetched while the printer is waiting.
+                NotePrinter.Print(NoteModule.ToMarkdown(content), NoteModule.DisplayName(qualifiedComponentName.ComponentName, content), fontName);
+                return;
+            }
+
+            var text = content.Split(new[] {Environment.NewLine}, StringSplitOptions.None).ToList();
 
             var printDoc = new PrintDocument { DocumentName = path };
             // TODO this should be abstracted to an interface and injected.

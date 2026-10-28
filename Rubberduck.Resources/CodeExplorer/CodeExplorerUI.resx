@@ -883,6 +883,12 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="NoteEditor_ZoomResetTip" xml:space="preserve">
     <value>Back to 100% (Ctrl+0)</value>
   </data>
+  <data name="NoteEditor_PreviewFont" xml:space="preserve">
+    <value>Preview font:</value>
+  </data>
+  <data name="NoteEditor_PreviewFontTip" xml:space="preserve">
+    <value>The font of the preview and of the printout. Emoji the font lacks are taken from the emoji fonts installed (Segoe UI Emoji, Noto Emoji...).</value>
+  </data>
   <data name="NoteEditor_SplitterTip" xml:space="preserve">
     <value>Drag to resize; double-click for half and half</value>
   </data>

@@ -149,9 +149,20 @@ namespace Rubberduck.Api
             var after = before;
             foreach (var line in lines)
             {
+                var beforeLine = after;
                 _window.Send(line);
                 //Each line gets its own wait; the next one is not typed into a window that is still busy with the last.
                 settled = Settle(TimeSpan.FromMilliseconds(wait), run, out after);
+
+                //The window always echoes what is entered. If its text did not change at all, the line did not arrive: say so, not "completed".
+                //Without this the answer was an empty success while the characters had gone somewhere else, e.g. into Excel's cell editor.
+                if (after == beforeLine && run.Errors.Count == 0 && run.BlockedByDialog == null)
+                {
+                    throw new ApiException(409, "not_echoed",
+                        "The command did not appear in the Immediate window, so it was not run. The editor may not be accepting input (Excel in cell-edit mode, a modal dialog, the window closed). "
+                        + "Check the host for text typed where it should not be, and ask the user to press Esc in Excel and to open the Immediate window (Ctrl+G).");
+                }
+
                 if (!settled)
                 {
                     break;

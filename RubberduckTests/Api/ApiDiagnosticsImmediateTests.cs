@@ -301,6 +301,18 @@ namespace RubberduckTests.Api
             Assert.IsFalse(result.Completed);
         }
 
+        [Test]
+        public void ACommandThatNeverAppearsInTheWindow_IsNotReportedAsRun()
+        {
+            //The characters went elsewhere (Excel's cell editor): the window did not change at all.
+            var clock = TimeSpan.Zero;
+            var api = new ImmediateApi(new SilentWindow(), new ApiExecuteApproval(_ => true), () => true, step => clock += step, () => clock);
+
+            var exception = Assert.Throws<ApiException>(() => api.Run("agent", "Logger.Level = 3", 1000));
+
+            Assert.AreEqual("not_echoed", exception.Code);
+        }
+
         [TestCase("")]
         [TestCase("   ")]
         public void EmptyCommand_Is400(string command)
@@ -358,6 +370,13 @@ namespace RubberduckTests.Api
             var after = "two\r\nthree\r\nfour\r\n";
 
             Assert.AreEqual("four\r\n", ImmediateApi.Delta(before, after));
+        }
+
+        private class SilentWindow : IImmediateWindow
+        {
+            public string Read() => "old text\r\n";
+            public string Peek() => Read();
+            public void Send(string line) { }
         }
 
         private class BusyWindow : IImmediateWindow

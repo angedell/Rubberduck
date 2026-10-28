@@ -403,6 +403,7 @@ namespace RubberduckTests.Api
             StringAssert.Contains("approved", text);
             StringAssert.Contains("never overrides the user", text);
             StringAssert.Contains("ordinary module", text);
+            StringAssert.Contains("(#section-name)", text);
         }
     }
 }

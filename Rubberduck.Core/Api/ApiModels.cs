@@ -478,6 +478,9 @@ namespace Rubberduck.Api
         public Dictionary<string, int> Suppressed { get; set; } = new Dictionary<string, int>();
         public TestRunReport Tests { get; set; }
 
+        /// <summary>Set when the project has unit tests that this check did not run, so a clean result is not mistaken for "tested". Call again with runTests.</summary>
+        public string TestsNotRun { get; set; }
+
         /// <summary>"running" when the inspections were not done within the wait, so Clean cannot be known (it is false). Ask again; the results are kept.</summary>
         public string InspectionsStatus { get; set; }
     }

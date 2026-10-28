@@ -518,6 +518,16 @@ namespace RubberduckTests.PackageResources
         }
 
         [Test]
+        public void ThePreviewFont_IsSavedAndLoaded_AndAFileWithoutOneGetsTheDefault()
+        {
+            new ResourceEditorPreferences { PreviewFontName = "Georgia" }.Save(_fileSystem, _path);
+            Assert.AreEqual("Georgia", ResourceEditorPreferences.Load(_fileSystem, _path).PreviewFontName);
+
+            File.WriteAllText(_path, "{\"FontName\":\"Consolas\",\"FontSize\":10}");
+            Assert.AreEqual("Segoe UI", ResourceEditorPreferences.Load(_fileSystem, _path).PreviewFontName);
+        }
+
+        [Test]
         public void AnUnreadableFile_FallsBackToTheDefault()
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_path));

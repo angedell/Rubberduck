@@ -47,6 +47,8 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly NotesApi _notes;
+        private readonly ShipApi _ship;
+        private readonly FormApi _forms;
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
         private readonly SyncAttributesApi _syncAttributes;
@@ -64,9 +66,13 @@ namespace Rubberduck.Api
             RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
             RefactorMoveToFolderApi moveRefactor = null,
             QuickFixApi quickFix = null,
-            NotesApi notes = null)
+            NotesApi notes = null,
+            ShipApi ship = null,
+            FormApi forms = null)
         {
+            _forms = forms;
             _notes = notes;
+            _ship = ship;
             _syncAttributes = syncAttributes;
             _firewall = firewall;
             _vbeReset = vbeReset;
@@ -85,7 +91,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes, ship, forms);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -314,6 +320,12 @@ namespace Rubberduck.Api
                 return Note(request, method, segments[1], string.Join("/", segments.Skip(3)));
             }
 
+            // /projects/{p}/modules/{m}/controls[/{c}]: the controls on a form's designer
+            if (segments.Length >= 5 && segments.Length <= 6 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "controls" && _forms != null)
+            {
+                return _forms.Route(request, method, segments);
+            }
+
             // /projects/{p}/modules/{m}/sync-attributes: GET previews, POST applies
             if (segments.Length == 5 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "sync-attributes" && _syncAttributes != null)
             {
@@ -395,6 +407,8 @@ namespace Rubberduck.Api
             Add(_notes != null, "GET /projects/{p}/notes");
             Add(_notes != null, "GET,PUT,DELETE /projects/{p}/notes/{name}");
             Add(_syncAttributes != null, "GET,POST /projects/{p}/modules/{m}/sync-attributes");
+            Add(_forms != null, "GET,POST /projects/{p}/modules/{m}/controls");
+            Add(_forms != null, "PUT,DELETE /projects/{p}/modules/{m}/controls/{c}");
             Add(_insight != null, "GET /projects/{p}/parser-errors");
             Add(_insight != null, "GET /projects/{p}/symbols");
             Add(_insight != null, "GET /projects/{p}/symbols/references");
@@ -405,6 +419,9 @@ namespace Rubberduck.Api
             Add(_tests != null, "GET /projects/{p}/tests");
             Add(_tests != null, "POST /projects/{p}/tests/run");
             Add(_check != null, "POST /projects/{p}/check");
+            Add(_ship != null, "GET,PUT /projects/{p}/ship/settings");
+            Add(_ship != null, "GET /projects/{p}/ship/preview");
+            Add(_ship != null, "POST /projects/{p}/ship");
             Add(_quickFix != null, "* /projects/{p}/quickfix");
             Add(_renameRefactor != null, "* /projects/{p}/refactor/rename");
             Add(_encapsulateRefactor != null, "* /projects/{p}/refactor/encapsulate-field");
@@ -472,6 +489,9 @@ namespace Rubberduck.Api
                     Allow(method, "POST");
                     var check = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
                     return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests"), OptionalInt(check, "waitSeconds")));
+
+                case "ship" when segments.Length >= 3 && segments.Length <= 4 && _ship != null:
+                    return _ship.Route(request, method, segments);
 
                 case "quickfix" when segments.Length == 3 && _quickFix != null:
                     return _quickFix.Route(request, method, segments);

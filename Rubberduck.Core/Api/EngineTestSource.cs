@@ -20,14 +20,18 @@ namespace Rubberduck.Api
         private readonly IDialogWatcher _dialogs;
         private readonly ConcurrentDictionary<string, TestResult> _results = new ConcurrentDictionary<string, TestResult>(StringComparer.OrdinalIgnoreCase);
 
+        private readonly Action _showWindow;
+
         private ManualResetEventSlim _finished;
 
         /// <param name="dialogs">Looks for the editor's error dialogs while tests run; without it, an error dialog is left for the user and the run waits.</param>
-        public EngineTestSource(ITestEngine engine, ParserSync parser, IDialogWatcher dialogs = null)
+        /// <param name="showWindow">Shows the Test Explorer when a run starts, so the user watches what the agent runs. A failure to show it never fails the run.</param>
+        public EngineTestSource(ITestEngine engine, ParserSync parser, IDialogWatcher dialogs = null, Action showWindow = null)
         {
             _engine = engine;
             _parser = parser;
             _dialogs = dialogs;
+            _showWindow = showWindow;
             _engine.TestCompleted += (sender, args) => _results[KeyOf(args.Test)] = args.Result;
             _engine.TestRunCompleted += (sender, args) => _finished?.Set();
         }
@@ -71,6 +75,15 @@ namespace Rubberduck.Api
                 foreach (var item in selected)
                 {
                     _results.TryRemove(KeyOf(item), out _);
+                }
+
+                try
+                {
+                    _showWindow?.Invoke();
+                }
+                catch (Exception)
+                {
+                    //The window is a courtesy to the user; the tests matter more.
                 }
 
                 using (var finished = new ManualResetEventSlim(false))

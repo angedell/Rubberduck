@@ -36,10 +36,10 @@ namespace Rubberduck.Api
             _dispatcher = dispatcher;
             _vbe = vbe;
             //Every call of CatchUp ends in a parse run, which ends in Ready even when nothing was edited, so counting runs would say "changed" every time.
-            //What counts is a module being scheduled for a parse (new, edited, marked as modified).
+            //What counts is a module being scheduled for a parse (new, marked as modified) or actually parsed: a module whose text changed goes straight to Parsing, never through Pending.
             _state.ModuleStateChanged += (sender, args) =>
             {
-                if (args.State == ParserState.Pending)
+                if (args.State == ParserState.Pending || args.State == ParserState.Parsing)
                 {
                     Interlocked.Increment(ref _scheduled);
                 }

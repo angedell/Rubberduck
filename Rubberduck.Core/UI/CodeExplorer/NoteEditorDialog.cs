@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
@@ -8,6 +9,7 @@ using ICSharpCode.AvalonEdit;
 using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.Resources.CodeExplorer;
 using Button = System.Windows.Forms.Button;
+using ComboBox = System.Windows.Forms.ComboBox;
 using Label = System.Windows.Forms.Label;
 using Panel = System.Windows.Forms.Panel;
 using Size = System.Drawing.Size;
@@ -60,7 +62,7 @@ namespace Rubberduck.UI.CodeExplorer
             Text = title;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(1100, 700);
-            MinimumSize = new Size(960, 360);
+            MinimumSize = new Size(1080, 360);
             ShowIcon = false;
             ShowInTaskbar = false;
             KeyPreview = true;
@@ -81,6 +83,9 @@ namespace Rubberduck.UI.CodeExplorer
 
             _preview = new FlowDocumentScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, IsToolBarVisible = false, MinZoom = NoteEditorLayout.MinZoom, MaxZoom = NoteEditorLayout.MaxZoom };
             _preview.PreviewMouseWheel += PreviewMouseWheel;
+            //Copying from the preview gives the emoji as characters, not as the pictures that stand for them.
+            _preview.CommandBindings.Add(new System.Windows.Input.CommandBinding(System.Windows.Input.ApplicationCommands.Copy, CopyFromPreview, CanCopyFromPreview));
+            EmojiImages.Shared.PictureArrived += EmojiPictureArrived;
 
             _splitter = new GridSplitter { Width = 6, HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch, ToolTip = CodeExplorerUI.NoteEditor_SplitterTip };
             _splitter.DragCompleted += (sender, args) => RememberShare();
@@ -133,6 +138,9 @@ namespace Rubberduck.UI.CodeExplorer
             top.Controls.Add(zoomOut);
             top.Controls.Add(_zoomLabel);
             top.Controls.Add(zoomIn);
+            top.Controls.Add(new Label { Width = 12 });
+            top.Controls.Add(Caption(CodeExplorerUI.NoteEditor_PreviewFont));
+            top.Controls.Add(PreviewFontPicker());
 
             var bottom = new Panel { Dock = DockStyle.Bottom, Height = 40 };
             _problem = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 0, 0), AutoEllipsis = true, ForeColor = Color.Firebrick };
@@ -183,6 +191,27 @@ namespace Rubberduck.UI.CodeExplorer
             var button = SmallButton(text, tip, (sender, args) => { Layout.View = view; ApplyView(); });
             button.Width = 64;
             return button;
+        }
+
+        private ComboBox PreviewFontPicker()
+        {
+            var fonts = new System.Drawing.Text.InstalledFontCollection().Families.Select(family => family.Name).ToList();
+            if (!fonts.Contains(Preferences.PreviewFontName, StringComparer.OrdinalIgnoreCase))
+            {
+                fonts.Insert(0, Preferences.PreviewFontName);
+            }
+
+            var picker = new ComboBox { Width = 150, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(1, 1, 1, 0), DropDownWidth = 260 };
+            picker.Items.AddRange(fonts.Cast<object>().ToArray());
+            picker.SelectedItem = fonts.First(font => string.Equals(font, Preferences.PreviewFontName, StringComparison.OrdinalIgnoreCase));
+            new System.Windows.Forms.ToolTip().SetToolTip(picker, CodeExplorerUI.NoteEditor_PreviewFontTip);
+            picker.SelectedIndexChanged += (sender, args) =>
+            {
+                Preferences.PreviewFontName = (string)picker.SelectedItem;
+                _previewStale = true;
+                RefreshPreview();
+            };
+            return picker;
         }
 
         private static Button SmallButton(string text, string tip, EventHandler click)
@@ -236,7 +265,47 @@ namespace Rubberduck.UI.CodeExplorer
             Layout.Zoom = NoteEditorLayout.ClampZoom(percent);
             _preview.Zoom = Layout.Zoom;
             _zoomLabel.Text = Layout.Zoom.ToString("0") + "%";
+            TellEmojiTheZoom();
         }
+
+        private void CanCopyFromPreview(object sender, System.Windows.Input.CanExecuteRoutedEventArgs args)
+        {
+            args.CanExecute = _preview.Selection != null && !_preview.Selection.IsEmpty;
+            args.Handled = true;
+        }
+
+        private void CopyFromPreview(object sender, System.Windows.Input.ExecutedRoutedEventArgs args)
+        {
+            args.Handled = true;
+            if (_preview.Selection == null || _preview.Selection.IsEmpty)
+            {
+                return;
+            }
+
+            try
+            {
+                System.Windows.Clipboard.SetText(EmojiText.Of(_preview.Selection));
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                //Another program has the clipboard open: nothing is copied, as with any other text.
+            }
+        }
+
+        //The picture of an emoji a note was waiting for has been fetched: it takes the place of the character, where it stands.
+        private void EmojiPictureArrived(string key)
+        {
+            if (IsDisposed || !(_preview.Document?.Tag is EmojiLayer layer))
+            {
+                return;
+            }
+
+            layer.Refresh();
+            TellEmojiTheZoom();
+        }
+
+        //The emoji pictures are PNGs until the zoom makes them bigger than that; then they are swapped for the SVG.
+        private void TellEmojiTheZoom() => (_preview.Document?.Tag as EmojiLayer)?.SetZoom(Layout.Zoom);
 
         private void RefreshPreview()
         {
@@ -249,8 +318,9 @@ namespace Rubberduck.UI.CodeExplorer
 
             try
             {
-                _preview.Document = MarkdownRenderer.ToDocument(_editor.Text);
+                _preview.Document = MarkdownRenderer.ToDocument(_editor.Text, Preferences.PreviewFontName, Preferences.AllowEmojiDownload);
                 _previewStale = false;
+                TellEmojiTheZoom();
             }
             catch (Exception exception)
             {
@@ -364,6 +434,7 @@ namespace Rubberduck.UI.CodeExplorer
         {
             if (disposing)
             {
+                EmojiImages.Shared.PictureArrived -= EmojiPictureArrived;
                 _debounce?.Dispose();
             }
 
