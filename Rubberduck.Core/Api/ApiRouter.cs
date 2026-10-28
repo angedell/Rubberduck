@@ -47,10 +47,13 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly McpEndpoint _mcp;
+        private readonly ReadyWait _ready;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            ReadyWait ready = null)
         {
+            _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -61,7 +64,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, _ready);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -297,6 +300,16 @@ namespace Rubberduck.Api
             var project = segments[1];
             var what = segments[2];
             var rest = segments.Length == 3 ? null : segments[3];
+
+            //?wait=ready on the reads that need the parser: wait for it off the UI thread, or answer 202 as diagnostics does.
+            if (_ready != null && ReadyWait.Applies(method, segments))
+            {
+                var pending = _ready.Pending(project, Query(request, "wait"), QueryInt(request, "waitSeconds"));
+                if (pending != null)
+                {
+                    return new ApiResponse { Status = 202, Body = pending };
+                }
+            }
 
             switch (what)
             {
