@@ -48,6 +48,8 @@
             <BitmapImage x:Key="GitSyncNowImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/arrow-circle-double.png" />
             <BitmapImage x:Key="SelectModeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/node-select-all.png" />
             <BitmapImage x:Key="RemoveSelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/cross-circle.png" />
+            <BitmapImage x:Key="CopySelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/document-copy.png" />
+            <BitmapImage x:Key="MoveSelectedImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/document-import.png" />
             <BitmapImage x:Key="SyncImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/SyncArrows.png" />
             <BitmapImage x:Key="FontSizeImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/edit-size.png" />
             <BitmapImage x:Key="ExtractInterfaceImage" UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Custom/PNG/ExtractInterface.png" />
@@ -367,6 +369,22 @@
                     <Image Source="{StaticResource RemoveSelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
                     <Button.ToolTip>
                         <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_RemoveSelectedToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
+                <Button Command="{Binding CopyToProjectCommand}" CommandParameter="{Binding Projects}"
+                        Visibility="{Binding IsSelectionMode, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource CopySelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_CopySelectedToolTip}" />
+                    </Button.ToolTip>
+                </Button>
+
+                <Button Command="{Binding MoveToProjectCommand}" CommandParameter="{Binding Projects}"
+                        Visibility="{Binding IsSelectionMode, Converter={StaticResource BoolToVisibility}}">
+                    <Image Source="{StaticResource MoveSelectedImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                    <Button.ToolTip>
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveSelectedToolTip}" />
                     </Button.ToolTip>
                 </Button>
 

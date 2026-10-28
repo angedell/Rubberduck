@@ -2492,6 +2492,24 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_CopySelectedToolTip.
+        /// </summary>
+        public static string CodeExplorer_CopySelectedToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_CopySelectedToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_MoveSelectedToolTip.
+        /// </summary>
+        public static string CodeExplorer_MoveSelectedToolTip {
+            get {
+                return ResourceManager.GetString("CodeExplorer_MoveSelectedToolTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

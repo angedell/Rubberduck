@@ -8,6 +8,7 @@ using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.Parsing.VBA.DeclarationCaching;
 using Rubberduck.Resources.CodeExplorer;
+using Rubberduck.UI.Command.ComCommands;
 using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.Events;
@@ -17,58 +18,97 @@ using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 namespace Rubberduck.UI.CodeExplorer.Commands
 {
     /// <summary>
-    /// Copies or moves a note, a standard module or a class to another open project.
+    /// Copies or moves notes, standard modules and classes to another open project.
+    /// It works on one module (the context menu), on every module in a folder (the context menu of a folder), or on the modules ticked in the selection mode.
     /// Forms and document modules are left out: they belong to their host and carry designers, binary parts and bindings that do not travel as text.
-    /// A name the target already uses is not overwritten: the user is asked whether to keep both under a new name.
+    /// A name the target already uses is never overwritten: the user is asked once whether to keep both under numbered names.
     /// </summary>
-    public abstract class TransferToProjectCommandBase : CodeExplorerCommandBase
+    public abstract class TransferToProjectCommandBase : ComCommandBase
     {
-        private static readonly Type[] ApplicableNodes = { typeof(CodeExplorerComponentViewModel) };
-
         private readonly IProjectsProvider _projectsProvider;
         private readonly IDeclarationFinderProvider _declarationFinderProvider;
+        private readonly IParseManager _parseManager;
         private readonly IMessageBox _messageBox;
         private readonly IFileSystem _fileSystem;
 
-        protected TransferToProjectCommandBase(IProjectsProvider projectsProvider, IDeclarationFinderProvider declarationFinderProvider, IMessageBox messageBox, IFileSystem fileSystem, IVbeEvents vbeEvents)
+        protected TransferToProjectCommandBase(
+            IProjectsProvider projectsProvider,
+            IDeclarationFinderProvider declarationFinderProvider,
+            IParseManager parseManager,
+            IMessageBox messageBox,
+            IFileSystem fileSystem,
+            IVbeEvents vbeEvents)
             : base(vbeEvents)
         {
-            _fileSystem = fileSystem;
             _projectsProvider = projectsProvider;
             _declarationFinderProvider = declarationFinderProvider;
+            _parseManager = parseManager;
             _messageBox = messageBox;
+            _fileSystem = fileSystem;
 
-            AddToCanExecuteEvaluation(EvaluateCanExecute);
+            AddToCanExecuteEvaluation(parameter => Modules(parameter).Any() && _projectsProvider.Projects().Count() > 1);
         }
 
-        public sealed override IEnumerable<Type> ApplicableNodeTypes => ApplicableNodes;
+        /// <summary>Raised after the modules have been transferred.</summary>
+        public event EventHandler Completed;
 
         protected abstract bool Moves { get; }
 
         protected abstract string PickerTitle { get; }
 
-        private bool EvaluateCanExecute(object parameter)
+        //The modules the parameter stands for: the node itself, the modules under a folder, or the ticked ones.
+        private static IEnumerable<CodeExplorerComponentViewModel> Modules(object parameter)
         {
-            if (!(parameter is CodeExplorerComponentViewModel node) || node.Declaration == null)
+            switch (parameter)
             {
-                return false;
+                case CodeExplorerComponentViewModel module:
+                    return CanTravel(module) ? new[] { module } : Enumerable.Empty<CodeExplorerComponentViewModel>();
+                case CodeExplorerCustomFolderViewModel folder:
+                    return Descendants(folder.Children).Where(CanTravel);
+                case IEnumerable<ICodeExplorerNode> nodes:
+                    return Descendants(nodes).Where(module => module.IsMarked && module.CanBeMarked && CanTravel(module));
+                default:
+                    return Enumerable.Empty<CodeExplorerComponentViewModel>();
             }
+        }
 
-            var type = node.Declaration.QualifiedName.QualifiedModuleName.ComponentType;
-            return (type == ComponentType.StandardModule || type == ComponentType.ClassModule)
-                   && _projectsProvider.Projects().Count() > 1;
+        private static IEnumerable<CodeExplorerComponentViewModel> Descendants(IEnumerable<ICodeExplorerNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node is CodeExplorerComponentViewModel module)
+                {
+                    yield return module;
+                    continue;
+                }
+
+                foreach (var inner in Descendants(node.Children))
+                {
+                    yield return inner;
+                }
+            }
+        }
+
+        private static bool CanTravel(CodeExplorerComponentViewModel module)
+        {
+            var type = module.Declaration?.QualifiedModuleName.ComponentType;
+            return type == ComponentType.StandardModule || type == ComponentType.ClassModule;
         }
 
         protected override void OnExecute(object parameter)
         {
-            if (!(parameter is CodeExplorerComponentViewModel node) || node.Declaration == null)
+            var modules = Modules(parameter)
+                .Select(module => module.Declaration.QualifiedModuleName)
+                .Distinct()
+                .ToList();
+            if (modules.Count == 0)
             {
                 return;
             }
 
-            var source = node.Declaration.QualifiedName.QualifiedModuleName;
+            var sourceIds = modules.Select(module => module.ProjectId).Distinct().ToList();
             var targets = _projectsProvider.Projects()
-                .Where(project => project.ProjectId != source.ProjectId)
+                .Where(project => sourceIds.Count > 1 || project.ProjectId != sourceIds[0])
                 .Select(project => new KeyValuePair<string, string>(project.ProjectId, ProjectLabel(project.Project)))
                 .ToList();
 
@@ -78,14 +118,37 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 return;
             }
 
-            try
+            //What is already in the target is left alone, and so are modules that are in it already.
+            modules = modules.Where(module => module.ProjectId != targetId).ToList();
+            if (modules.Count == 0)
             {
-                Transfer(source, node.IsNote, targetId);
+                return;
             }
-            catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException || exception is System.IO.IOException || exception is InvalidOperationException)
+
+            Exception failure = null;
+            var done = 0;
+            var suspension = _parseManager.OnSuspendParser(this, new[] { ParserState.Ready }, () =>
             {
-                Logger.Warn(exception, "Could not {0} '{1}' to project '{2}'.", Moves ? "move" : "copy", source.ComponentName, targetId);
-                _messageBox.NotifyWarn(string.Format(CodeExplorerUI.Transfer_Failed, exception.Message), PickerTitle);
+                try
+                {
+                    done = Transfer(modules, targetId);
+                }
+                catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException || exception is System.IO.IOException || exception is InvalidOperationException)
+                {
+                    failure = exception;
+                }
+            });
+
+            if (failure != null || suspension.Outcome != SuspensionOutcome.Completed)
+            {
+                var reason = failure?.Message ?? suspension.Outcome.ToString();
+                Logger.Warn(failure, "Could not {0} {1} module(s) to project '{2}': {3}", Moves ? "move" : "copy", modules.Count, targetId, reason);
+                _messageBox.NotifyWarn(string.Format(CodeExplorerUI.Transfer_Failed, done, modules.Count, reason), PickerTitle);
+            }
+
+            if (done > 0)
+            {
+                Completed?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -97,20 +160,67 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 : project.Name + "  (" + _fileSystem.Path.GetFileName(file) + ")";
         }
 
-        private void Transfer(QualifiedModuleName source, bool isNote, string targetId)
+        //The number transferred. A move removes a module only once its copy exists.
+        private int Transfer(IReadOnlyList<QualifiedModuleName> sources, string targetId)
         {
-            var targetNames = ComponentNames(targetId);
+            var names = ComponentNames(targetId);
+            var notesInTarget = NotesIn(targetId);
             string targetName;
-            using (var targetProject = _projectsProvider.Project(targetId))
+            using (var project = _projectsProvider.Project(targetId))
             {
-                targetName = targetProject.Name;
+                targetName = project.Name;
             }
 
-            if (Moves && !ConfirmReferrers(source))
+            var plans = sources.Select(source => PlanFor(source, names, notesInTarget)).ToList();
+
+            if (!ConfirmClashes(plans, targetName) || (Moves && !ConfirmReferrers(plans.Select(plan => plan.Source).ToList())))
             {
-                return;
+                return 0;
             }
 
+            var done = 0;
+            foreach (var plan in plans)
+            {
+                if (plan.Note)
+                {
+                    CopyNote(plan, targetId, names);
+                }
+                else
+                {
+                    CopyModule(plan, targetId);
+                }
+
+                if (Moves)
+                {
+                    using (var sourceComponents = _projectsProvider.ComponentsCollection(plan.Source.ProjectId))
+                    using (var component = _projectsProvider.Component(plan.Source))
+                    {
+                        sourceComponents.RemoveSafely(component);
+                    }
+                }
+
+                done++;
+            }
+
+            return done;
+        }
+
+        private class TransferPlan
+        {
+            public QualifiedModuleName Source;
+            public string Code;
+            public bool Note;
+
+            /// <summary>What the module is called in the target: its name, or for a note its display name.</summary>
+            public string Name;
+
+            /// <summary>The name asked for, which the target already uses.</summary>
+            public string TakenName;
+            public string Folder;
+        }
+
+        private TransferPlan PlanFor(QualifiedModuleName source, ICollection<string> targetNames, ISet<string> notesInTarget)
+        {
             string code;
             using (var component = _projectsProvider.Component(source))
             using (var codeModule = component.CodeModule)
@@ -118,77 +228,69 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 code = codeModule.CountOfLines == 0 ? string.Empty : codeModule.GetLines(1, codeModule.CountOfLines);
             }
 
-            if (isNote && NoteModule.IsNote(code))
+            var plan = new TransferPlan { Source = source, Code = code, Note = NoteModule.IsNote(code), Name = source.ComponentName };
+            if (plan.Note)
             {
-                if (!CopyNote(code, targetId, targetName, targetNames))
+                plan.Folder = NoteModule.FolderOf(NoteModule.Annotations(code));
+                plan.Name = NoteModule.DisplayName(source.ComponentName, code);
+                if (notesInTarget.Contains(NoteModule.PathOf(plan.Folder, plan.Name)))
                 {
-                    return;
+                    plan.TakenName = plan.Name;
+                    plan.Name = UniqueNoteName(plan.Name, plan.Folder, notesInTarget);
                 }
+
+                notesInTarget.Add(NoteModule.PathOf(plan.Folder, plan.Name));
             }
-            else if (!CopyModule(source, targetId, targetName, targetNames))
+            else
             {
-                return;
+                if (targetNames.Contains(plan.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    plan.TakenName = plan.Name;
+                    plan.Name = UniqueName(plan.Name, targetNames);
+                }
+
+                targetNames.Add(plan.Name);
             }
 
-            if (Moves)
-            {
-                using (var sourceComponents = _projectsProvider.ComponentsCollection(source.ProjectId))
-                using (var component = _projectsProvider.Component(source))
-                {
-                    sourceComponents.RemoveSafely(component);
-                }
-            }
+            return plan;
         }
 
-        private bool CopyNote(string code, string targetId, string targetName, ICollection<string> targetModuleNames)
+        //One question for all the clashes, so that cancelling it leaves everything as it was.
+        private bool ConfirmClashes(IEnumerable<TransferPlan> plans, string targetName)
         {
-            var annotations = NoteModule.Annotations(code);
-            var folder = NoteModule.FolderOf(annotations);
-            var name = NoteModule.DisplayName(string.Empty, code);
-            var taken = NotesIn(targetId);
+            var clashes = plans.Where(plan => plan.TakenName != null)
+                .Select(plan => plan.Note ? NoteModule.PathOf(plan.Folder, plan.TakenName) + " > " + plan.Name : plan.TakenName + " > " + plan.Name)
+                .ToList();
 
-            var chosen = name;
-            if (taken.Contains(NoteModule.PathOf(folder, name)))
-            {
-                chosen = UniqueNoteName(name, folder, taken);
-                if (!_messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Transfer_NoteTaken, targetName, NoteModule.PathOf(folder, name), chosen), PickerTitle, true))
-                {
-                    return false;
-                }
-            }
+            return clashes.Count == 0
+                   || _messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Transfer_NameTaken, targetName, string.Join(Environment.NewLine, clashes)), PickerTitle, true);
+        }
 
-            var newCode = NoteModule.ToModuleCode(NoteModule.ToMarkdown(code), NoteModule.WithMarker(annotations, chosen));
+        private void CopyNote(TransferPlan plan, string targetId, ICollection<string> targetModuleNames)
+        {
+            var annotations = NoteModule.Annotations(plan.Code);
+            var newCode = NoteModule.ToModuleCode(NoteModule.ToMarkdown(plan.Code), NoteModule.WithMarker(annotations, plan.Name));
             using (var components = _projectsProvider.ComponentsCollection(targetId))
             using (var added = components.Add(ComponentType.StandardModule))
             {
-                added.Name = NoteModule.NewModuleName(targetModuleNames);
+                var moduleName = NoteModule.NewModuleName(targetModuleNames);
+                targetModuleNames.Add(moduleName);
+                added.Name = moduleName;
                 using (var codeModule = added.CodeModule)
                 {
                     codeModule.Clear();
                     codeModule.AddFromString(newCode);
                 }
             }
-
-            return true;
         }
 
-        private bool CopyModule(QualifiedModuleName source, string targetId, string targetName, ICollection<string> targetNames)
+        private void CopyModule(TransferPlan plan, string targetId)
         {
-            var wanted = source.ComponentName;
-            if (targetNames.Contains(wanted, StringComparer.OrdinalIgnoreCase))
-            {
-                wanted = UniqueName(wanted, targetNames);
-                if (!_messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Transfer_NameTaken, targetName, source.ComponentName, wanted), PickerTitle, true))
-                {
-                    return false;
-                }
-            }
-
             var folder = _fileSystem.Path.Combine(_fileSystem.Path.GetTempPath(), "Rubberduck-transfer-" + Guid.NewGuid().ToString("N"));
             try
             {
                 string file;
-                using (var component = _projectsProvider.Component(source))
+                using (var component = _projectsProvider.Component(plan.Source))
                 {
                     file = component.ExportAsSourceFile(folder);
                 }
@@ -196,9 +298,9 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 using (var components = _projectsProvider.ComponentsCollection(targetId))
                 using (var imported = components.Import(file))
                 {
-                    if (!string.Equals(imported.Name, wanted, StringComparison.Ordinal))
+                    if (!string.Equals(imported.Name, plan.Name, StringComparison.Ordinal))
                     {
-                        imported.Name = wanted;
+                        imported.Name = plan.Name;
                     }
                 }
             }
@@ -213,30 +315,38 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                     Logger.Debug(exception, "Could not remove the temporary folder '{0}'.", folder);
                 }
             }
-
-            return true;
         }
 
-        private bool ConfirmReferrers(QualifiedModuleName source)
+        //Modules that use the moved ones and stay where they are lose them. The ones that move together keep each other.
+        private bool ConfirmReferrers(IReadOnlyCollection<QualifiedModuleName> moved)
         {
             var finder = _declarationFinderProvider.DeclarationFinder;
-            var module = finder.UserDeclarations(DeclarationType.Module)
-                .FirstOrDefault(declaration => declaration.QualifiedName.QualifiedModuleName.Equals(source));
-            if (module == null)
+            var lines = new List<string>();
+            foreach (var source in moved)
             {
-                return true;
+                var module = finder.UserDeclarations(DeclarationType.Module)
+                    .FirstOrDefault(declaration => declaration.QualifiedName.QualifiedModuleName.Equals(source));
+                if (module == null)
+                {
+                    continue;
+                }
+
+                var users = module.References.Concat(finder.Members(source).SelectMany(member => member.References))
+                    .Select(reference => reference.QualifiedModuleName)
+                    .Where(name => !name.Equals(source) && !moved.Contains(name))
+                    .Select(name => name.ProjectName + "." + name.ComponentName)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (users.Count > 0)
+                {
+                    lines.Add(source.ComponentName + ": " + string.Join(", ", users));
+                }
             }
 
-            var users = module.References.Concat(finder.Members(source).SelectMany(member => member.References))
-                .Select(reference => reference.QualifiedModuleName)
-                .Where(name => !name.Equals(source))
-                .Select(name => name.ProjectName + "." + name.ComponentName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            return users.Count == 0
-                   || _messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Transfer_Referrers, source.ComponentName, string.Join(", ", users)), PickerTitle, false);
+            return lines.Count == 0
+                   || _messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Transfer_Referrers, string.Join(Environment.NewLine, lines)), PickerTitle, false);
         }
 
         private ICollection<string> ComponentNames(string projectId)
@@ -309,8 +419,8 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
     public class CopyToProjectCommand : TransferToProjectCommandBase
     {
-        public CopyToProjectCommand(IProjectsProvider projectsProvider, IDeclarationFinderProvider declarationFinderProvider, IMessageBox messageBox, IFileSystem fileSystem, IVbeEvents vbeEvents)
-            : base(projectsProvider, declarationFinderProvider, messageBox, fileSystem, vbeEvents)
+        public CopyToProjectCommand(IProjectsProvider projectsProvider, IDeclarationFinderProvider declarationFinderProvider, IParseManager parseManager, IMessageBox messageBox, IFileSystem fileSystem, IVbeEvents vbeEvents)
+            : base(projectsProvider, declarationFinderProvider, parseManager, messageBox, fileSystem, vbeEvents)
         {
         }
 
@@ -321,8 +431,8 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
     public class MoveToProjectCommand : TransferToProjectCommandBase
     {
-        public MoveToProjectCommand(IProjectsProvider projectsProvider, IDeclarationFinderProvider declarationFinderProvider, IMessageBox messageBox, IFileSystem fileSystem, IVbeEvents vbeEvents)
-            : base(projectsProvider, declarationFinderProvider, messageBox, fileSystem, vbeEvents)
+        public MoveToProjectCommand(IProjectsProvider projectsProvider, IDeclarationFinderProvider declarationFinderProvider, IParseManager parseManager, IMessageBox messageBox, IFileSystem fileSystem, IVbeEvents vbeEvents)
+            : base(projectsProvider, declarationFinderProvider, parseManager, messageBox, fileSystem, vbeEvents)
         {
         }
 

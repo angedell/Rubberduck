@@ -950,15 +950,27 @@ They are taken out of the document's file when the document is closed.</value>
     <value>(not saved)</value>
   </data>
   <data name="Transfer_NameTaken" xml:space="preserve">
-    <value>The project {0} already has a module named {1}. Keep both and name the new one {2}?</value>
+    <value>The project {0} already has these (the new name is after the arrow):
+{1}
+
+Keep both?</value>
   </data>
   <data name="Transfer_NoteTaken" xml:space="preserve">
     <value>The project {0} already has a note at {1}. Keep both and name the new one {2}?</value>
   </data>
   <data name="Transfer_Referrers" xml:space="preserve">
-    <value>{0} is used by: {1}. These will no longer find it once it is moved. Move it anyway?</value>
+    <value>These modules are used by modules that stay behind, which will no longer find them once they are moved:
+{0}
+
+Move anyway?</value>
   </data>
   <data name="Transfer_Failed" xml:space="preserve">
-    <value>The module could not be transferred: {0}</value>
+    <value>{0} of {1} modules were transferred. The rest were not: {2}</value>
+  </data>
+  <data name="CodeExplorer_CopySelectedToolTip" xml:space="preserve">
+    <value>Copy the selected modules to another project</value>
+  </data>
+  <data name="CodeExplorer_MoveSelectedToolTip" xml:space="preserve">
+    <value>Move the selected modules to another project</value>
   </data>
 </root>
