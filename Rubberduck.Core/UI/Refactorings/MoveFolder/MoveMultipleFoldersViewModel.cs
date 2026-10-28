@@ -6,10 +6,11 @@ using Rubberduck.Refactorings;
 using Rubberduck.Refactorings.MoveFolder;
 using Rubberduck.InternalApi.Extensions;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.UI.CodeExplorer;
 
 namespace Rubberduck.UI.Refactorings.MoveFolder
 {
-    public class MoveMultipleFoldersViewModel : RefactoringViewModelBase<MoveMultipleFoldersModel>
+    public class MoveMultipleFoldersViewModel : RefactoringViewModelBase<MoveMultipleFoldersModel>, IFolderBrowsing
     {
         private readonly IDeclarationFinderProvider _declarationFinderProvider;
         private readonly IMessageBox _messageBox;
@@ -49,6 +50,16 @@ namespace Rubberduck.UI.Refactorings.MoveFolder
                 return string.Format(RefactoringsUI.MoveFoldersDialog_InstructionsLabelText);
             }
         }
+
+        /// <summary>The folders the project has, for the folder picker.</summary>
+        public IReadOnlyList<string> KnownFolders => (_declarationFinderProvider?.DeclarationFinder
+            .UserDeclarations(DeclarationType.Module)
+            .OfType<ModuleDeclaration>()
+            .Select(module => module.CustomFolder)
+            .Where(folder => !string.IsNullOrWhiteSpace(folder))
+            .Distinct(System.StringComparer.OrdinalIgnoreCase)
+            .OrderBy(folder => folder, System.StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>());
 
         public string NewFolder
         {

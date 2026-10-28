@@ -2366,6 +2366,15 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to FolderPicker_TopLevel.
+        /// </summary>
+        public static string FolderPicker_TopLevel {
+            get {
+                return ResourceManager.GetString("FolderPicker_TopLevel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

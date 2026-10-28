@@ -919,4 +919,7 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="NoteEditor_FolderBrowse" xml:space="preserve">
     <value>Choose from the folders of the project, or make a new one</value>
   </data>
+  <data name="FolderPicker_TopLevel" xml:space="preserve">
+    <value>(top level)</value>
+  </data>
 </root>

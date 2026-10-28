@@ -14,13 +14,16 @@ namespace Rubberduck.UI.CodeExplorer
     /// </summary>
     public class FolderPickerDialog : Form
     {
+        private readonly bool _allowNone;
         private readonly TreeView _tree;
         private readonly Label _path;
         private readonly Button _ok;
         private readonly TreeNode _none;
 
-        public FolderPickerDialog(IEnumerable<string> folders, string current)
+        /// <param name="allowNone">Whether "no folder" can be chosen. Where a folder is required, the top of the tree only stands for the top level, to make folders in.</param>
+        public FolderPickerDialog(IEnumerable<string> folders, string current, bool allowNone = true)
         {
+            _allowNone = allowNone;
             Text = CodeExplorerUI.FolderPicker_Title;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(380, 420);
@@ -71,7 +74,7 @@ namespace Rubberduck.UI.CodeExplorer
             };
 
             //The root stands for "no @Folder": the module sits in the project's own folder.
-            _none = new TreeNode(CodeExplorerUI.FolderPicker_None) { Tag = string.Empty, ImageKey = "open", SelectedImageKey = "open", NodeFont = new Font(Font, FontStyle.Italic) };
+            _none = new TreeNode(allowNone ? CodeExplorerUI.FolderPicker_None : CodeExplorerUI.FolderPicker_TopLevel) { Tag = string.Empty, ImageKey = "open", SelectedImageKey = "open", NodeFont = new Font(Font, FontStyle.Italic) };
             _tree.Nodes.Add(_none);
             foreach (var folder in (folders ?? Enumerable.Empty<string>()).Concat(new[] { current }).Where(f => !string.IsNullOrWhiteSpace(f)).Distinct(StringComparer.OrdinalIgnoreCase))
             {
@@ -110,12 +113,36 @@ namespace Rubberduck.UI.CodeExplorer
         public string SelectedFolder => PathOf(_tree.SelectedNode);
 
         /// <summary>Shows the dialog. Null if the user cancelled; otherwise the folder, "" for none.</summary>
-        public static string Pick(IWin32Window owner, IEnumerable<string> folders, string current)
+        public static string Pick(IWin32Window owner, IEnumerable<string> folders, string current, bool allowNone = true)
         {
-            using (var dialog = new FolderPickerDialog(folders, current))
+            using (var dialog = new FolderPickerDialog(folders, current, allowNone))
             {
                 return dialog.ShowDialog(owner) == DialogResult.OK ? dialog.SelectedFolder : null;
             }
+        }
+
+        /// <summary>For the Move to Folder dialogs, which are WPF: lets the user pick the folder in a tree instead of typing it, and puts it in the view model.</summary>
+        public static void Browse(System.Windows.FrameworkElement view)
+        {
+            if (!(view?.DataContext is IFolderBrowsing browsing))
+            {
+                return;
+            }
+
+            var window = System.Windows.Window.GetWindow(view);
+            var owner = window == null ? null : new WindowHandle(new System.Windows.Interop.WindowInteropHelper(window).Handle);
+            var chosen = Pick(owner, browsing.KnownFolders, browsing.NewFolder, false);
+            if (!string.IsNullOrEmpty(chosen))
+            {
+                browsing.NewFolder = chosen;
+            }
+        }
+
+        private class WindowHandle : IWin32Window
+        {
+            public WindowHandle(IntPtr handle) => Handle = handle;
+
+            public IntPtr Handle { get; }
         }
 
         private static string PathOf(TreeNode node) => node?.Tag as string ?? string.Empty;
@@ -163,7 +190,8 @@ namespace Rubberduck.UI.CodeExplorer
             }
 
             var folder = SelectedFolder;
-            _path.Text = string.Format(CodeExplorerUI.FolderPicker_Selected, folder.Length == 0 ? CodeExplorerUI.FolderPicker_None : folder.Replace(".", " › "));
+            _path.Text = string.Format(CodeExplorerUI.FolderPicker_Selected, folder.Length == 0 ? _none.Text : folder.Replace(".", " › "));
+            _ok.Enabled = _allowNone || folder.Length > 0;
         }
 
         //A folder that is still being named has no path yet: its Tag is null until the name is accepted.
@@ -242,5 +270,17 @@ namespace Rubberduck.UI.CodeExplorer
                 Retag(child, (string)node.Tag);
             }
         }
+    }
+}
+
+namespace Rubberduck.UI.CodeExplorer
+{
+    /// <summary>A view model with a folder to type that <see cref="FolderPickerDialog.Browse"/> can fill in for the user.</summary>
+    public interface IFolderBrowsing
+    {
+        string NewFolder { get; set; }
+
+        /// <summary>The folders the project has.</summary>
+        IReadOnlyList<string> KnownFolders { get; }
     }
 }

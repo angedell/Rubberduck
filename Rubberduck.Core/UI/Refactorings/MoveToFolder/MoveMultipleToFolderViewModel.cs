@@ -7,14 +7,24 @@ using Rubberduck.Parsing.Symbols;
 using Rubberduck.Resources;
 using Rubberduck.Refactorings.MoveToFolder;
 using Rubberduck.CodeAnalysis;
+using Rubberduck.Parsing.VBA;
+using Rubberduck.UI.CodeExplorer;
 
 namespace Rubberduck.UI.Refactorings.MoveToFolder
 {
-    public class MoveMultipleToFolderViewModel : RefactoringViewModelBase<MoveMultipleToFolderModel>
+    public class MoveMultipleToFolderViewModel : RefactoringViewModelBase<MoveMultipleToFolderModel>, IFolderBrowsing
     {
+        private readonly IDeclarationFinderProvider _finder;
+
         public MoveMultipleToFolderViewModel(MoveMultipleToFolderModel model) 
             : base(model)
         {}
+
+        public MoveMultipleToFolderViewModel(MoveMultipleToFolderModel model, IDeclarationFinderProvider finder)
+            : base(model)
+        {
+            _finder = finder;
+        }
 
         private ICollection<ModuleDeclaration> Targets => Model.Targets;
 
@@ -39,6 +49,16 @@ namespace Rubberduck.UI.Refactorings.MoveToFolder
                 return string.Format(RefactoringsUI.MoveMultipleToFolderDialog_InstructionsLabelText);
             }
         }
+
+        /// <summary>The folders the project has, for the folder picker.</summary>
+        public IReadOnlyList<string> KnownFolders => (_finder?.DeclarationFinder
+            .UserDeclarations(DeclarationType.Module)
+            .OfType<ModuleDeclaration>()
+            .Select(module => module.CustomFolder)
+            .Where(folder => !string.IsNullOrWhiteSpace(folder))
+            .Distinct(System.StringComparer.OrdinalIgnoreCase)
+            .OrderBy(folder => folder, System.StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>());
 
         public string NewFolder
         {
