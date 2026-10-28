@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace Rubberduck.Api
 {
@@ -27,11 +28,17 @@ namespace Rubberduck.Api
         private readonly Func<string> _editorMode;
         private readonly Func<bool> _resetIfStopped;
         private readonly IDialogWatcher _dialogs;
+        private readonly Action<TimeSpan> _sleep;
+
+        //The editor takes a moment to leave break mode after Run > Reset is pressed, so the mode is read again a few times before the reset is judged.
+        private const int SettleAttempts = 10;
+        private static readonly TimeSpan SettleDelay = TimeSpan.FromMilliseconds(300);
 
         /// <param name="editorMode">Where the editor is, as <see cref="ParserSync.EditorMode"/> says.</param>
         /// <param name="resetIfStopped">Presses Run > Reset on the editor's UI thread, as <see cref="ParserSync.ResetIfStopped"/> does; true if the editor is in design mode afterwards.</param>
-        public VbeResetApi(ApiWriteApproval approval, Func<string> editorMode, Func<bool> resetIfStopped, IDialogWatcher dialogs = null)
+        public VbeResetApi(ApiWriteApproval approval, Func<string> editorMode, Func<bool> resetIfStopped, IDialogWatcher dialogs = null, Action<TimeSpan> sleep = null)
         {
+            _sleep = sleep ?? Thread.Sleep;
             _approval = approval;
             _editorMode = editorMode;
             _resetIfStopped = resetIfStopped;
@@ -51,9 +58,15 @@ namespace Rubberduck.Api
             _approval.Require(client);
 
             //Runs on the UI thread and waits up to 10 seconds for the editor to take the command. It does not wait for a parse: that follows on its own.
-            var inDesign = _resetIfStopped();
+            _resetIfStopped();
             var after = _editorMode();
-            if (inDesign && after == ParserSync.ModeDesign)
+            for (var attempt = 0; attempt < SettleAttempts && after == ParserSync.ModeRunningOrBreak; attempt++)
+            {
+                _sleep(SettleDelay);
+                after = _editorMode();
+            }
+
+            if (after == ParserSync.ModeDesign)
             {
                 return new VbeResetReport { Reset = true, VbeMode = after, Note = "The editor is back in design mode. The parser reads the code again on its own; POST /api/v1/reparse waits for it." };
             }

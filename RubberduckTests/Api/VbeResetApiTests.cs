@@ -41,7 +41,8 @@ namespace RubberduckTests.Api
                 new ApiWriteApproval(_ => { _asked++; return _allow; }),
                 () => _mode,
                 () => { _resets++; _mode = _modeAfterReset; return _resetResult; },
-                new Dialogs(this));
+                new Dialogs(this),
+                _ => { });
             _router = new ApiRouter(new ModuleApi(new FakeStore(), new ApiWriteApproval(_ => true)), Fakes.Diagnostics(), Fakes.Immediate(() => false).Api, vbeReset: reset);
         }
 
@@ -60,6 +61,31 @@ namespace RubberduckTests.Api
             Assert.AreEqual("design", (string)Json(response)["VbeMode"]);
             Assert.AreEqual(1, _resets);
             Assert.AreEqual(1, _asked);
+        }
+
+        [Test]
+        public void Reset_WhenTheEditorNeedsAMomentToLeaveBreakMode_WaitsForDesign()
+        {
+            //What the live editor does: Reset is pressed, the mode read at once still says break, and design comes a moment later.
+            var reads = 0;
+            var slept = 0;
+            var reset = new VbeResetApi(new ApiWriteApproval(_ => true), () => ++reads > 3 ? ParserSync.ModeDesign : ParserSync.ModeRunningOrBreak, () => false, null, _ => slept++);
+
+            var report = reset.Reset("agent");
+
+            Assert.IsTrue(report.Reset);
+            Assert.AreEqual("design", report.VbeMode);
+            Assert.AreEqual(2, slept);
+        }
+
+        [Test]
+        public void Reset_WhenDesignNeverComes_StopsWaiting_AndIs409()
+        {
+            var slept = 0;
+            var reset = new VbeResetApi(new ApiWriteApproval(_ => true), () => ParserSync.ModeRunningOrBreak, () => false, null, _ => slept++);
+
+            Assert.AreEqual(409, Assert.Throws<ApiException>(() => reset.Reset("agent")).Status);
+            Assert.AreEqual(10, slept);
         }
 
         [Test]
