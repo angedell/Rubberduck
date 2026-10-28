@@ -26,11 +26,14 @@ namespace Rubberduck.Api
         private readonly DumpApi _dump;
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
+        private readonly ReadyWait _ready;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
+            ReadyWait ready = null)
         {
             _firewall = firewall;
+            _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
             _log = log;
             _dump = dump;
             _vbeReset = vbeReset;
@@ -188,50 +191,50 @@ namespace Rubberduck.Api
             {
                 Name = "get_parser_errors",
                 Description = "Lists the code Rubberduck's parser could not understand (syntax errors), with module, line, column and the text it stumbled on. Inspections of such code are incomplete, so check this first. Waits for the latest edits to be parsed.",
-                Properties = new JObject { ["project"] = String("Project id or name.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.ParserErrors(Arg(args, "project"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.ParserErrors(Arg(args, "project")))
             },
             new Tool
             {
                 Name = "list_symbols",
                 Description = "Lists what a module declares (procedures, functions, properties, module-level variables, constants, types, enums...) with kind, type, accessibility and line range. Far cheaper than reading the module to find a procedure.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Module name."),
                     ["includeLocals"] = Boolean("Also list parameters and variables local to procedures."),
                     ["kind"] = String("Only this kind, e.g. Procedure, Function, PropertyGet, Variable, Constant.")
-                },
+                }),
                 Required = new[] { "project", "module" },
-                Run = (args, client) => _insight.Symbols(Arg(args, "project"), Arg(args, "module"), args.Value<bool?>("includeLocals") ?? false, args.Value<string>("kind"))
+                Run = (args, client) => WhenReady(args, () => _insight.Symbols(Arg(args, "project"), Arg(args, "module"), args.Value<bool?>("includeLocals") ?? false, args.Value<string>("kind")))
             },
             new Tool
             {
                 Name = "find_references",
                 Description = "Finds every use of a declared name in a project, per declaration (the same name can be declared in several places). Use it before renaming or changing a signature.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["name"] = String("The identifier."),
                     ["module"] = String("Only declarations in this module."),
                     ["limit"] = Integer("At most this many references per declaration. Default 200.")
-                },
+                }),
                 Required = new[] { "project", "name" },
-                Run = (args, client) => _insight.References(Arg(args, "project"), args.Value<string>("module"), Arg(args, "name"), args["limit"] != null ? Int(args, "limit") : (int?)null)
+                Run = (args, client) => WhenReady(args, () => _insight.References(Arg(args, "project"), args.Value<string>("module"), Arg(args, "name"), args["limit"] != null ? Int(args, "limit") : (int?)null))
             },
             new Tool
             {
                 Name = "find_definition",
                 Description = "Finds where the identifier at a position (1-based line and column) is declared. Only declarations in the project's own code are returned.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Module name."),
                     ["line"] = Integer("1-based line."),
                     ["column"] = Integer("1-based column.")
-                },
+                }),
                 Required = new[] { "project", "module", "line", "column" },
-                Run = (args, client) => _insight.Definition(Arg(args, "project"), Arg(args, "module"), Int(args, "line"), Int(args, "column"))
+                Run = (args, client) => WhenReady(args, () => _insight.Definition(Arg(args, "project"), Arg(args, "module"), Int(args, "line"), Int(args, "column")))
             },
             new Tool
             {
@@ -244,15 +247,15 @@ namespace Rubberduck.Api
             {
                 Name = "get_structure",
                 Description = "Shows how the modules of a project are organised in folders, from their '@Folder annotations.",
-                Properties = new JObject { ["project"] = String("Project id or name.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.Structure(Arg(args, "project"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.Structure(Arg(args, "project")))
             },
             new Tool
             {
                 Name = "get_metrics",
                 Description = "Rubberduck's code metrics (lines of code, cyclomatic complexity, nesting, ...) per module and member. Shows where the complicated code is.",
-                Properties = new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this module.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.Metrics(Arg(args, "project"), args.Value<string>("module"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this module.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.Metrics(Arg(args, "project"), args.Value<string>("module")))
             }
         }.ToList());
 
@@ -264,8 +267,8 @@ namespace Rubberduck.Api
             {
                 Name = "list_tests",
                 Description = "Lists the unit tests (Rubberduck's '@TestMethod) of a project with the outcome of their last run since Rubberduck started: Unknown if not run. Does not run anything.",
-                Properties = new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this test module.") }, Required = new[] { "project" },
-                Run = (args, client) => _tests.List(Arg(args, "project"), args.Value<string>("module"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this test module.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _tests.List(Arg(args, "project"), args.Value<string>("module")))
             },
             new Tool
             {
@@ -711,6 +714,13 @@ namespace Rubberduck.Api
                 }
             }
         }.ToList());
+
+        //With wait=ready: the "running" answer if the parser is not ready in time, otherwise the read. Without it, the read.
+        private object WhenReady(JObject args, Func<object> read)
+        {
+            var pending = _ready?.Pending(Arg(args, "project"), args.Value<string>("wait"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null);
+            return pending ?? read();
+        }
 
         private static string Arg(JObject args, string name)
         {

@@ -79,6 +79,8 @@ All read-only and without approval. Each waits for the parser to catch up with t
 | `GET /api/v1/projects/{p}/structure` | The modules by `'@Folder`. |
 | `GET /api/v1/projects/{p}/metrics` | Code metrics per module and member (`module=` narrows). |
 
+**`?wait=ready`.** After a write the parser can take a while, and a read that waits for it holds the connection (and gives up with 503 after 90 seconds). Add `wait=ready` to `parser-errors`, `symbols` (and `symbols/references`, `symbols/definition`), `structure`, `metrics` and `GET .../tests` and the wait is bounded: Rubberduck waits for the parser, off the editor's thread, for `waitSeconds` (default 60, 0 to 300, as for diagnostics). If the parser is not done by then the answer is **202** with `"status": "running"`, `project` and `retryAfterSeconds`, and no results; the catch-up carries on, and the next call with `wait=ready` joins it and reads at once. `waitSeconds=0` never waits. Without `wait` nothing changes. Any other value of `wait` is a 400. A missing project, or a macro that is running (409), is reported as for the plain read. `libraries` is not affected: it reads the project's references from the editor and does not use the parser, and neither do modules, resources, the log or the Immediate window. MCP: the same tools take optional `wait` (`"ready"`) and `waitSeconds`.
+
 ### Unit tests
 
 | Request | Does |
