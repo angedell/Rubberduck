@@ -46,6 +46,9 @@ namespace Rubberduck.Api
 
         /// <summary>The API's own version, the one in the URL.</summary>
         public string Api { get; set; }
+
+        /// <summary>Windows Firewall as it affects agents on the network; null if the API was built without the check.</summary>
+        public FirewallStatus Firewall { get; set; }
     }
 
     public class LogEntry
@@ -117,6 +120,10 @@ namespace Rubberduck.Api
 
         public int LineCount { get; set; }
 
+        /// <summary>A note (see NoteModule): the module tools leave it alone and the note tools handle it. Set by the store; not part of the answers.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsNote { get; set; }
+
         /// <summary>Identifies the code as it is now. Writes have to send it back, so nothing the user typed in the meantime is overwritten.</summary>
         public string Hash { get; set; }
 
@@ -151,6 +158,9 @@ namespace Rubberduck.Api
 
     public class Diagnostic
     {
+        /// <summary>Names this result for the quick fix routes; valid for the latest run only.</summary>
+        public string Id { get; set; }
+
         public string Module { get; set; }
 
         /// <summary>The inspection's name, as Rubberduck shows it.</summary>

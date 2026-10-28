@@ -106,6 +106,8 @@
                               ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowNetwork_Tooltip}"
                               IsChecked="{Binding ApiAllowNetwork}"
                               IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
+                    <TextBlock Margin="35,0,0,5" TextWrapping="Wrap" Text="{Binding FirewallHint}"
+                               Visibility="{Binding HasFirewallHint, Converter={StaticResource BoolToVisibility}}"/>
                     <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediateRead}"
                               ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediateRead_Tooltip}"
                               IsChecked="{Binding ApiAllowImmediateRead}"

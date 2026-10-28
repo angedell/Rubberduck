@@ -100,6 +100,12 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
         public bool IsResource => ResourceName != null;
 
+        /// <summary>For a note of the project (see <see cref="GitSyncNotes"/>): the name of its module, which the note's markdown file does not have. Null if the project has no such note yet, or for anything else.</summary>
+        public string NoteModule { get; set; }
+
+        /// <summary>Whether this is a note, a markdown file, rather than a module's file. Only notes have a markdown file for their path.</summary>
+        public bool IsNote => RelativePath != null && !IsResource && RelativePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>The action the user went for, set by the review.</summary>
         public SyncAction Chosen { get; set; }
 

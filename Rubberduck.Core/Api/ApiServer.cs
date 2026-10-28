@@ -15,6 +15,9 @@ namespace Rubberduck.Api
     {
         public volatile bool Network;
 
+        /// <summary>The port the server listens on, 0 while it is not running.</summary>
+        public volatile int Port;
+
         /// <summary>The user allows agents to use the Immediate window, and the server is running.</summary>
         public volatile bool Immediate;
 
@@ -166,6 +169,7 @@ namespace Rubberduck.Api
             _listener = listener;
             _network = network;
             _state.Network = network;
+            _state.Port = port;
             _port = port;
             Logger.Info($"API listening on port {port}{(network ? " (network)" : " (loopback only)")}.");
             Task.Run(() => Accept(listener));
@@ -263,7 +267,7 @@ namespace Rubberduck.Api
             string body = null;
             if (request.HasEntityBody)
             {
-                using (var reader = new System.IO.StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8))
+                using (var reader = new System.IO.StreamReader(request.InputStream, BodyEncoding(request.ContentType)))
                 {
                     body = reader.ReadToEnd();
                 }
@@ -278,6 +282,27 @@ namespace Rubberduck.Api
                 Body = body,
                 Client = string.IsNullOrWhiteSpace(request.UserAgent) ? remote : $"{request.UserAgent} at {remote}"
             });
+        }
+
+        /// <summary>JSON is UTF-8. HttpListener falls back to the ANSI code page when the content type names no charset, which garbles every non-ASCII character, so a charset is honoured only when the client states one.</summary>
+        internal static Encoding BodyEncoding(string contentType)
+        {
+            var marker = "charset=";
+            var at = (contentType ?? string.Empty).IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                return Encoding.UTF8;
+            }
+
+            var name = contentType.Substring(at + marker.Length).Split(';')[0].Trim().Trim('"');
+            try
+            {
+                return Encoding.GetEncoding(name);
+            }
+            catch (ArgumentException)
+            {
+                return Encoding.UTF8;
+            }
         }
 
         private static void Write(HttpListenerResponse response, ApiResponse result)
@@ -327,6 +352,7 @@ namespace Rubberduck.Api
 
             _listener = null;
             _state.Network = false;
+            _state.Port = 0;
             Logger.Info("API stopped.");
         }
 

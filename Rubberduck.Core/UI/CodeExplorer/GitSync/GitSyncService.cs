@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.PackageResources;
 using Rubberduck.Settings;
@@ -71,6 +72,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly GitSyncStateStore _stateStore;
         private readonly GitSyncLinks _links;
         private readonly GitSyncResources _resourceSync;
+        private readonly GitSyncNotes _noteSync;
 
         public GitSyncService(
             IParseManager parseManager,
@@ -90,6 +92,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _stateStore = new GitSyncStateStore(fileSystem);
             _links = new GitSyncLinks(fileSystem);
             _resourceSync = new GitSyncResources(fileSystem, resources);
+            _noteSync = new GitSyncNotes(fileSystem, _processor);
         }
 
         /// <summary>The folder last used for the project, or null.</summary>
@@ -125,9 +128,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             //The VBE part: one module after the other, on this thread.
             var temp = NewTempFolder();
             List<ModuleInput> modules;
+            List<NoteInput> notes;
             try
             {
-                modules = ReadModules(project, temp, progress);
+                modules = ReadModules(project, temp, progress, out notes);
             }
             finally
             {
@@ -148,6 +152,9 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 () => planner.Plan(modules, files, state, ignored, progress.Token),
                 progress, SyncStage.Comparing, () => planner.Completed, modules.Count + files.Count);
 
+            //Notes are markdown files, not module files: they are planned on their own and listed with the rest.
+            _noteSync.Plan(notes, root, state, ignored, plan);
+
             //The ribbon XML, pictures and rubberduck.json stored in the document are synced along with the modules, in the same list.
             var document = project.FileName;
             if (_resourceSync.AppliesTo(document))
@@ -164,9 +171,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             return new GitSyncScan { Folder = root, Plan = plan, Config = config, State = state, StatePath = statePath, Settings = settings, Ignored = ignored, Cache = cache, ConfigCreated = configCreated };
         }
 
-        private List<ModuleInput> ReadModules(IVBProject project, string temp, ISyncProgress progress)
+        private List<ModuleInput> ReadModules(IVBProject project, string temp, ISyncProgress progress, out List<NoteInput> notes)
         {
             var modules = new List<ModuleInput>();
+            notes = new List<NoteInput>();
             using (var components = project.VBComponents)
             {
                 var total = components.Count;
@@ -187,11 +195,18 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                         var path = component.ExportAsSourceFile(_fileSystem.Path.Combine(temp, component.Name + extension));
                         try
                         {
+                            var exported = _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path));
+                            if (NoteModule.IsNote(exported))
+                            {
+                                notes.Add(new NoteInput { ModuleName = component.Name, Code = exported });
+                                continue;
+                            }
+
                             modules.Add(new ModuleInput
                             {
                                 Name = component.Name,
                                 Extension = extension,
-                                ExportedText = _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path))
+                                ExportedText = exported
                             });
                         }
                         finally
@@ -209,6 +224,13 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private FileInput ReadFile(string root, string path)
         {
             var text = _fileSystem.File.ReadAllText(path, GitSyncFolderProcessor.EncodingFor(path));
+
+            //A note kept as a module file by an earlier version is a markdown file now.
+            if (NoteModule.IsNote(text))
+            {
+                return null;
+            }
+
             var name = SyncText.ModuleAttributes(text).TryGetValue("VB_Name", out var declared)
                 ? declared.Trim('"')
                 : _fileSystem.Path.GetFileNameWithoutExtension(path);
@@ -293,6 +315,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var chosenResources = chosen.Where(item => item.IsResource).ToList();
             chosen.RemoveAll(item => item.IsResource);
 
+            //Notes need the VBE like modules do, but have no module file to prepare.
+            var chosenNotes = chosen.Where(item => item.IsNote).ToList();
+            chosen.RemoveAll(item => item.IsNote);
+
             var temp = NewTempFolder();
             var backup = _fileSystem.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Rubberduck", "GitSyncBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
@@ -334,6 +360,11 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                                 result.Errors.Add($"Could not sync '{item.Name}': {exception.Message}");
                             }
                         }
+
+                        if (chosenNotes.Count > 0 && !progress.Token.IsCancellationRequested)
+                        {
+                            _noteSync.Apply(components, scan, chosenNotes, path => BackUp(path, _fileSystem.Path.Combine(backup, "notes")), result);
+                        }
                     }
                 });
                 vbe = timer.ElapsedMilliseconds - prepared;
@@ -347,9 +378,9 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                     scan.State.Modules[baseline.Key] = baseline.Value;
                 }
 
-                result.Imported = applied.Count(a => a.Item.Chosen == SyncAction.Import);
-                result.Exported = applied.Count(a => a.Item.Chosen == SyncAction.Export);
-                result.Merged = applied.Count(a => a.Item.Chosen == SyncAction.Merge);
+                result.Imported += applied.Count(a => a.Item.Chosen == SyncAction.Import);
+                result.Exported += applied.Count(a => a.Item.Chosen == SyncAction.Export);
+                result.Merged += applied.Count(a => a.Item.Chosen == SyncAction.Merge);
 
                 if (chosenResources.Count > 0)
                 {

@@ -5,7 +5,7 @@ namespace Rubberduck.UI.CodeExplorer
 {
     public interface ICodeExplorerAddComponentService
     {
-        void AddComponent(CodeExplorerItemViewModel node, ComponentType componentType, string code = null);
+        void AddComponent(CodeExplorerItemViewModel node, ComponentType componentType, string code = null, string componentName = null);
         void AddComponentWithAttributes(CodeExplorerItemViewModel node, ComponentType componentType, string code, string additionalPrefixInModule = null);
     }
 }

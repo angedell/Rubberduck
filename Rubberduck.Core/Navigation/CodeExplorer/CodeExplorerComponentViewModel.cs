@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Path = System.IO.Path;
 using System.Linq;
+using Rubberduck.Parsing.Annotations;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.Annotations.Concrete;
 using Rubberduck.VBEditor.SafeComWrappers;
@@ -34,8 +35,10 @@ namespace Rubberduck.Navigation.CodeExplorer
             : base(parent, declaration)
         {
             _vbe = vbe;
-            SetName();    
+            SetName();
             AddNewChildren(ref declarations);
+            //Whether the module is a note depends on it having no members.
+            SetName();
         }
 
         public override bool CanBeMarked => Declaration != null
@@ -89,12 +92,30 @@ namespace Rubberduck.Navigation.CodeExplorer
             }
         }
 
+        /// <summary>
+        /// Whether the module is a note: marked with @Notes and, since a note holds only comments, without a single member. Shown under the name of the annotation and edited as markdown.
+        /// The text is checked again when it is opened (<see cref="NoteModule.IsNote(string)"/>), which is the last word.
+        /// </summary>
+        public bool IsNote => Declaration != null
+                              && Declaration.DeclarationType == DeclarationType.ProceduralModule
+                              && Children.Count == 0
+                              && NotesMarker != null;
+
+        private IParseTreeAnnotation NotesMarker => Declaration?.Annotations.FirstOrDefault(pta => pta.Annotation is NotesAnnotation);
+
         private void SetName()
         {
             _name = Declaration?.IdentifierName ?? string.Empty;
 
             if (Declaration is null)
             {
+                return;
+            }
+
+            if (IsNote)
+            {
+                _name = NoteModule.DisplayNameFromArgument(_name, NotesMarker.AnnotationArguments.FirstOrDefault());
+                OnNameChanged();
                 return;
             }
 

@@ -17,7 +17,7 @@ Settings > General > **Let AI agents read and edit modules and forms**. Then **C
 
 ## MCP
 
-Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `capture_dump`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
+Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `reset_vbe`, `capture_dump`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `sync_attributes`, `preview_rename`, `rename_symbol`, `preview_encapsulate_field`, `encapsulate_field`, `preview_move_to_folder`, `move_to_folder`, `list_quick_fixes`, `apply_quick_fix`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
 
 The server also offers MCP *resources* (`resources/list`, `resources/read`): `rubberduck://{project}/modules/{module}` (the code), `rubberduck://{project}/diagnostics` and `rubberduck://{project}/parser-errors`, for clients that let the user attach them to a conversation.
 
@@ -27,10 +27,11 @@ All requests need `Authorization: Bearer <token>`. Bodies and answers are JSON. 
 
 | Request | Does |
 |---|---|
-| `GET /api/v1/info` | Which build is answering: `version` (all four parts, e.g. `2.5.92.28`; the last number counts up with every `build.cmd` run), `commit` (the start of the git hash, if the build recorded one), `display` (what the splash screen shows) and `api`. The same build is in the MCP `initialize` answer (`serverInfo.version`, `serverInfo.build`) and the `get_info` tool. Say it when you report a problem. |
+| `GET /api/v1/info` | Which build is answering: `version` (all four parts, e.g. `2.5.92.28`; the last number counts up with every `build.cmd` run), `commit` (the start of the git hash, if the build recorded one), `display` (what the splash screen shows) and `api`. The same build is in the MCP `initialize` answer (`serverInfo.version`, `serverInfo.build`) and the `get_info` tool. Say it when you report a problem. `firewall` says how Windows Firewall treats agents on the network (the same object is in `get_info`): `port`, `profile` (`private`, `public`, `domain`, several joined with a comma, or `unknown`), `firewall` (`on`, `off`, `unknown`; for the active profile), `inboundRule` (`yes` if an enabled inbound allow rule covers the port for TCP, else `no`/`unknown`; block rules are not looked at), `networkReachable` (`yes` if the firewall is off or a rule allows it, `no` if it will probably block other machines, `unknown`) and `hint` (a sentence, if there is something to do). Any value that cannot be read is `unknown`; it never fails the request. The same hint is shown beside "Also accept agents from the network" in the General settings. |
 | `GET /api/v1/log` | Rubberduck's own log: `configuredLevel` (the setting), `effectiveLevel` (what logging really runs at; a `note` says when they differ or logging is off), `path`, and `entries` (`time`, `level`, `logger`, `message`; a stack trace stays with its entry), oldest first. Query: `tail` (latest entries, default 200, at most 2000), `minLevel` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`), `contains` (in the message or class, any case), `logger` (part of the class name). Only the last 4 MB of the file are read; older entries are in the `archives` folder next to it. |
 | `PUT /api/v1/log` | `{ "level": "Debug" }` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal` or `Off`). Saved in the user's settings as their own choice (so Rubberduck does not reset a Trace level to Off at shutdown) and applied at once. Needs the same approval as writes. Answers like the read, without entries. |
 | `POST /api/v1/reparse` | Does what Refresh in the Code Explorer does: parses everything again, waits until the parser is done, and answers `{ "parserState": "Ready", "projects": [ ... ] }`. A workbook opened after Rubberduck started, or after a restart of the editor, does not show in `GET /projects` until this has run. 409 `vbe_not_in_design_mode` while code is running or stopped. No approval needed: it changes no code. MCP: `reparse`. Always asks for the parse; every other call that needs current results (diagnostics, check, references, tests...) asks for one only when a module's content or a project's references differ from what the parser last finished with, and otherwise answers from what it holds. The log says which: `API catch-up: parse requested because ...` or `... nothing changed ...; no parse requested`. |
+| `POST /api/v1/vbe/reset` | Presses Run > Reset, for `vbeMode` `running_or_break` (code stopped after an error dialog was closed with End, say) when writes, tests and the parser answer 409 `vbe_not_in_design_mode`. No body. It runs no code but ends the stopped program and its variables, so it needs the same approval as writes (403 `write_denied` if refused). It runs on the editor's UI thread and does not wait for a parse (`POST /api/v1/reparse` does). Answers `{ "reset": true, "vbeMode": "design", "note": ... }`; `reset` is false when the editor was in design mode already (nothing pressed, nothing asked). If the editor is not back in design mode afterwards (a dialog is open, the editor does not answer) it answers 409 `vbe_reset_failed` with the mode and the dialog's text, never a success. MCP: `reset_vbe`. |
 | `GET /api/v1/dump` | Whether a memory dump can be taken (`tool`: where Sysinternals ProcDump was found, or null with a `note` on where to put it) and the dumps already in `%LOCALAPPDATA%\Rubberduck\Dumps` (or in the folder the `RUBBERDUCK_DUMP_FOLDER` environment variable names, a shared one say, so the file can be read from another machine). |
 | `POST /api/v1/dump` | `{ "kind": "full", "waitSeconds": 120 }`, both optional. Takes a memory dump of the editor's process with ProcDump, for when the editor hangs (calls time out with 503, the parser stays `Busy`, Excel shows "waiting for an OLE action"). It runs on the API's own thread, so it works while the editor's UI thread is stuck. `kind` is `full` (all memory, what reading managed stacks needs) or `mini`. **The dump holds everything in memory, the open documents included**, so it needs the same approval as writes. Answers with `file` and `sizeBytes`. ProcDump is looked for in `RUBBERDUCK_PROCDUMP`, in `%LOCALAPPDATA%\Rubberduck\Tools\procdump.exe` and on the PATH; without it: 404 `procdump_not_found`. MCP: `capture_dump`. |
 | `GET /api/v1/projects` | Answers `{ "vbeMode": "design", "projects": [ ... ] }`. `vbeMode` is where the editor is: `design`, `running_or_break` (a macro runs or is stopped: writes, tests and the parser answer 409 `vbe_not_in_design_mode` until it is reset, and the editor cannot say which of the two it is), or `unresponsive` (no answer in 5 seconds, a dialog nobody can see, say; then there is no list, and a `note`). Each project has `id`, `name`, and the file's `path` and `extension` (both absent for a document that was never saved). Names are not unique (two `DevMacros`, say); the `id` addresses one project. It is made from the file's path (`p` and 8 hex digits, e.g. `p3fa9c1d2`: the same file always has the same id, different files never share one), or from the name for a project that was never saved (`u...`). The editor's own id, which older clients stored, still works, but it can be the same for two workbooks (409 then), so use the one listed here. Module answers carry `projectPath`, so the workbook a write went to is in the answer. |
@@ -40,6 +41,8 @@ All requests need `Authorization: Bearer <token>`. Bodies and answers are JSON. 
 | `PATCH /api/v1/projects/{p}/modules/{m}` | Replaces lines: `{ "startLine": 3, "endLine": 5, "replacement": "...", "expectedHash": "..." }`. `endLine` = `startLine - 1` inserts. |
 | `POST /api/v1/projects/{p}/modules` | Adds a module: `{ "name": "modX", "kind": "standard\|class\|form", "code": "..." }`. Add `"attributes": { ... }` (the shape above) to set hidden attributes as well; the module is created first, so a bad attribute leaves it behind without them. |
 | `DELETE /api/v1/projects/{p}/modules/{m}` | Removes it (a document module only loses its code). Needs `If-Match`. |
+| `GET /api/v1/projects/{p}/modules/{m}/sync-attributes` | Preview: what bringing the module's hidden attributes in line with its annotations would change, and nothing changed. Answers `inSync`, `hash` and `changes` (`scope`: `module` or the member's name; `attribute`; `from` (null if missing); `to`; `because`: the annotation). Looked at: `VB_Name` (the module's name), `VB_PredeclaredId` and `VB_Exposed` (`'@PredeclaredId`, `'@Exposed`), `'@ModuleAttribute`, `'@ModuleDescription`, and per member `'@DefaultMember` (`VB_UserMemId = 0`), `'@Enumerator` (`-4`), `'@Description` and `'@MemberAttribute`. Annotations are never edited, and an attribute without an annotation is left alone. It works on the module's text, so it needs no parse. No approval. |
+| `POST /api/v1/projects/{p}/modules/{m}/sync-attributes` | Does it: `{ "expectedHash": "..." }` (or `If-Match`; the `hash` of the preview or a read). `{ "dryRun": true }` previews instead. Writes the module whole, so the code and form layout stay, and answers like the preview plus `applied` and `newHash`. Nothing is written, and nobody asked, when it is already in sync. Needs the same approval as writes; 412 if the module changed since the hash, 409 `vbe_not_in_design_mode` while code is running or stopped. MCP: `sync_attributes` (`apply: true` to write). A member's annotation is applied to the attribute lines of that name, so with `Property Get`/`Let` pairs it goes to the first accessor. |
 
 `expectedHash` may be sent as the `If-Match` header instead.
 
@@ -78,6 +81,8 @@ All read-only and without approval. Each waits for the parser to catch up with t
 | `GET /api/v1/projects/{p}/structure` | The modules by `'@Folder`. |
 | `GET /api/v1/projects/{p}/metrics` | Code metrics per module and member (`module=` narrows). |
 
+**`?wait=ready`.** After a write the parser can take a while, and a read that waits for it holds the connection (and gives up with 503 after 90 seconds). Add `wait=ready` to `parser-errors`, `symbols` (and `symbols/references`, `symbols/definition`), `structure`, `metrics` and `GET .../tests` and the wait is bounded: Rubberduck waits for the parser, off the editor's thread, for `waitSeconds` (default 60, 0 to 300, as for diagnostics). If the parser is not done by then the answer is **202** with `"status": "running"`, `project` and `retryAfterSeconds`, and no results; the catch-up carries on, and the next call with `wait=ready` joins it and reads at once. `waitSeconds=0` never waits. Without `wait` nothing changes. Any other value of `wait` is a 400. A missing project, or a macro that is running (409), is reported as for the plain read. `libraries` is not affected: it reads the project's references from the editor and does not use the parser, and neither do modules, resources, the log or the Immediate window. MCP: the same tools take optional `wait` (`"ready"`) and `waitSeconds`.
+
 ### Unit tests
 
 | Request | Does |
@@ -90,6 +95,62 @@ All read-only and without approval. Each waits for the parser to catch up with t
 ### Check my work
 
 `POST /api/v1/projects/{p}/check` with `{ "module": "...", "runTests": false }` (both optional). Parser errors first; if the code parsed, the inspections of `warning` or `error` severity; and with `runTests`, the unit tests (same rules as above). `clean` is `true` when there is nothing to fix. It takes `waitSeconds` too (as above); when the inspections are not done in time, `inspectionsStatus` is `"running"` and `clean` is `false`: ask again, and the results are there. It looks at warnings and errors only; `suppressed` counts what was left out (`{ "suggestion": 4, "hint": 1 }`), so a clean answer is not mistaken for "the inspections found nothing". Ask for the diagnostics to see those. Code that did not parse gets no inspections or tests: fix the parser errors first.
+
+### Refactorings
+
+Rubberduck's own refactorings, run without their dialogs. Each has a preview that changes nothing and an apply that does; **look before you apply**. Applying needs the same approval as module writes, the editor in design mode (otherwise 409 `vbe_not_in_design_mode`) and the parser caught up with the editor (the call waits for it, as the understanding-the-code routes do). One refactoring runs at a time (409 otherwise). A refactoring edits several modules at once: read again any module you hold, their hashes have changed.
+
+#### Rename
+
+`POST /api/v1/projects/{p}/refactor/rename/preview` and `POST /api/v1/projects/{p}/refactor/rename`, with the same body:
+
+```
+{ "module": "Module1", "name": "Alpha", "newName": "Beta" }
+```
+
+Name the declaration as the symbols routes do: `module` and `name`, narrowed by `kind` (`Function`, `Variable`, `Parameter`, `PropertyGet`...) and by `line` (and `column`) where the name is declared, which parameters and local variables always need since their names repeat. `line` and `column` alone also work, and may point at a use of the name instead of its declaration. A name that matches several declarations is a 409 that lists them (the Get, Let and Set of one property count as one). A module is renamed by giving its own name, a form control by the control's name.
+
+The preview answers with `target`; `resolvedTarget` and `resolvedBecause` when Rubberduck would rename something else (the interface member behind an implementation, the control behind its event handler, the event behind a handler: `interface member`, `control event handler`, `user event`); `valid` and `problems` (the new name is not a legal identifier, only differs in case, or is the current name); `conflicts` (declarations the new name would clash with); and `referenceCount` and `modulesAffected`, which are rewritten with it. Applying refuses what the preview flags, as 422 `refactoring_refused` for a name that cannot be used, and as 409 for the other two unless the request says it is fine: `"acceptResolvedTarget": true`, `"allowConflicts": true`. The answer is `{ "oldName", "newName", "renamed", "referenceCount", "modulesAffected", "note" }`.
+
+MCP tools: `preview_rename` and `rename_symbol`, with the same fields plus `project`.
+
+#### Encapsulate field
+
+`POST /api/v1/projects/{p}/refactor/encapsulate-field/preview` and `POST /api/v1/projects/{p}/refactor/encapsulate-field`, with the same body:
+
+```
+{ "module": "Module1", "name": "count", "propertyName": "Count", "readOnly": false, "strategy": "backingField" }
+```
+
+The field is a module-level variable (not one inside a procedure), named as for rename: `module`, `name`, and `line`/`column` where the name is declared if it is not unique. All the rest is optional: `propertyName` (default: the field's name capitalised, without clashing with anything), `readOnly` (`true`: a Property Get only; default read/write, except arrays), `strategy` (`backingField`: the field is renamed and stays behind the property; `udtMember`: the field becomes a member of the module's private Type; default: Rubberduck's choice, which is `udtMember` if the module already has such a Type).
+
+The preview answers with the `strategy` in effect, `properties` (per field: `propertyName`, `backingField`, `readOnly`, `canBeReadWrite`, `assignedExternally`), `valid` and `problems` (a name that clashes or is not an identifier, `readOnly: false` on an array, `readOnly: true` on a field that other modules assign...), and `code`, the text the refactoring's own dialog previews. Applying refuses what the preview flags with 422 `refactoring_refused`, and otherwise encapsulates the field and rewrites its uses to go through the property. The answer is `{ "module", "field", "strategy", "properties", "note" }`.
+
+MCP tools: `preview_encapsulate_field` and `encapsulate_field`, with the same fields plus `project`.
+
+#### Move to folder
+
+`POST /api/v1/projects/{p}/refactor/move-to-folder/preview` and `POST /api/v1/projects/{p}/refactor/move-to-folder`, with the same body:
+
+```
+{ "module": "Module1", "folder": "App.Core" }
+{ "modules": ["Module1", "Class1"], "folder": "App.Core" }
+```
+
+A folder is the `'@Folder` annotation that the Code Explorer groups modules by, with dots between levels. The refactoring writes or updates that annotation at the top of each module, in one rewrite for all of them (at most 50). Folder names cannot be empty, have an empty level (`"App..Core"`) or contain control characters.
+
+The preview answers with `moves` (per module: `fromFolder`, and `changes`, false if it is there already) and `valid` and `problems` for the folder name. Applying refuses a bad folder with 422 `refactoring_refused`; if no module would change it answers at once, without approval, with them in `unchanged`. Otherwise the answer is `{ "folder", "moved", "unchanged", "note" }`. A module that was edited and not parsed yet is refused with 409: ask for a reparse (`POST /api/v1/reparse`) and retry.
+
+MCP tools: `preview_move_to_folder` and `move_to_folder`, with the same fields plus `project`.
+
+### Quick fixes
+
+Rubberduck's own quick fixes, applied to the diagnostics the API reported. Every diagnostic from `GET /api/v1/projects/{p}/diagnostics` (and `check`) carries an `id`. It names the result of the latest inspection run only: once the code has changed the ids are refused with 409, so run diagnostics again. An id that is not in the latest run is a 404.
+
+- `GET /api/v1/projects/{p}/quickfix?result=<id>` lists the fixes on offer (`fixes`: `name`, `description`, `canFixInModule`) together with the diagnostic's `module`, `inspection` and `description`. A read; needs no approval.
+- `POST /api/v1/projects/{p}/quickfix` with `{ "result": "<id>", "fix": "<name>", "scope": "result" }` applies one. `scope` is `result` (default: this diagnostic) or `module` (every result of the same inspection in the same module; 422 for a fix with `canFixInModule` false). A fix that is not offered for the diagnostic is a 422 that lists the ones that are. The request is checked before the user is asked; applying needs the same approval as writes and the editor in design mode (409 `vbe_not_in_design_mode`). The fix runs through Rubberduck's own fix classes on the editor's thread. The answer says how many results it was applied to (`fixed`); it does not prove the diagnostic is gone, so run diagnostics again. A fix can touch several places, so re-read the module afterwards (its hash changes).
+
+MCP tools: `list_quick_fixes` and `apply_quick_fix`, with the same fields plus `project`.
 
 ### Ribbon XML and pictures
 

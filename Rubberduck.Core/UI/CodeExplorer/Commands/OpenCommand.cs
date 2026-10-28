@@ -20,15 +20,18 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
         private readonly INavigateCommand _openCommand;
         private readonly ResourceEditorService _resourceEditor;
+        private readonly NoteEditorService _noteEditor;
 
         public OpenCommand(
             INavigateCommand openCommand, 
             ResourceEditorService resourceEditor,
-            IVbeEvents vbeEvents) 
+            NoteEditorService noteEditor,
+            IVbeEvents vbeEvents)
             : base(vbeEvents)
         {
             _openCommand = openCommand;
             _resourceEditor = resourceEditor;
+            _noteEditor = noteEditor;
 
             AddToCanExecuteEvaluation(EvaluateCanExecute);
         }
@@ -51,6 +54,13 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             if (parameter is CodeExplorerResourceViewModel resource)
             {
                 _resourceEditor.EditText(resource.DocumentPath, resource.ResourceName, ProjectName(resource));
+                return;
+            }
+
+            //A note opens in the markdown editor, not in a code pane.
+            if (parameter is CodeExplorerComponentViewModel note && note.IsNote && note.Declaration != null
+                && _noteEditor.Edit(note.Declaration.QualifiedModuleName, ProjectName(note)))
+            {
                 return;
             }
 

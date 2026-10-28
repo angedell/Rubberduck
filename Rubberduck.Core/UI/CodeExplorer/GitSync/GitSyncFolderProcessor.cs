@@ -60,6 +60,15 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
         }
 
+        /// <summary>Every markdown file below the root, except those in hidden folders such as .git. Ignore rules are not applied.</summary>
+        public IEnumerable<string> AllNoteFiles(string root)
+        {
+            return _fileSystem.Directory
+                .EnumerateFiles(root, "*.md", System.IO.SearchOption.AllDirectories)
+                .Where(path => _fileSystem.Path.GetExtension(path).Equals(".md", StringComparison.OrdinalIgnoreCase) && !IsInHiddenDirectory(root, path))
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+        }
+
         public IEnumerable<string> SourceFiles(string root)
         {
             var ignored = LoadIgnoreRules(root);
