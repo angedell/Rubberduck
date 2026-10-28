@@ -46,6 +46,9 @@ namespace Rubberduck.Api
 
         /// <summary>The API's own version, the one in the URL.</summary>
         public string Api { get; set; }
+
+        /// <summary>Windows Firewall as it affects agents on the network; null if the API was built without the check.</summary>
+        public FirewallStatus Firewall { get; set; }
     }
 
     public class LogEntry

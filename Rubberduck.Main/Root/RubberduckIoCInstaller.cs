@@ -1326,6 +1326,9 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<DumpApi>()
                 .LifestyleSingleton());
+            container.Register(Component.For<IFirewallCheck>()
+                .ImplementedBy<FirewallCheck>()
+                .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());
             container.Register(Component.For<ApiServer>()
