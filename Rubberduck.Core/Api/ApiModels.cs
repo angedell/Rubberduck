@@ -117,6 +117,10 @@ namespace Rubberduck.Api
 
         public int LineCount { get; set; }
 
+        /// <summary>A note (see NoteModule): the module tools leave it alone and the note tools handle it. Set by the store; not part of the answers.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsNote { get; set; }
+
         /// <summary>Identifies the code as it is now. Writes have to send it back, so nothing the user typed in the meantime is overwritten.</summary>
         public string Hash { get; set; }
 

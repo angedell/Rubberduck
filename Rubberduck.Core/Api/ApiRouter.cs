@@ -46,11 +46,14 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly NotesApi _notes;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            NotesApi notes = null)
         {
+            _notes = notes;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -61,7 +64,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, notes);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -252,6 +255,22 @@ namespace Rubberduck.Api
                 return Resource(request, method, segments[1], segments[3]);
             }
 
+            // /projects/{p}/notes[/{name}]: markdown in plain text; the comment marks of the module behind them are not the caller's business.
+            if (segments.Length >= 3 && segments.Length <= 4 && segments[0] == "projects" && segments[2] == "notes")
+            {
+                if (_notes == null)
+                {
+                    throw ApiException.NotFound("No such route.");
+                }
+
+                if (segments.Length == 3)
+                {
+                    return method == "GET" ? ApiResponse.Json(_notes.List(segments[1])) : throw MethodNotAllowed("GET");
+                }
+
+                return Note(request, method, segments[1], segments[3]);
+            }
+
             if (segments.Length >= 3 && segments[0] == "projects")
             {
                 var routed = RouteProject(request, method, segments);
@@ -402,6 +421,28 @@ namespace Rubberduck.Api
 
                 case "DELETE":
                     return ApiResponse.Json(_resources.Delete(request.Client, project, name, request.IfMatch?.Trim('"')));
+
+                default:
+                    throw MethodNotAllowed("GET, PUT, DELETE");
+            }
+        }
+
+        private ApiResponse Note(ApiRequest request, string method, string project, string name)
+        {
+            switch (method)
+            {
+                case "GET":
+                    var content = _notes.Read(project, name);
+                    return ApiResponse.Json(content, content.Hash);
+
+                case "PUT":
+                    //A new note needs no hash, like a new resource; 'folder' left out keeps the folder, an empty one takes the note out of it.
+                    var put = Body(request);
+                    return ApiResponse.Json(_notes.Write(request.Client, project, name, Text(put, "markdown"), ExpectedHashOrNull(request, put), Text(put, "folder")));
+
+                case "DELETE":
+                    _notes.Delete(request.Client, project, name, request.IfMatch?.Trim('"'));
+                    return ApiResponse.Json(new { deleted = name });
 
                 default:
                     throw MethodNotAllowed("GET, PUT, DELETE");

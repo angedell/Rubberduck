@@ -2140,6 +2140,24 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_CharacterNotKept.
+        /// </summary>
+        public static string NoteEditor_CharacterNotKept {
+            get {
+                return ResourceManager.GetString("NoteEditor_CharacterNotKept", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_LineTooLong.
+        /// </summary>
+        public static string NoteEditor_LineTooLong {
+            get {
+                return ResourceManager.GetString("NoteEditor_LineTooLong", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to ResourceEditor_Stale.
         /// </summary>
         public static string ResourceEditor_Stale {

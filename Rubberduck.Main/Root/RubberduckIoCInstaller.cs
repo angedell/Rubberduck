@@ -1227,6 +1227,8 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<ResourceEditorService>()
                 .LifestyleSingleton());
+            container.Register(Component.For<NoteEditorService>()
+                .LifestyleSingleton());
         }
 
         private void RegisterApi(IWindsorContainer container)
@@ -1318,6 +1320,8 @@ namespace Rubberduck.Root
                 .ImplementedBy<VbeProjectFiles>()
                 .LifestyleSingleton());
             container.Register(Component.For<ResourceApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<NotesApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<ILogControl>()
                 .ImplementedBy<RubberduckLogControl>()

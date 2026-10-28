@@ -841,4 +841,10 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="Resources_ReplaceConfirm" xml:space="preserve">
     <value>A picture named {0} is already in the document. Replace it?</value>
   </data>
+  <data name="NoteEditor_LineTooLong" xml:space="preserve">
+    <value>Line {0} is longer than {1} characters, which the editor of the VBA project cannot hold. Break it up to save.</value>
+  </data>
+  <data name="NoteEditor_CharacterNotKept" xml:space="preserve">
+    <value>The character {0} (U+{1}) is not in your Windows code page; the editor of the VBA project would turn it into a "?". Replace it to save.</value>
+  </data>
 </root>
