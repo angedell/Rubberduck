@@ -76,6 +76,15 @@ namespace Rubberduck.Api
             return Report(results, id, name, module, finalState);
         }
 
+        /// <summary>The results of the latest run, if the parser state is still the one they were made for; otherwise null.</summary>
+        public IInspectionResult[] CurrentResults()
+        {
+            lock (_gate)
+            {
+                return _cachedGeneration == _parser.Generation ? _cached : null;
+            }
+        }
+
         private IInspectionResult[] Inspect(int generation)
         {
             IInspectionResult[] results;
@@ -114,6 +123,7 @@ namespace Rubberduck.Api
                 var selection = result.QualifiedSelection.Selection;
                 report.Diagnostics.Add(new Diagnostic
                 {
+                    Id = QuickFixIds.For(result),
                     Module = string.IsNullOrEmpty(where.ComponentName) ? null : where.ComponentName,
                     Inspection = result.Inspection.Name,
                     AnnotationName = result.Inspection.AnnotationName,

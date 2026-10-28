@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -1329,6 +1329,36 @@ namespace Rubberduck.Root
             container.Register(Component.For<LogApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<DumpApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IFirewallCheck>()
+                .ImplementedBy<FirewallCheck>()
+                .LifestyleSingleton());
+            container.Register(Component.For<VbeResetApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var parser = kernel.Resolve<ParserSync>();
+                    return new VbeResetApi(kernel.Resolve<ApiWriteApproval>(), parser.EditorMode, parser.ResetIfStopped, kernel.Resolve<IDialogWatcher>());
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<SyncAttributesApi>()
+                .UsingFactoryMethod(kernel => new SyncAttributesApi(kernel.Resolve<IModuleStore>(), kernel.Resolve<ApiWriteApproval>(), () => kernel.Resolve<ParserSync>().IsEditorInDesignMode()))
+                .LifestyleSingleton());
+            container.Register(Component.For<RefactorRenameApi>()
+                .UsingFactoryMethod(kernel => RubberduckRenameSource.CreateApi(type => kernel.Resolve(type)))
+                .LifestyleSingleton());
+            container.Register(Component.For<RefactorEncapsulateFieldApi>()
+                .UsingFactoryMethod(kernel => RubberduckEncapsulateFieldSource.CreateApi(type => kernel.Resolve(type)))
+                .LifestyleSingleton());
+            container.Register(Component.For<RefactorMoveToFolderApi>()
+                .UsingFactoryMethod(kernel => RubberduckMoveToFolderSource.CreateApi(type => kernel.Resolve(type)))
+                .LifestyleSingleton());
+            container.Register(Component.For<ReadyWait>()
+                .UsingFactoryMethod(kernel => ReadyWait.For(kernel.Resolve<ParserSync>()))
+                .LifestyleSingleton());
+            container.Register(Component.For<QuickFixApi>()
+                .UsingFactoryMethod(kernel => new QuickFixApi(
+                    new RubberduckQuickFixSource(new RefactorHost(kernel.Resolve<ParserSync>(), kernel.Resolve<IUiDispatcher>()), (InspectorDiagnosticsSource)kernel.Resolve<IDiagnosticsSource>(), kernel.Resolve<IQuickFixProvider>()),
+                    kernel.Resolve<ApiWriteApproval>()))
                 .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());

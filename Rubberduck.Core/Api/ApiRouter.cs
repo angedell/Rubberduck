@@ -47,15 +47,36 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly NotesApi _notes;
+        private readonly IFirewallCheck _firewall;
+        private readonly VbeResetApi _vbeReset;
+        private readonly SyncAttributesApi _syncAttributes;
+        private readonly RefactorRenameApi _renameRefactor;
+        private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
+        private readonly RefactorMoveToFolderApi _moveRefactor;
+        private readonly QuickFixApi _quickFix;
         private readonly McpEndpoint _mcp;
+        private readonly ReadyWait _ready;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
+            ReadyWait ready = null,
+            SyncAttributesApi syncAttributes = null,
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
+            RefactorMoveToFolderApi moveRefactor = null,
+            QuickFixApi quickFix = null,
             NotesApi notes = null)
         {
             _notes = notes;
+            _syncAttributes = syncAttributes;
+            _firewall = firewall;
+            _vbeReset = vbeReset;
+            _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
             _log = log;
             _dump = dump;
+            _renameRefactor = renameRefactor;
+            _encapsulateRefactor = encapsulateRefactor;
+            _moveRefactor = moveRefactor;
+            _quickFix = quickFix;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -64,7 +85,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, notes);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -97,10 +118,10 @@ namespace Rubberduck.Api
         }
 
         /// <summary>Which build is running, the same as the splash screen says. Public so the MCP tool can give the same answer.</summary>
-        public static InfoReport InfoReport()
+        public static InfoReport InfoReport(IFirewallCheck firewall = null)
         {
             var build = BuildInfo.Current;
-            return new InfoReport { Name = "Rubberduck", Version = build.Version, Commit = build.Commit, Display = build.Display, Api = "v1" };
+            return new InfoReport { Name = "Rubberduck", Version = build.Version, Commit = build.Commit, Display = build.Display, Api = "v1", Firewall = firewall?.Check() };
         }
 
         /// <summary>
@@ -150,6 +171,13 @@ namespace Rubberduck.Api
                 return ApiResponse.Json(ReparseReport(_parser, _api));
             }
 
+            // /vbe/reset: Run > Reset
+            if (segments.Length == 2 && segments[0] == "vbe" && segments[1] == "reset" && _vbeReset != null)
+            {
+                Allow(method, "POST");
+                return ApiResponse.Json(_vbeReset.Reset(request.Client));
+            }
+
             // /dump: a memory dump of the editor's process, for when it hangs
             if (segments.Length == 1 && segments[0] == "dump" && _dump != null)
             {
@@ -169,7 +197,7 @@ namespace Rubberduck.Api
             if (segments.Length == 1 && segments[0] == "info")
             {
                 Allow(method, "GET");
-                return ApiResponse.Json(InfoReport());
+                return ApiResponse.Json(InfoReport(_firewall));
             }
 
             // /log: Rubberduck's own log and its level
@@ -272,6 +300,26 @@ namespace Rubberduck.Api
                 return Note(request, method, segments[1], string.Join("/", segments.Skip(3)));
             }
 
+            // /projects/{p}/modules/{m}/sync-attributes: GET previews, POST applies
+            if (segments.Length == 5 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "sync-attributes" && _syncAttributes != null)
+            {
+                switch (method)
+                {
+                    case "GET":
+                        return ApiResponse.Json(_syncAttributes.Preview(segments[1], segments[3]));
+                    case "POST":
+                        var sync = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
+                        if (Bool(sync, "dryRun"))
+                        {
+                            return ApiResponse.Json(_syncAttributes.Preview(segments[1], segments[3]));
+                        }
+
+                        return ApiResponse.Json(_syncAttributes.Apply(request.Client, segments[1], segments[3], ExpectedHash(request, sync)));
+                    default:
+                        throw MethodNotAllowed("GET, POST");
+                }
+            }
+
             if (segments.Length >= 3 && segments[0] == "projects")
             {
                 var routed = RouteProject(request, method, segments);
@@ -318,6 +366,16 @@ namespace Rubberduck.Api
             var what = segments[2];
             var rest = segments.Length == 3 ? null : segments[3];
 
+            //?wait=ready on the reads that need the parser: wait for it off the UI thread, or answer 202 as diagnostics does.
+            if (_ready != null && ReadyWait.Applies(method, segments))
+            {
+                var pending = _ready.Pending(project, Query(request, "wait"), QueryInt(request, "waitSeconds"));
+                if (pending != null)
+                {
+                    return new ApiResponse { Status = 202, Body = pending };
+                }
+            }
+
             switch (what)
             {
                 case "parser-errors" when segments.Length == 3 && _insight != null:
@@ -361,6 +419,18 @@ namespace Rubberduck.Api
                     Allow(method, "POST");
                     var check = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
                     return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests"), OptionalInt(check, "waitSeconds")));
+
+                case "quickfix" when segments.Length == 3 && _quickFix != null:
+                    return _quickFix.Route(request, method, segments);
+
+                case "refactor" when rest == "rename" && _renameRefactor != null:
+                    return _renameRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "encapsulate-field" && _encapsulateRefactor != null:
+                    return _encapsulateRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "move-to-folder" && _moveRefactor != null:
+                    return _moveRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");

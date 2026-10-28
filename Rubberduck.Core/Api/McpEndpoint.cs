@@ -26,14 +26,35 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly NotesApi _notes;
+        private readonly IFirewallCheck _firewall;
+        private readonly VbeResetApi _vbeReset;
+        private readonly ReadyWait _ready;
+        private readonly SyncAttributesApi _syncAttributes;
+        private readonly RefactorRenameApi _renameRefactor;
+        private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
+        private readonly RefactorMoveToFolderApi _moveRefactor;
+        private readonly QuickFixApi _quickFix;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
+            ReadyWait ready = null,
+            SyncAttributesApi syncAttributes = null,
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
+            RefactorMoveToFolderApi moveRefactor = null,
+            QuickFixApi quickFix = null,
             NotesApi notes = null)
         {
             _notes = notes;
+            _firewall = firewall;
+            _syncAttributes = syncAttributes;
+            _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
             _log = log;
             _dump = dump;
+            _vbeReset = vbeReset;
+            _renameRefactor = renameRefactor;
+            _encapsulateRefactor = encapsulateRefactor;
+            _moveRefactor = moveRefactor;
+            _quickFix = quickFix;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -176,7 +197,17 @@ namespace Rubberduck.Api
             .Concat(_check != null ? CheckTools() : Enumerable.Empty<Tool>())
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
+            .Concat(_vbeReset != null ? VbeResetTools() : Enumerable.Empty<Tool>())
+            .Concat(_syncAttributes != null ? SyncAttributesTools() : Enumerable.Empty<Tool>())
+            .Concat(_renameRefactor != null ? FromSpecs(_renameRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_moveRefactor != null ? FromSpecs(_moveRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_quickFix != null ? FromSpecs(_quickFix.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
+
+        //Tools that come with their feature, described by the feature (see RefactorToolSpec).
+        private static IEnumerable<Tool> FromSpecs(IEnumerable<RefactorToolSpec> specs)
+            => specs.Select(s => new Tool { Name = s.Name, Description = s.Description, Properties = s.Properties, Required = s.Required, Run = s.Run });
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
 
@@ -188,50 +219,50 @@ namespace Rubberduck.Api
             {
                 Name = "get_parser_errors",
                 Description = "Lists the code Rubberduck's parser could not understand (syntax errors), with module, line, column and the text it stumbled on. Inspections of such code are incomplete, so check this first. Waits for the latest edits to be parsed.",
-                Properties = new JObject { ["project"] = String("Project id or name.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.ParserErrors(Arg(args, "project"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.ParserErrors(Arg(args, "project")))
             },
             new Tool
             {
                 Name = "list_symbols",
                 Description = "Lists what a module declares (procedures, functions, properties, module-level variables, constants, types, enums...) with kind, type, accessibility and line range. Far cheaper than reading the module to find a procedure.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Module name."),
                     ["includeLocals"] = Boolean("Also list parameters and variables local to procedures."),
                     ["kind"] = String("Only this kind, e.g. Procedure, Function, PropertyGet, Variable, Constant.")
-                },
+                }),
                 Required = new[] { "project", "module" },
-                Run = (args, client) => _insight.Symbols(Arg(args, "project"), Arg(args, "module"), args.Value<bool?>("includeLocals") ?? false, args.Value<string>("kind"))
+                Run = (args, client) => WhenReady(args, () => _insight.Symbols(Arg(args, "project"), Arg(args, "module"), args.Value<bool?>("includeLocals") ?? false, args.Value<string>("kind")))
             },
             new Tool
             {
                 Name = "find_references",
                 Description = "Finds every use of a declared name in a project, per declaration (the same name can be declared in several places). Use it before renaming or changing a signature.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["name"] = String("The identifier."),
                     ["module"] = String("Only declarations in this module."),
                     ["limit"] = Integer("At most this many references per declaration. Default 200.")
-                },
+                }),
                 Required = new[] { "project", "name" },
-                Run = (args, client) => _insight.References(Arg(args, "project"), args.Value<string>("module"), Arg(args, "name"), args["limit"] != null ? Int(args, "limit") : (int?)null)
+                Run = (args, client) => WhenReady(args, () => _insight.References(Arg(args, "project"), args.Value<string>("module"), Arg(args, "name"), args["limit"] != null ? Int(args, "limit") : (int?)null))
             },
             new Tool
             {
                 Name = "find_definition",
                 Description = "Finds where the identifier at a position (1-based line and column) is declared. Only declarations in the project's own code are returned.",
-                Properties = new JObject
+                Properties = ReadyWait.Describe(new JObject
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Module name."),
                     ["line"] = Integer("1-based line."),
                     ["column"] = Integer("1-based column.")
-                },
+                }),
                 Required = new[] { "project", "module", "line", "column" },
-                Run = (args, client) => _insight.Definition(Arg(args, "project"), Arg(args, "module"), Int(args, "line"), Int(args, "column"))
+                Run = (args, client) => WhenReady(args, () => _insight.Definition(Arg(args, "project"), Arg(args, "module"), Int(args, "line"), Int(args, "column")))
             },
             new Tool
             {
@@ -244,15 +275,15 @@ namespace Rubberduck.Api
             {
                 Name = "get_structure",
                 Description = "Shows how the modules of a project are organised in folders, from their '@Folder annotations.",
-                Properties = new JObject { ["project"] = String("Project id or name.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.Structure(Arg(args, "project"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.Structure(Arg(args, "project")))
             },
             new Tool
             {
                 Name = "get_metrics",
                 Description = "Rubberduck's code metrics (lines of code, cyclomatic complexity, nesting, ...) per module and member. Shows where the complicated code is.",
-                Properties = new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this module.") }, Required = new[] { "project" },
-                Run = (args, client) => _insight.Metrics(Arg(args, "project"), args.Value<string>("module"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this module.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _insight.Metrics(Arg(args, "project"), args.Value<string>("module")))
             }
         }.ToList());
 
@@ -264,8 +295,8 @@ namespace Rubberduck.Api
             {
                 Name = "list_tests",
                 Description = "Lists the unit tests (Rubberduck's '@TestMethod) of a project with the outcome of their last run since Rubberduck started: Unknown if not run. Does not run anything.",
-                Properties = new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this test module.") }, Required = new[] { "project" },
-                Run = (args, client) => _tests.List(Arg(args, "project"), args.Value<string>("module"))
+                Properties = ReadyWait.Describe(new JObject { ["project"] = String("Project id or name."), ["module"] = String("Only this test module.") }), Required = new[] { "project" },
+                Run = (args, client) => WhenReady(args, () => _tests.List(Arg(args, "project"), args.Value<string>("module")))
             },
             new Tool
             {
@@ -311,6 +342,20 @@ namespace Rubberduck.Api
             }
         }.ToList());
 
+        private IList<Tool> _vbeResetTools;
+
+        private IEnumerable<Tool> VbeResetTools() => _vbeResetTools ?? (_vbeResetTools = new[]
+        {
+            new Tool
+            {
+                Name = "reset_vbe",
+                Description = "Presses Run > Reset in the editor, for when list_projects says 'running_or_break' (a macro is stopped, after an error dialog was closed with End, say) and writes, tests and the parser are refused with vbe_not_in_design_mode. It runs no code but ends the stopped program and its variables, so the user has to approve it like a write. Answers with 'vbeMode' as the editor reports it afterwards. If the editor is not back in design mode (a dialog is open, the editor does not answer) it is an error that says why, never a success. Does nothing if the editor is in design mode already.",
+                Properties = new JObject(),
+                Required = new string[0],
+                Run = (args, client) => _vbeReset.Reset(client)
+            }
+        }.ToList());
+
         private IList<Tool> _dumpTools;
 
         private IEnumerable<Tool> DumpTools() => _dumpTools ?? (_dumpTools = new[]
@@ -326,6 +371,28 @@ namespace Rubberduck.Api
                 },
                 Required = new string[0],
                 Run = (args, client) => _dump.Capture(client, args.Value<string>("kind"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
+            }
+        }.ToList());
+
+        private IList<Tool> _syncAttributesTools;
+
+        private IEnumerable<Tool> SyncAttributesTools() => _syncAttributesTools ?? (_syncAttributesTools = new[]
+        {
+            new Tool
+            {
+                Name = "sync_attributes",
+                Description = "Brings a module's hidden attributes in line with its annotations: VB_Name, VB_PredeclaredId and VB_Exposed (from @PredeclaredId, @Exposed), @ModuleAttribute and @ModuleDescription, and the members' VB_UserMemId (@DefaultMember, @Enumerator), VB_Description (@Description) and @MemberAttribute. Annotations are never changed. Without 'apply' it only lists what would change ('changes', each with from, to and the annotation it comes from; 'inSync' when there is nothing). With 'apply' it writes them, needing 'expectedHash' (from the preview or a read), the user's approval as for writes, and the editor in design mode (otherwise vbe_not_in_design_mode).",
+                Properties = new JObject
+                {
+                    ["project"] = String("Project id or name."),
+                    ["module"] = String("Module name."),
+                    ["apply"] = Boolean("Write the changes. Default false: preview only."),
+                    ["expectedHash"] = String("The module's hash from your last read or preview. Required with apply.")
+                },
+                Required = new[] { "project", "module" },
+                Run = (args, client) => args.Value<bool?>("apply") == true
+                    ? _syncAttributes.Apply(client, Arg(args, "project"), Arg(args, "module"), args.Value<string>("expectedHash"))
+                    : _syncAttributes.Preview(Arg(args, "project"), Arg(args, "module"))
             }
         }.ToList());
 
@@ -595,9 +662,9 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "get_info",
-                Description = "Says which build of Rubberduck is answering: the full version (the last number counts up with every build) and the git commit. Mention it when you report a problem.",
+                Description = "Says which build of Rubberduck is answering: the full version (the last number counts up with every build) and the git commit. Mention it when you report a problem. Also says how Windows Firewall treats agents on the network (firewall: profile, firewall, inboundRule, networkReachable, hint); \"unknown\" means it could not be read.",
                 Properties = new JObject(), Required = new string[0],
-                Run = (args, client) => ApiRouter.InfoReport()
+                Run = (args, client) => ApiRouter.InfoReport(_firewall)
             },
             new Tool
             {
@@ -759,6 +826,13 @@ namespace Rubberduck.Api
                 }
             }
         }.ToList());
+
+        //With wait=ready: the "running" answer if the parser is not ready in time, otherwise the read. Without it, the read.
+        private object WhenReady(JObject args, Func<object> read)
+        {
+            var pending = _ready?.Pending(Arg(args, "project"), args.Value<string>("wait"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null);
+            return pending ?? read();
+        }
 
         private static string Arg(JObject args, string name)
         {

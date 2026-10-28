@@ -53,9 +53,11 @@ namespace Rubberduck.UI.Settings
             IExperimentalTypesProvider experimentalTypesProvider,
             IConfigurationService<Rubberduck.Settings.GeneralSettings> service,
             IConfigurationService<HotkeySettings> hotkeyService,
-            ApiConnection apiConnection)
+            ApiConnection apiConnection,
+            IFirewallCheck firewallCheck = null)
             : base(service)
         {
+            _firewallCheck = firewallCheck;
             _apiConnection = apiConnection;
             _operatingSystem = operatingSystem;
             _messageBox = messageBox;
@@ -249,6 +251,7 @@ namespace Rubberduck.UI.Settings
                 {
                     _apiAllowNetwork = value;
                     OnPropertyChanged();
+                    RefreshFirewallHint();
                 }
             }
         }
@@ -277,8 +280,69 @@ namespace Rubberduck.UI.Settings
                 {
                     _apiPort = value;
                     OnPropertyChanged();
+                    RefreshFirewallHint();
                 }
             }
+        }
+
+        //Null where the API is not available, as in tests.
+        private readonly IFirewallCheck _firewallCheck;
+
+        private string _firewallHint;
+        /// <summary>What Windows Firewall will do with agents on the network, shown beside the network option; empty if the option is off or nothing is known.</summary>
+        public string FirewallHint
+        {
+            get => _firewallHint;
+            private set
+            {
+                if (_firewallHint != value)
+                {
+                    _firewallHint = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasFirewallHint));
+                }
+            }
+        }
+
+        public bool HasFirewallHint => !string.IsNullOrEmpty(_firewallHint);
+
+        private int _firewallHintVersion;
+        private void RefreshFirewallHint()
+        {
+            var version = ++_firewallHintVersion;
+            if (_firewallCheck == null || !_apiAllowNetwork)
+            {
+                FirewallHint = null;
+                return;
+            }
+
+            var port = _apiPort > 0 && _apiPort <= 65535 ? _apiPort : ApiServer.DefaultPort;
+            //The firewall is queried off the UI thread; a newer change makes this answer stale.
+            System.Threading.Tasks.Task.Run(() => FirewallHintText(_firewallCheck.Check(port)))
+                .ContinueWith(task =>
+                {
+                    if (version == _firewallHintVersion && !task.IsFaulted)
+                    {
+                        FirewallHint = task.Result;
+                    }
+                });
+        }
+
+        public static string FirewallHintText(FirewallStatus status)
+        {
+            if (status == null || status.Profile == FirewallCheck.Unknown && status.Firewall == FirewallCheck.Unknown)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(status.Hint))
+            {
+                return status.Hint;
+            }
+
+            return status.NetworkReachable == "yes"
+                ? $"Windows Firewall ({status.Profile} network): other machines can reach port {status.Port}."
+                : $"Windows Firewall ({status.Profile} network): could not tell whether port {status.Port} is open.";
         }
 
         //Null where the API is not available, as in tests.
