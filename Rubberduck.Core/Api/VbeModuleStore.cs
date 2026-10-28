@@ -5,9 +5,11 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NLog;
 using Rubberduck.Parsing.UIContext;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.UI.CodeExplorer.GitSync;
+using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
 using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers;
@@ -23,19 +25,25 @@ namespace Rubberduck.Api
     /// </summary>
     public class VbeModuleStore : IModuleStore
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly TimeSpan UiTimeout = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan ParserWait = TimeSpan.FromSeconds(45);
+        //How long the UI thread may wait for the parser to pause; only reached if a parse started after the wait above, and then it fails instead of hanging the editor.
+        private const int PauseTimeoutMs = 10000;
         private const string Crlf = "\r\n";
 
         private readonly IProjectsProvider _projects;
+        private readonly IVBE _vbe;
         private readonly IUiDispatcher _dispatcher;
         private readonly IParseManager _parseManager;
         private readonly IFileSystem _fileSystem;
         private readonly string _backupFolder;
         private readonly HashSet<string> _backedUp = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public VbeModuleStore(IProjectsProvider projects, IUiDispatcher dispatcher, IParseManager parseManager, IFileSystem fileSystem)
+        public VbeModuleStore(IProjectsProvider projects, IVBE vbe, IUiDispatcher dispatcher, IParseManager parseManager, IFileSystem fileSystem)
         {
             _projects = projects;
+            _vbe = vbe;
             _dispatcher = dispatcher;
             _parseManager = parseManager;
             _fileSystem = fileSystem;
@@ -138,7 +146,7 @@ namespace Rubberduck.Api
         #region Writing
 
         public ModuleInfo ReplaceCode(string project, string module, string code, string expectedHash)
-            => OnUi(() =>
+            => OnUiWrite(() =>
             {
                 var found = FindProject(project);
                 using (var components = found.VBComponents)
@@ -156,7 +164,7 @@ namespace Rubberduck.Api
             });
 
         public ModuleInfo EditLines(string project, string module, int startLine, int endLine, string replacement, string expectedHash)
-            => OnUi(() =>
+            => OnUiWrite(() =>
             {
                 var found = FindProject(project);
                 using (var components = found.VBComponents)
@@ -188,7 +196,7 @@ namespace Rubberduck.Api
             });
 
         public ModuleInfo ReplaceText(string project, string module, string text, string expectedHash)
-            => OnUi(() =>
+            => OnUiWriteWithParserPause(() =>
             {
                 var found = FindProject(project);
                 using (var components = found.VBComponents)
@@ -253,13 +261,16 @@ namespace Rubberduck.Api
                     using (var replaced = Find(components, module))
                     {
                         GitSyncService.RemoveLeadingBlankLines(replaced);
+
+                        //Attributes are not part of what the parser compares to see whether a module changed; an attribute-only write would otherwise go unnoticed until the code changes.
+                        _parseManager.MarkAsModified(new QualifiedModuleName(replaced));
                         return Describe(found, replaced);
                     }
                 }
             });
 
         public ModuleInfo Create(string project, string module, string kind, string code)
-            => OnUi(() =>
+            => OnUiWrite(() =>
             {
                 var found = FindProject(project);
                 using (var components = found.VBComponents)
@@ -293,7 +304,7 @@ namespace Rubberduck.Api
             });
 
         public void Delete(string project, string module, string expectedHash)
-            => OnUi(() =>
+            => OnUiWriteWithParserPause(() =>
             {
                 var found = FindProject(project);
                 using (var components = found.VBComponents)
@@ -335,6 +346,41 @@ namespace Rubberduck.Api
                 throw;
             }
         }
+
+        //While a macro is running or stopped, the editor answers an edit with a "this action will reset your project" prompt that nobody can click for the caller
+        //(and Excel soon adds its own "waiting for an OLE action" box on top), so a write is refused before it gets that far.
+        private T OnUiWrite<T>(Func<T> work)
+            => OnUi(() =>
+            {
+                if (!_vbe.IsInDesignMode)
+                {
+                    throw ApiException.NotInDesignMode();
+                }
+
+                return work();
+            });
+
+        //A write that pauses the parser must not do so from the UI thread while a parse is running: the pause waits for the parse to let go of its lock,
+        //the parse needs the UI thread to read components, and neither ever finishes (Excel then shows "waiting for an OLE action"). So the wait for the parser
+        //is done here, on the caller's thread, with the UI thread still free.
+        private T OnUiWriteWithParserPause<T>(Func<T> work)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            while (!IsSettled(_parseManager.Status))
+            {
+                if (timer.Elapsed > ParserWait)
+                {
+                    throw ApiException.Unavailable($"Rubberduck is still parsing ({_parseManager.Status}), so the edit cannot be made yet. Try again in a moment.");
+                }
+
+                Thread.Sleep(100);
+            }
+
+            return OnUiWrite(work);
+        }
+
+        private static bool IsSettled(ParserState state)
+            => state == ParserState.Ready || state == ParserState.Error || state == ParserState.ResolverError || state == ParserState.UnexpectedError;
 
         private void OnUi(Action work) => OnUi(() => { work(); return true; });
 
@@ -473,6 +519,7 @@ namespace Rubberduck.Api
         private void Suspended(Action action)
         {
             Exception failure = null;
+            Logger.Info("API asks the parser to pause for an edit.");
             //Any state where no parse is running will do. A project in Error must stay editable: fixing it is the reason to edit.
             var suspension = _parseManager.OnSuspendParser(this, new[] { ParserState.Ready, ParserState.Error, ParserState.ResolverError }, () =>
             {
@@ -484,8 +531,9 @@ namespace Rubberduck.Api
                 {
                     failure = exception;
                 }
-            });
+            }, PauseTimeoutMs);
 
+            Logger.Info($"API edit finished; the parser's pause ended with {suspension.Outcome}{(failure != null ? " (the edit failed: " + failure.Message + ")" : string.Empty)}.");
             if (failure != null)
             {
                 ExceptionDispatchInfo.Capture(failure).Throw();

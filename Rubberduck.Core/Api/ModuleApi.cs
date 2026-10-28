@@ -36,6 +36,7 @@ namespace Rubberduck.Api
             if (includeAttributes)
             {
                 content.Attributes = ModuleAttributes.Parse(content.Text);
+                content.AttributesHash = ModuleAttributes.Hash(content.Attributes);
                 if (!includeText)
                 {
                     content.Text = null;
@@ -46,7 +47,8 @@ namespace Rubberduck.Api
         }
 
         /// <summary>Sets hidden attributes from data (see <see cref="ModuleAttributes"/>), so the caller never has to rebuild the exported header.</summary>
-        public ModuleInfo WriteAttributes(string client, string project, string module, Newtonsoft.Json.Linq.JObject attributes, string expectedHash)
+        /// <param name="expectedAttributesHash">If given, the attributes must still be the ones this hash (from a read with include=attributes) was made of; Hash alone does not notice an attribute that changed.</param>
+        public ModuleInfo WriteAttributes(string client, string project, string module, Newtonsoft.Json.Linq.JObject attributes, string expectedHash, string expectedAttributesHash = null)
         {
             RequireHash(expectedHash);
             if (attributes == null)
@@ -61,9 +63,78 @@ namespace Rubberduck.Api
                 throw ApiException.PreconditionFailed($"'{module}' changed since you read it. Read it again.");
             }
 
+            if (expectedAttributesHash != null
+                && !string.Equals(ModuleAttributes.Hash(ModuleAttributes.Parse(current.Text)), expectedAttributesHash, StringComparison.OrdinalIgnoreCase))
+            {
+                throw ApiException.PreconditionFailed($"The attributes of '{module}' changed since you read them. Read it again with include=attributes.");
+            }
+
             var text = ModuleAttributes.Apply(current.Text, attributes);
             _approval.Require(client);
             return _store.ReplaceText(project, module, text, expectedHash);
+        }
+
+        /// <summary>
+        /// The editor drops the hidden attributes of a member (VB_UserMemId, VB_Description...) when the code that holds it is replaced; the module's own survive.
+        /// Writes that change code put back the ones the new code still has a member for, and say so in <see cref="ModuleInfo.Notes"/>.
+        /// Without this, replacing the code of a class loses its default member without a word.
+        /// </summary>
+        private ModuleInfo KeepingMemberAttributes(string project, string module, Func<ModuleInfo> write)
+        {
+            var before = ModuleAttributes.Parse(_store.Read(project, module, true).Text)["members"] as Newtonsoft.Json.Linq.JObject;
+            var info = write();
+            if (before == null || !before.HasValues)
+            {
+                return info;
+            }
+
+            var after = _store.Read(project, module, true);
+            var present = ModuleAttributes.Parse(after.Text)["members"] as Newtonsoft.Json.Linq.JObject ?? new Newtonsoft.Json.Linq.JObject();
+            var text = after.Text;
+            var restored = new List<string>();
+            foreach (var member in before.Properties())
+            {
+                var missing = new Newtonsoft.Json.Linq.JObject();
+                foreach (var attribute in ((Newtonsoft.Json.Linq.JObject)member.Value).Properties())
+                {
+                    if ((present[member.Name] as Newtonsoft.Json.Linq.JObject)?[attribute.Name] == null)
+                    {
+                        missing[attribute.Name] = attribute.Value;
+                    }
+                }
+
+                if (!missing.HasValues)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    text = ModuleAttributes.Apply(text, new Newtonsoft.Json.Linq.JObject { ["members"] = new Newtonsoft.Json.Linq.JObject { [member.Name] = missing } });
+                    restored.AddRange(missing.Properties().Select(a => member.Name + "." + a.Name));
+                }
+                catch (ApiException)
+                {
+                    //The new code has no such member any more; its attributes went with it, as they should.
+                }
+            }
+
+            if (restored.Count == 0)
+            {
+                return info;
+            }
+
+            try
+            {
+                var result = _store.ReplaceText(project, module, text, after.Hash);
+                result.Notes = new List<string> { "Put back the member attributes the editor dropped: " + string.Join(", ", restored) + "." };
+                return result;
+            }
+            catch (ApiException exception)
+            {
+                info.Notes = new List<string> { $"The code was written, but these member attributes were dropped and could not be put back ({exception.Message}): {string.Join(", ", restored)}. Set them with 'attributes'." };
+                return info;
+            }
         }
 
         public ModuleInfo ReplaceCode(string client, string project, string module, string code, string expectedHash)
@@ -72,7 +143,7 @@ namespace Rubberduck.Api
             RequireHash(expectedHash);
             RejectHeaderLines(code);
             _approval.Require(client);
-            return _store.ReplaceCode(project, module, code, expectedHash);
+            return KeepingMemberAttributes(project, module, () => _store.ReplaceCode(project, module, code, expectedHash));
         }
 
         public ModuleInfo ReplaceText(string client, string project, string module, string text, string expectedHash)
@@ -95,7 +166,7 @@ namespace Rubberduck.Api
 
             RejectHeaderLines(replacement);
             _approval.Require(client);
-            return _store.EditLines(project, module, startLine, endLine, replacement, expectedHash);
+            return KeepingMemberAttributes(project, module, () => _store.EditLines(project, module, startLine, endLine, replacement, expectedHash));
         }
 
         public ModuleInfo Create(string client, string project, string module, string kind, string code)
@@ -250,11 +321,11 @@ namespace Rubberduck.Api
             switch (Op(edit))
             {
                 case "replacecode":
-                    return _store.ReplaceCode(project, edit.Module, edit.Code, edit.ExpectedHash);
+                    return KeepingMemberAttributes(project, edit.Module, () => _store.ReplaceCode(project, edit.Module, edit.Code, edit.ExpectedHash));
                 case "replacetext":
                     return _store.ReplaceText(project, edit.Module, edit.Text, edit.ExpectedHash);
                 case "editlines":
-                    return _store.EditLines(project, edit.Module, edit.StartLine, edit.EndLine, edit.Replacement, edit.ExpectedHash);
+                    return KeepingMemberAttributes(project, edit.Module, () => _store.EditLines(project, edit.Module, edit.StartLine, edit.EndLine, edit.Replacement, edit.ExpectedHash));
                 case "create":
                     return _store.Create(project, edit.Module, (edit.Kind ?? ModuleKinds.Standard).ToLowerInvariant(), edit.Code ?? string.Empty);
                 default:

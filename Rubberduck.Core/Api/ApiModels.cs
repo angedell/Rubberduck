@@ -116,6 +116,9 @@ namespace Rubberduck.Api
 
         /// <summary>Identifies the code as it is now. Writes have to send it back, so nothing the user typed in the meantime is overwritten.</summary>
         public string Hash { get; set; }
+
+        /// <summary>What was done besides what was asked, e.g. member attributes that the editor dropped and were put back.</summary>
+        public List<string> Notes { get; set; }
     }
 
     public class ModuleContent : ModuleInfo
@@ -128,6 +131,9 @@ namespace Rubberduck.Api
 
         /// <summary>The hidden attributes as data: <c>{ "module": { "VB_PredeclaredId": true }, "members": { "Greet": { "VB_UserMemId": 0 } } }</c>. Only set when asked for (<c>include=attributes</c>).</summary>
         public Newtonsoft.Json.Linq.JObject Attributes { get; set; }
+
+        /// <summary>Identifies the attributes as they are now (with include=attributes). Hash only covers the code; send this as expectedAttributesHash to change attributes only if nobody else has.</summary>
+        public string AttributesHash { get; set; }
     }
 
     public static class ModuleKinds
@@ -248,6 +254,9 @@ namespace Rubberduck.Api
 
         /// <summary>False if the window was still changing when the wait ran out, e.g. the code is still running. Read it again later.</summary>
         public bool Completed { get; set; }
+
+        /// <summary>Where the editor is now: "design", "running_or_break" (the command left a macro running or stopped), or "unresponsive". Same values as in GET /projects.</summary>
+        public string VbeMode { get; set; }
 
         /// <summary>
         /// Errors the editor reported in a dialog while the command ran, e.g. "Run-time error '11': Division by zero".

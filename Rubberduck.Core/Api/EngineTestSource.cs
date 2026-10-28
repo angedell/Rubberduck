@@ -79,8 +79,54 @@ namespace Rubberduck.Api
                     try
                     {
                         _engine.Run(selected);
-                        var waited = DialogAwareWait.Wait(slice => finished.Wait(slice), wait, _dialogs);
-                        var report = TestsApi.Summarize(name, waited.Completed, selected.Select(ToInfo));
+
+                        //A compile error stops the module from running at all, and the engine would go on to the next test and hit the same error again, each time
+                        //with a dialog; the same message twice says the run is going nowhere. Either way the run is cancelled instead of waiting for it to wear out.
+                        var cancelled = false;
+                        Action<string, int> onError = (message, times) =>
+                        {
+                            if (!cancelled && (times > 1 || message.StartsWith("Compile error", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                cancelled = true;
+                                _engine.RequestCancellation();
+
+                                //Ending the dialog leaves the editor stopped on the faulty line, and the engine waits for it there until somebody resets it:
+                                //so do it now, not after the wait, which would run its whole length with the editor in break mode.
+                                _parser.ResetIfStopped();
+                            }
+                        };
+
+                        var waited = DialogAwareWait.Wait(slice => finished.Wait(slice), wait, _dialogs, onError: onError);
+                        if (cancelled && !waited.Completed && waited.Blocked == null)
+                        {
+                            //Let the engine wind down, still closing the dialogs it raises on the way.
+                            var rest = DialogAwareWait.Wait(slice => finished.Wait(slice), TimeSpan.FromSeconds(15), _dialogs);
+                            waited.Completed = rest.Completed;
+                            waited.Blocked = rest.Blocked;
+                            foreach (var message in rest.Errors)
+                            {
+                                waited.AddError(message);
+                            }
+                        }
+
+                        if (waited.Errors.Count > 0)
+                        {
+                            //The error dialogs were closed with End, which leaves the editor stopped on the line; leave it in design mode for whoever comes next.
+                            _parser.ResetIfStopped();
+                        }
+
+                        var infos = selected.Select(ToInfo).ToList();
+                        if (waited.Errors.Count > 0 && waited.Blocked == null)
+                        {
+                            //A test that never got to run because of the error did not pass either; say so in its own entry.
+                            foreach (var info in infos.Where(i => i.Outcome == TestOutcome.Unknown.ToString()))
+                            {
+                                info.Outcome = TestOutcome.Failed.ToString();
+                                info.Output = "Did not run: " + waited.Errors[0].Replace("\n", " ").Trim();
+                            }
+                        }
+
+                        var report = TestsApi.Summarize(name, waited.Completed, infos);
                         report.Errors = waited.Errors;
                         report.BlockedByDialog = waited.Blocked;
                         return report;

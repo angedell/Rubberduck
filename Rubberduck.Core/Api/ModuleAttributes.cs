@@ -18,6 +18,16 @@ namespace Rubberduck.Api
         private static readonly Regex DeclarationLine = new Regex(@"^\s*(?:(?:Public|Private|Friend|Global|Static)\s+)*(?:Sub|Function|Property\s+(?:Get|Let|Set))\s+(?<name>\w+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex ValidKey = new Regex(@"^VB_\w+$", RegexOptions.Compiled);
 
+        /// <summary>Identifies a set of attributes, the way the hash of a module identifies its code.</summary>
+        public static string Hash(JObject attributes)
+        {
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            {
+                var bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(attributes.ToString(Newtonsoft.Json.Formatting.None)));
+                return string.Concat(bytes.Select(b => b.ToString("x2")));
+            }
+        }
+
         public static JObject Parse(string exportedText)
         {
             var module = new JObject();

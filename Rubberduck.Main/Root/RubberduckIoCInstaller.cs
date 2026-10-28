@@ -1309,7 +1309,7 @@ namespace Rubberduck.Root
                 .UsingFactoryMethod(kernel =>
                 {
                     var state = kernel.Resolve<ApiState>();
-                    return new ImmediateApi(kernel.Resolve<IImmediateWindow>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate, dialogs: kernel.Resolve<IDialogWatcher>());
+                    return new ImmediateApi(kernel.Resolve<IImmediateWindow>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate, dialogs: kernel.Resolve<IDialogWatcher>(), editorMode: () => kernel.Resolve<ParserSync>().EditorMode());
                 })
                 .LifestyleSingleton());
             container.Register(Component.For<ModuleApi>()
@@ -1323,6 +1323,8 @@ namespace Rubberduck.Root
                 .ImplementedBy<RubberduckLogControl>()
                 .LifestyleSingleton());
             container.Register(Component.For<LogApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<DumpApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());

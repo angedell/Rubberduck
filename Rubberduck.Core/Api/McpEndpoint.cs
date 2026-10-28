@@ -22,11 +22,15 @@ namespace Rubberduck.Api
         private readonly TestsApi _tests;
         private readonly CheckApi _check;
         private readonly LogApi _log;
+        private readonly ParserSync _parser;
+        private readonly DumpApi _dump;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
         {
             _log = log;
+            _dump = dump;
+            _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
             _immediate = immediate;
@@ -166,6 +170,7 @@ namespace Rubberduck.Api
             .Concat(_tests != null ? TestTools().Where(t => t.Name != "run_tests" || _tests.IsEnabled) : Enumerable.Empty<Tool>())
             .Concat(_check != null ? CheckTools() : Enumerable.Empty<Tool>())
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
+            .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
@@ -298,6 +303,24 @@ namespace Rubberduck.Api
                 Properties = new JObject { ["level"] = String("Trace, Debug, Info, Warn, Error, Fatal or Off.") },
                 Required = new[] { "level" },
                 Run = (args, client) => _log.SetLevel(client, Arg(args, "level"))
+            }
+        }.ToList());
+
+        private IList<Tool> _dumpTools;
+
+        private IEnumerable<Tool> DumpTools() => _dumpTools ?? (_dumpTools = new[]
+        {
+            new Tool
+            {
+                Name = "capture_dump",
+                Description = "Takes a memory dump of the editor's process with Sysinternals ProcDump, for when the editor or the API hangs (calls time out with 503, the parser stays Busy, Excel shows 'waiting for an OLE action'). It works while the editor's UI thread is stuck. The dump contains everything in memory, the open documents included, so the user has to approve it like a write. Answers with the file; ask the user to share it. If ProcDump is not installed the error says where to put it.",
+                Properties = new JObject
+                {
+                    ["kind"] = String("'full' (default, all memory) or 'mini' (small: threads and stacks only)."),
+                    ["waitSeconds"] = Integer("How long to wait for ProcDump. Default 120, at most 300.")
+                },
+                Required = new string[0],
+                Run = (args, client) => _dump.Capture(client, args.Value<string>("kind"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
             }
         }.ToList());
 
@@ -508,10 +531,17 @@ namespace Rubberduck.Api
             },
             new Tool
             {
-                Name = "list_projects",
-                Description = "Lists the VBA projects open in the editor.",
+                Name = "reparse",
+                Description = "Does what Refresh in the Code Explorer does: parses everything again and waits until the parser is done. Use it when a workbook was opened after Rubberduck started and list_projects does not show it. Answers with the parser state and the projects.",
                 Properties = new JObject(), Required = new string[0],
-                Run = (args, client) => _api.Projects()
+                Run = (args, client) => ApiRouter.ReparseReport(_parser, _api)
+            },
+            new Tool
+            {
+                Name = "list_projects",
+                Description = "Lists the VBA projects open in the editor, and 'vbeMode': 'design' (all is well), 'running_or_break' (a macro runs or is stopped: writes, tests and the parser are refused with 409 until the user resets it in the editor) or 'unresponsive' (the editor does not answer, probably a dialog nobody can see; no projects are listed).",
+                Properties = new JObject(), Required = new string[0],
+                Run = (args, client) => ApiRouter.ProjectsReport(_parser, _api)
             },
             new Tool
             {
@@ -545,7 +575,8 @@ namespace Rubberduck.Api
                     ["expectedHash"] = String("The hash from the read this write is based on."),
                     ["code"] = String("The new code, without header."),
                     ["text"] = String("The new module as exported, with header. Use instead of code."),
-                    ["attributes"] = new JObject { ["type"] = "object", ["description"] = "Hidden attributes to set: { module: { VB_Name: value }, members: { MemberName: { VB_UserMemId: 0 } } }." }
+                    ["attributes"] = new JObject { ["type"] = "object", ["description"] = "Hidden attributes to set: { module: { VB_Name: value }, members: { MemberName: { VB_UserMemId: 0 } } }." },
+                    ["expectedAttributesHash"] = String("With 'attributes' alone: the attributesHash from your last read with include=attributes. Refused if the attributes changed since.")
                 },
                 Required = new[] { "project", "module", "expectedHash" },
                 Run = (args, client) =>
@@ -558,7 +589,7 @@ namespace Rubberduck.Api
 
                     if (args["code"] == null && attributes != null)
                     {
-                        return _api.WriteAttributes(client, Arg(args, "project"), Arg(args, "module"), attributes, Arg(args, "expectedHash"));
+                        return _api.WriteAttributes(client, Arg(args, "project"), Arg(args, "module"), attributes, Arg(args, "expectedHash"), args.Value<string>("expectedAttributesHash"));
                     }
 
                     var replaced = _api.ReplaceCode(client, Arg(args, "project"), Arg(args, "module"), Arg(args, "code"), Arg(args, "expectedHash"));

@@ -19,17 +19,18 @@ namespace Rubberduck.Api
 
         private readonly List<KeyValuePair<string, int>> _counts = new List<KeyValuePair<string, int>>();
 
-        internal void AddError(string message)
+        /// <returns>How many times this message has come up, this one included.</returns>
+        internal int AddError(string message)
         {
             var at = _counts.FindIndex(c => c.Key == message);
             if (at < 0)
             {
                 _counts.Add(new KeyValuePair<string, int>(message, 1));
+                return 1;
             }
-            else
-            {
-                _counts[at] = new KeyValuePair<string, int>(message, _counts[at].Value + 1);
-            }
+
+            _counts[at] = new KeyValuePair<string, int>(message, _counts[at].Value + 1);
+            return _counts[at].Value;
         }
 
         /// <summary>A dialog nobody could answer for the caller, such as a message box of the code that ran. The wait ended because of it.</summary>
@@ -47,7 +48,8 @@ namespace Rubberduck.Api
         /// <param name="waitSlice">Waits up to the given time; true as soon as what is waited for has happened.</param>
         /// <param name="dialogs">Null means nobody looks for dialogs, and this is a plain wait.</param>
         /// <param name="clock">Time since some fixed point; replaceable so tests need not wait.</param>
-        public static DialogAwareWaitResult Wait(Func<TimeSpan, bool> waitSlice, TimeSpan total, IDialogWatcher dialogs, Func<TimeSpan> clock = null)
+        /// <param name="onError">Told of each error dialog that was closed: its text and how many times that text has come up.</param>
+        public static DialogAwareWaitResult Wait(Func<TimeSpan, bool> waitSlice, TimeSpan total, IDialogWatcher dialogs, Func<TimeSpan> clock = null, Action<string, int> onError = null)
         {
             var result = new DialogAwareWaitResult();
             if (clock == null)
@@ -76,7 +78,9 @@ namespace Rubberduck.Api
                 {
                     if (dialog.IsEditorError && dialogs.Acknowledge(dialog))
                     {
-                        result.AddError(dialog.Message ?? dialog.Title);
+                        var text = dialog.Message ?? dialog.Title;
+                        var times = result.AddError(text);
+                        onError?.Invoke(text, times);
                         continue;
                     }
 

@@ -49,13 +49,16 @@ namespace Rubberduck.Api
         private readonly Action<TimeSpan> _sleep;
         private readonly Func<TimeSpan> _clock;
         private readonly IDialogWatcher _dialogs;
+        private readonly Func<string> _editorMode;
 
+        /// <param name="editorMode">Where the editor is after a command, so a macro that stopped it is seen at once; left out, the answer has no mode.</param>
         /// <param name="dialogs">Looks for the editor's error dialogs while a command runs; without it, an error dialog is left for the user.</param>
         /// <param name="sleep">Waits between reads; replaceable so tests need not wait.</param>
         /// <param name="clock">Time since some fixed point; must move when <paramref name="sleep"/> is called.</param>
-        public ImmediateApi(IImmediateWindow window, ApiExecuteApproval approval, Func<bool> enabled, Action<TimeSpan> sleep = null, Func<TimeSpan> clock = null, IDialogWatcher dialogs = null)
+        public ImmediateApi(IImmediateWindow window, ApiExecuteApproval approval, Func<bool> enabled, Action<TimeSpan> sleep = null, Func<TimeSpan> clock = null, IDialogWatcher dialogs = null, Func<string> editorMode = null)
         {
             _dialogs = dialogs;
+            _editorMode = editorMode;
             _window = window;
             _approval = approval;
             _enabled = enabled;
@@ -130,6 +133,7 @@ namespace Rubberduck.Api
 
             run.Output = Delta(before, after);
             run.Completed = settled;
+            run.VbeMode = _editorMode?.Invoke();
             return run;
         }
 

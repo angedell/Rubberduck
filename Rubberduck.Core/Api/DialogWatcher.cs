@@ -23,6 +23,9 @@ namespace Rubberduck.Api
         [Newtonsoft.Json.JsonIgnore]
         public bool IsEditorError { get; set; }
 
+        /// <summary>What the dialog looked like to the watcher, to see why it was not recognised as the editor's own: its owner window's class and the ids of its buttons.</summary>
+        public string Diagnostics { get; set; }
+
         [Newtonsoft.Json.JsonIgnore]
         public IntPtr Handle { get; set; }
     }
@@ -49,6 +52,9 @@ namespace Rubberduck.Api
 
         //The class of the editor's main window; its error dialogs are owned by it.
         private const string EditorWindowClass = "wndclass_desked_gsk";
+
+        //The title the editor gives its own error dialogs.
+        private const string EditorDialogTitle = "Microsoft Visual Basic";
 
         //What the button that ends the error is called; the first one present is pressed. Never Debug: that would leave the editor in break mode.
         private static readonly string[] Acknowledging = { "End", "OK" };
@@ -78,12 +84,15 @@ namespace Rubberduck.Api
 
                 var dialog = new BlockingDialog { Handle = window, Title = TextOf(window) };
                 var hasHelp = false;
+                var ids = new List<string>();
                 foreach (var child in Children(window))
                 {
                     var kind = ClassOf(child);
                     if (kind == "Button")
                     {
-                        dialog.Buttons.Add(TextOf(child).Replace("&", string.Empty));
+                        var label = TextOf(child).Replace("&", string.Empty);
+                        dialog.Buttons.Add(label);
+                        ids.Add($"{label}={GetDlgCtrlID(child)}");
                         hasHelp |= GetDlgCtrlID(child) == HelpButtonId;
                     }
                     else if (kind == "Static" && dialog.Message == null)
@@ -96,7 +105,12 @@ namespace Rubberduck.Api
                     }
                 }
 
-                dialog.IsEditorError = hasHelp && ClassOf(GetWindow(window, GwOwner)) == EditorWindowClass;
+                //A run-time error dialog (Continue/End/Debug/Help) is not always owned by the editor's window, so its title counts as well.
+                var ownerClass = ClassOf(GetWindow(window, GwOwner));
+                var titled = dialog.Title.StartsWith(EditorDialogTitle, StringComparison.OrdinalIgnoreCase);
+                dialog.IsEditorError = (hasHelp && ownerClass == EditorWindowClass)
+                                       || (titled && (hasHelp || dialog.Buttons.Contains("End", StringComparer.OrdinalIgnoreCase)));
+                dialog.Diagnostics = $"owner class '{ownerClass}'; buttons {string.Join(", ", ids)}";
                 return dialog;
             }
 

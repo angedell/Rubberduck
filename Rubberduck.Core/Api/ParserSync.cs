@@ -47,6 +47,60 @@ namespace Rubberduck.Api
             return task.Result;
         }
 
+        public const string ModeDesign = "design";
+        public const string ModeRunningOrBreak = "running_or_break";
+        public const string ModeUnresponsive = "unresponsive";
+
+        /// <summary>
+        /// Where the editor is, for a caller to see before it tries anything: "design", "running_or_break" (a macro runs or is stopped; the editor cannot tell the two apart),
+        /// or "unresponsive" (it did not answer in a few seconds: a dialog, a hung call). Never throws.
+        /// </summary>
+        public string EditorMode()
+        {
+            var task = _dispatcher.StartTask(() => _vbe.IsInDesignMode, CancellationToken.None);
+            try
+            {
+                if (!task.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    return ModeUnresponsive;
+                }
+
+                return task.Result ? ModeDesign : ModeRunningOrBreak;
+            }
+            catch (AggregateException)
+            {
+                return ModeUnresponsive;
+            }
+        }
+
+        //The id of Run > Reset on the editor's menu.
+        private const int ResetCommandId = 228;
+
+        /// <summary>
+        /// Presses Run > Reset if code is stopped (break mode), as after a compile error whose dialog was closed with End: the editor stays on the faulty line,
+        /// and the next edit would raise a "this action will reset your project" prompt that nobody can answer for the caller. True if it is in design mode afterwards.
+        /// </summary>
+        public bool ResetIfStopped()
+        {
+            var task = _dispatcher.StartTask(() =>
+            {
+                if (_vbe.IsInDesignMode)
+                {
+                    return true;
+                }
+
+                using (var bars = _vbe.CommandBars)
+                using (var reset = bars.FindControl(ResetCommandId))
+                {
+                    reset?.Execute();
+                }
+
+                return _vbe.IsInDesignMode;
+            }, CancellationToken.None);
+
+            return task.Wait(TimeSpan.FromSeconds(10)) && task.Result;
+        }
+
         public (string Id, string Name) ResolveProject(string key)
         {
             var task = _dispatcher.StartTask(() => _projects.Projects().Select(p => (p.ProjectId, p.Project.Name)).ToList(), CancellationToken.None);

@@ -200,8 +200,12 @@ namespace Rubberduck.Api
             }
         }
 
+        //A request that takes this long is worth a line in the log at Info; the rest are Debug.
+        private static readonly TimeSpan SlowRequest = TimeSpan.FromSeconds(2);
+
         private void Serve(HttpListenerContext context)
         {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
             ApiResponse response;
             try
             {
@@ -215,6 +219,20 @@ namespace Rubberduck.Api
             {
                 Logger.Error(exception, "API request failed.");
                 response = ApiResponse.Error(500, "internal_error", exception.Message);
+            }
+
+            var slow = timer.Elapsed >= SlowRequest;
+            if (slow || Logger.IsDebugEnabled)
+            {
+                var line = $"API {context.Request.HttpMethod} {context.Request.Url?.AbsolutePath} -> {response.Status} in {(int)timer.Elapsed.TotalMilliseconds} ms";
+                if (slow)
+                {
+                    Logger.Info(line);
+                }
+                else
+                {
+                    Logger.Debug(line);
+                }
             }
 
             try

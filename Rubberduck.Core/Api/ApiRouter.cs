@@ -44,12 +44,16 @@ namespace Rubberduck.Api
         private readonly TestsApi _tests;
         private readonly CheckApi _check;
         private readonly LogApi _log;
+        private readonly ParserSync _parser;
+        private readonly DumpApi _dump;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
         {
             _log = log;
+            _dump = dump;
+            _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
             _immediate = immediate;
@@ -57,7 +61,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -96,6 +100,35 @@ namespace Rubberduck.Api
             return new InfoReport { Name = "Rubberduck", Version = build.Version, Commit = build.Commit, Display = build.Display, Api = "v1" };
         }
 
+        /// <summary>
+        /// The open projects and where the editor is (<see cref="ParserSync.EditorMode"/>). If the editor does not answer, there is no list: asking for it would wait
+        /// for a minute, and the mode is the news. Public so the MCP tool gives the same answer.
+        /// </summary>
+        public static object ProjectsReport(ParserSync parser, ModuleApi api)
+        {
+            if (parser == null)
+            {
+                return new { projects = api.Projects() };
+            }
+
+            var mode = parser.EditorMode();
+            return mode == ParserSync.ModeUnresponsive
+                ? (object)new { vbeMode = mode, note = "The editor did not answer in 5 seconds: it may be showing a dialog or stuck in a call. Look for a window you cannot see, or take a dump (POST /api/v1/dump)." }
+                : new { vbeMode = mode, projects = api.Projects() };
+        }
+
+        /// <summary>What a reparse answers: how the parser ended, and the projects it now knows. Public so the MCP tool gives the same answer.</summary>
+        public static object ReparseReport(ParserSync parser, ModuleApi api)
+        {
+            if (parser == null)
+            {
+                throw ApiException.Unavailable("Reparsing is not available here.");
+            }
+
+            var state = parser.CatchUp();
+            return new { parserState = state.ToString(), projects = api.Projects() };
+        }
+
         private ApiResponse Route(ApiRequest request, string[] segments)
         {
             var method = request.Method.ToUpperInvariant();
@@ -104,7 +137,29 @@ namespace Rubberduck.Api
             if (segments.Length == 1 && segments[0] == "projects")
             {
                 Allow(method, "GET");
-                return ApiResponse.Json(new { projects = _api.Projects() });
+                return ApiResponse.Json(ProjectsReport(_parser, _api));
+            }
+
+            // /reparse: what Refresh in the Code Explorer does. Without a project: it is how a workbook opened since the last parse becomes visible.
+            if (segments.Length == 1 && segments[0] == "reparse" && _parser != null)
+            {
+                Allow(method, "POST");
+                return ApiResponse.Json(ReparseReport(_parser, _api));
+            }
+
+            // /dump: a memory dump of the editor's process, for when it hangs
+            if (segments.Length == 1 && segments[0] == "dump" && _dump != null)
+            {
+                switch (method)
+                {
+                    case "GET":
+                        return ApiResponse.Json(_dump.Status());
+                    case "POST":
+                        var options = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
+                        return ApiResponse.Json(_dump.Capture(request.Client, options.Value<string>("kind"), options.Value<int?>("waitSeconds")));
+                    default:
+                        throw MethodNotAllowed("GET, POST");
+                }
             }
 
             // /info: which build is answering
@@ -389,7 +444,7 @@ namespace Rubberduck.Api
                     }
                     else
                     {
-                        replaced = _api.WriteAttributes(request.Client, project, module, attributes, hash);
+                        replaced = _api.WriteAttributes(request.Client, project, module, attributes, hash, put.Value<string>("expectedAttributesHash"));
                     }
 
                     return ApiResponse.Json(replaced, replaced.Hash);

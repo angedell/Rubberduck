@@ -32,7 +32,10 @@ namespace Rubberduck.Api
             var (id, name) = _parser.ResolveProject(project);
             var state = _parser.CatchUp();
             var report = new ParserErrorsReport { Project = name, ParserState = state.ToString() };
-            foreach (var pair in _parser.State.ModuleExceptions.Where(e => SameProject(e.Item1.ProjectId, id)))
+            //The parser keeps the exception of a module that was deleted until the next full parse, so only modules that are still in the editor count.
+            //(Not asked of the declarations: a module that did not parse may have none.)
+            var live = LiveModuleNames(id);
+            foreach (var pair in _parser.State.ModuleExceptions.Where(e => SameProject(e.Item1.ProjectId, id) && live.Contains(e.Item1.ComponentName)))
             {
                 var exception = pair.Item2;
                 report.Errors.Add(new ParserError
@@ -48,6 +51,30 @@ namespace Rubberduck.Api
 
             report.Errors = report.Errors.OrderBy(e => e.Module, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Line).ToList();
             return report;
+        }
+
+        private HashSet<string> LiveModuleNames(string projectId)
+        {
+            var task = _dispatcher.StartTask(() =>
+            {
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (qualifiedName, component) in _projects.Components(projectId))
+                {
+                    using (component)
+                    {
+                        names.Add(qualifiedName.ComponentName);
+                    }
+                }
+
+                return names;
+            }, CancellationToken.None);
+
+            if (!task.Wait(TimeSpan.FromSeconds(30)))
+            {
+                throw ApiException.Unavailable("The editor did not respond in time.");
+            }
+
+            return task.Result;
         }
 
         public SymbolsReport Symbols(string project, string module, bool includeLocals, string kind)
