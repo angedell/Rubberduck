@@ -28,11 +28,14 @@ namespace Rubberduck.Api
         private readonly VbeResetApi _vbeReset;
         private readonly ReadyWait _ready;
         private readonly SyncAttributesApi _syncAttributes;
+        private readonly RefactorRenameApi _renameRefactor;
+        private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
             ReadyWait ready = null,
-            SyncAttributesApi syncAttributes = null)
+            SyncAttributesApi syncAttributes = null,
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
         {
             _firewall = firewall;
             _syncAttributes = syncAttributes;
@@ -40,6 +43,8 @@ namespace Rubberduck.Api
             _log = log;
             _dump = dump;
             _vbeReset = vbeReset;
+            _renameRefactor = renameRefactor;
+            _encapsulateRefactor = encapsulateRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -183,7 +188,13 @@ namespace Rubberduck.Api
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
             .Concat(_vbeReset != null ? VbeResetTools() : Enumerable.Empty<Tool>())
             .Concat(_syncAttributes != null ? SyncAttributesTools() : Enumerable.Empty<Tool>())
+            .Concat(_renameRefactor != null ? FromSpecs(_renameRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
+
+        //Tools that come with their feature, described by the feature (see RefactorToolSpec).
+        private static IEnumerable<Tool> FromSpecs(IEnumerable<RefactorToolSpec> specs)
+            => specs.Select(s => new Tool { Name = s.Name, Description = s.Description, Properties = s.Properties, Required = s.Required, Run = s.Run });
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
 

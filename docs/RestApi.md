@@ -96,6 +96,38 @@ All read-only and without approval. Each waits for the parser to catch up with t
 
 `POST /api/v1/projects/{p}/check` with `{ "module": "...", "runTests": false }` (both optional). Parser errors first; if the code parsed, the inspections of `warning` or `error` severity; and with `runTests`, the unit tests (same rules as above). `clean` is `true` when there is nothing to fix. It takes `waitSeconds` too (as above); when the inspections are not done in time, `inspectionsStatus` is `"running"` and `clean` is `false`: ask again, and the results are there. It looks at warnings and errors only; `suppressed` counts what was left out (`{ "suggestion": 4, "hint": 1 }`), so a clean answer is not mistaken for "the inspections found nothing". Ask for the diagnostics to see those. Code that did not parse gets no inspections or tests: fix the parser errors first.
 
+### Refactorings
+
+Rubberduck's own refactorings, run without their dialogs. Each has a preview that changes nothing and an apply that does; **look before you apply**. Applying needs the same approval as module writes, the editor in design mode (otherwise 409 `vbe_not_in_design_mode`) and the parser caught up with the editor (the call waits for it, as the understanding-the-code routes do). One refactoring runs at a time (409 otherwise). A refactoring edits several modules at once: read again any module you hold, their hashes have changed.
+
+#### Rename
+
+`POST /api/v1/projects/{p}/refactor/rename/preview` and `POST /api/v1/projects/{p}/refactor/rename`, with the same body:
+
+```
+{ "module": "Module1", "name": "Alpha", "newName": "Beta" }
+```
+
+Name the declaration as the symbols routes do: `module` and `name`, narrowed by `kind` (`Function`, `Variable`, `Parameter`, `PropertyGet`...) and by `line` (and `column`) where the name is declared, which parameters and local variables always need since their names repeat. `line` and `column` alone also work, and may point at a use of the name instead of its declaration. A name that matches several declarations is a 409 that lists them (the Get, Let and Set of one property count as one). A module is renamed by giving its own name, a form control by the control's name.
+
+The preview answers with `target`; `resolvedTarget` and `resolvedBecause` when Rubberduck would rename something else (the interface member behind an implementation, the control behind its event handler, the event behind a handler: `interface member`, `control event handler`, `user event`); `valid` and `problems` (the new name is not a legal identifier, only differs in case, or is the current name); `conflicts` (declarations the new name would clash with); and `referenceCount` and `modulesAffected`, which are rewritten with it. Applying refuses what the preview flags, as 422 `refactoring_refused` for a name that cannot be used, and as 409 for the other two unless the request says it is fine: `"acceptResolvedTarget": true`, `"allowConflicts": true`. The answer is `{ "oldName", "newName", "renamed", "referenceCount", "modulesAffected", "note" }`.
+
+MCP tools: `preview_rename` and `rename_symbol`, with the same fields plus `project`.
+
+#### Encapsulate field
+
+`POST /api/v1/projects/{p}/refactor/encapsulate-field/preview` and `POST /api/v1/projects/{p}/refactor/encapsulate-field`, with the same body:
+
+```
+{ "module": "Module1", "name": "count", "propertyName": "Count", "readOnly": false, "strategy": "backingField" }
+```
+
+The field is a module-level variable (not one inside a procedure), named as for rename: `module`, `name`, and `line`/`column` where the name is declared if it is not unique. All the rest is optional: `propertyName` (default: the field's name capitalised, without clashing with anything), `readOnly` (`true`: a Property Get only; default read/write, except arrays), `strategy` (`backingField`: the field is renamed and stays behind the property; `udtMember`: the field becomes a member of the module's private Type; default: Rubberduck's choice, which is `udtMember` if the module already has such a Type).
+
+The preview answers with the `strategy` in effect, `properties` (per field: `propertyName`, `backingField`, `readOnly`, `canBeReadWrite`, `assignedExternally`), `valid` and `problems` (a name that clashes or is not an identifier, `readOnly: false` on an array, `readOnly: true` on a field that other modules assign...), and `code`, the text the refactoring's own dialog previews. Applying refuses what the preview flags with 422 `refactoring_refused`, and otherwise encapsulates the field and rewrites its uses to go through the property. The answer is `{ "module", "field", "strategy", "properties", "note" }`.
+
+MCP tools: `preview_encapsulate_field` and `encapsulate_field`, with the same fields plus `project`.
+
 ### Ribbon XML and pictures
 
 The ribbon XML and pictures stored inside the project's document file: `customUI.xml` (Office 2007) or `customUI14.xml` (2010 and later), and the pictures in `customUI/images` (png, jpg, gif, bmp, ico; 5 MB at most). Only saved Open XML documents have them; for others `supported` is `false`. `{r}` is the resource's file name.

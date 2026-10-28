@@ -49,13 +49,16 @@ namespace Rubberduck.Api
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
         private readonly SyncAttributesApi _syncAttributes;
+        private readonly RefactorRenameApi _renameRefactor;
+        private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
         private readonly McpEndpoint _mcp;
         private readonly ReadyWait _ready;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
             InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null, IFirewallCheck firewall = null, VbeResetApi vbeReset = null,
             ReadyWait ready = null,
-            SyncAttributesApi syncAttributes = null)
+            SyncAttributesApi syncAttributes = null,
+            RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null)
         {
             _syncAttributes = syncAttributes;
             _firewall = firewall;
@@ -63,6 +66,8 @@ namespace Rubberduck.Api
             _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
             _log = log;
             _dump = dump;
+            _renameRefactor = renameRefactor;
+            _encapsulateRefactor = encapsulateRefactor;
             _parser = parser;
             _api = api;
             _diagnostics = diagnostics;
@@ -71,7 +76,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -388,6 +393,12 @@ namespace Rubberduck.Api
                     Allow(method, "POST");
                     var check = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
                     return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests"), OptionalInt(check, "waitSeconds")));
+
+                case "refactor" when rest == "rename" && _renameRefactor != null:
+                    return _renameRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "encapsulate-field" && _encapsulateRefactor != null:
+                    return _encapsulateRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");
