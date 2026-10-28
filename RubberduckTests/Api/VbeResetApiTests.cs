@@ -137,11 +137,12 @@ namespace RubberduckTests.Api
         }
 
         [Test]
-        public void Reset_ReportedDesignButResultFalse_Is409()
+        public void Reset_TheModeReadAfterwardsDecides_NotTheImmediateReturnValue()
         {
+            //Live, the call returned false because the editor had not left break mode yet, although the reset worked.
             _resetResult = false;
 
-            Assert.AreEqual(409, Send("POST").Status);
+            Assert.AreEqual(200, Send("POST").Status);
         }
 
         [Test]
