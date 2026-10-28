@@ -25,10 +25,15 @@ namespace Rubberduck.UI.CodeExplorer
                 return;
             }
 
+            //MouseDoubleClick is raised on every item from the clicked one up to the root, each on its own (marking it handled stops nothing),
+            //and each would open the selected item again. Only the item that is the selected one acts.
+            if (sender is TreeViewItem item && !ReferenceEquals(item.DataContext, ViewModel?.SelectedItem))
+            {
+                return;
+            }
+
             if (ViewModel != null && ViewModel.OpenCommand.CanExecute(ViewModel.SelectedItem))
             {
-                //Before the command runs: it may show a dialog and not return until that is closed, and the event would meanwhile
-                //go on to the parent nodes (Resources, the project), each of which would open the same item again.
                 e.Handled = true;
                 ViewModel.OpenCommand.Execute(ViewModel.SelectedItem);
             }
