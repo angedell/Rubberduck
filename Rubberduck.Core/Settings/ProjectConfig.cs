@@ -6,6 +6,7 @@ using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
+using Rubberduck.Ship;
 using Rubberduck.SmartIndenter;
 
 namespace Rubberduck.Settings
@@ -25,6 +26,9 @@ namespace Rubberduck.Settings
 
         /// <summary>What the file says about syncing the project with its folder. Empty if there is no file.</summary>
         public SyncConfig Sync { get; } = new SyncConfig();
+
+        /// <summary>What the file says about shipping the project; null if it has no <c>ship</c> section.</summary>
+        public ShipSettings Ship { get; set; }
 
         /// <summary>Unknown keys, bad values and malformed JSON. The file is ignored for whatever could not be read.</summary>
         public List<string> Errors { get; } = new List<string>();
@@ -82,6 +86,13 @@ namespace Rubberduck.Settings
     ///     "enforce": ["ModuleWithoutFolder", "MissingAttribute"],
     ///     "onViolation": "fix",
     ///     "ignoreCaseOutsideStrings": true
+    ///   },
+    ///   "ship": {
+    ///     "format": "xlsm",
+    ///     "outputFolder": "../dist",
+    ///     "fileName": "",
+    ///     "onExisting": "ask",
+    ///     "steps": { "comments": true }
     ///   }
     /// }
     /// </code>
@@ -177,7 +188,8 @@ namespace Rubberduck.Settings
 
                 var isIndenter = section.Name.Equals(IndenterKey, StringComparison.OrdinalIgnoreCase);
                 var isSync = section.Name.Equals(SyncKey, StringComparison.OrdinalIgnoreCase);
-                if (!isIndenter && !isSync)
+                var isShip = section.Name.Equals(ShipSettingsJson.Key, StringComparison.OrdinalIgnoreCase);
+                if (!isIndenter && !isSync && !isShip)
                 {
                     config.Errors.Add($"Unknown section '{section.Name}'.");
                     continue;
@@ -192,6 +204,11 @@ namespace Rubberduck.Settings
                 if (isIndenter)
                 {
                     Apply(body, settings, config.Errors);
+                }
+                else if (isShip)
+                {
+                    config.Ship = new ShipSettings();
+                    ShipSettingsJson.Read(body, config.Ship, config.Errors);
                 }
                 else
                 {

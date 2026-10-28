@@ -47,6 +47,8 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly NotesApi _notes;
+        private readonly ShipApi _ship;
+        private readonly FormApi _forms;
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
         private readonly SyncAttributesApi _syncAttributes;
@@ -64,9 +66,13 @@ namespace Rubberduck.Api
             RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
             RefactorMoveToFolderApi moveRefactor = null,
             QuickFixApi quickFix = null,
-            NotesApi notes = null)
+            NotesApi notes = null,
+            ShipApi ship = null,
+            FormApi forms = null)
         {
+            _forms = forms;
             _notes = notes;
+            _ship = ship;
             _syncAttributes = syncAttributes;
             _firewall = firewall;
             _vbeReset = vbeReset;
@@ -85,7 +91,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes, ship, forms);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -149,13 +155,20 @@ namespace Rubberduck.Api
                 throw ApiException.Unavailable("Reparsing is not available here.");
             }
 
-            var state = parser.CatchUp();
+            var state = parser.CatchUp(force: true);
             return new { parserState = state.ToString(), projects = api.Projects() };
         }
 
         private ApiResponse Route(ApiRequest request, string[] segments)
         {
             var method = request.Method.ToUpperInvariant();
+
+            // the root: what this is and where to go from here
+            if (segments.Length == 0)
+            {
+                Allow(method, "GET");
+                return ApiResponse.Json(new { info = InfoReport(_firewall), mcp = McpPath, routes = Routes() });
+            }
 
             // /projects
             if (segments.Length == 1 && segments[0] == "projects")
@@ -218,6 +231,13 @@ namespace Rubberduck.Api
                     default:
                         throw MethodNotAllowed("GET, PUT");
                 }
+            }
+
+            // /immediate/output: everything printed to the window (Debug.Print), also while nobody was asking
+            if (segments.Length == 2 && segments[0] == "immediate" && segments[1] == "output")
+            {
+                Allow(method, "GET");
+                return ApiResponse.Json(_immediate.Output(QueryLong(request, "since"), QueryInt(request, "limit"), Query(request, "contains"), QueryInt(request, "waitMs")));
             }
 
             // /immediate
@@ -300,6 +320,12 @@ namespace Rubberduck.Api
                 return Note(request, method, segments[1], string.Join("/", segments.Skip(3)));
             }
 
+            // /projects/{p}/modules/{m}/controls[/{c}]: the controls on a form's designer
+            if (segments.Length >= 5 && segments.Length <= 6 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "controls" && _forms != null)
+            {
+                return _forms.Route(request, method, segments);
+            }
+
             // /projects/{p}/modules/{m}/sync-attributes: GET previews, POST applies
             if (segments.Length == 5 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "sync-attributes" && _syncAttributes != null)
             {
@@ -357,6 +383,50 @@ namespace Rubberduck.Api
             }
 
             throw ApiException.NotFound("No such route.");
+        }
+
+        /// <summary>The routes this router answers, as "METHODS path". Only the ones whose part is present here, like Route does.</summary>
+        private IEnumerable<string> Routes()
+        {
+            var routes = new List<string> { "GET /info", "GET /projects", "GET,POST /projects/{p}/modules", "GET,PUT,PATCH,DELETE /projects/{p}/modules/{m}", "POST /projects/{p}/edits",
+                "GET /projects/{p}/modules/{m}/diagnostics", "GET /projects/{p}/diagnostics", "GET,POST /immediate", "GET /immediate/output" };
+            void Add(bool present, string route)
+            {
+                if (present)
+                {
+                    routes.Add(route);
+                }
+            }
+
+            Add(_parser != null, "POST /reparse");
+            Add(_vbeReset != null, "POST /vbe/reset");
+            Add(_dump != null, "GET,POST /dump");
+            Add(_log != null, "GET,PUT /log");
+            Add(_resources != null, "GET,DELETE /projects/{p}/resources");
+            Add(_resources != null, "GET,PUT,DELETE /projects/{p}/resources/{name}");
+            Add(_notes != null, "GET /projects/{p}/notes");
+            Add(_notes != null, "GET,PUT,DELETE /projects/{p}/notes/{name}");
+            Add(_syncAttributes != null, "GET,POST /projects/{p}/modules/{m}/sync-attributes");
+            Add(_forms != null, "GET,POST /projects/{p}/modules/{m}/controls");
+            Add(_forms != null, "PUT,DELETE /projects/{p}/modules/{m}/controls/{c}");
+            Add(_insight != null, "GET /projects/{p}/parser-errors");
+            Add(_insight != null, "GET /projects/{p}/symbols");
+            Add(_insight != null, "GET /projects/{p}/symbols/references");
+            Add(_insight != null, "GET /projects/{p}/symbols/definition");
+            Add(_insight != null, "GET /projects/{p}/libraries");
+            Add(_insight != null, "GET /projects/{p}/structure");
+            Add(_insight != null, "GET /projects/{p}/metrics");
+            Add(_tests != null, "GET /projects/{p}/tests");
+            Add(_tests != null, "POST /projects/{p}/tests/run");
+            Add(_check != null, "POST /projects/{p}/check");
+            Add(_ship != null, "GET,PUT /projects/{p}/ship/settings");
+            Add(_ship != null, "GET /projects/{p}/ship/preview");
+            Add(_ship != null, "POST /projects/{p}/ship");
+            Add(_quickFix != null, "* /projects/{p}/quickfix");
+            Add(_renameRefactor != null, "* /projects/{p}/refactor/rename");
+            Add(_encapsulateRefactor != null, "* /projects/{p}/refactor/encapsulate-field");
+            Add(_moveRefactor != null, "* /projects/{p}/refactor/move-to-folder");
+            return routes.Select(r => r.Replace(" /", " " + Base + "/"));
         }
 
         //What Rubberduck knows about a project beyond its code: /projects/{p}/<what>. Null if the route is not one of these.
@@ -419,6 +489,9 @@ namespace Rubberduck.Api
                     Allow(method, "POST");
                     var check = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
                     return ApiResponse.Json(_check.Check(request.Client, project, Text(check, "module"), Bool(check, "runTests"), OptionalInt(check, "waitSeconds")));
+
+                case "ship" when segments.Length >= 3 && segments.Length <= 4 && _ship != null:
+                    return _ship.Route(request, method, segments);
 
                 case "quickfix" when segments.Length == 3 && _quickFix != null:
                     return _quickFix.Route(request, method, segments);
@@ -608,6 +681,17 @@ namespace Rubberduck.Api
         }
 
         private static string Query(ApiRequest request, string name) => request.Query.TryGetValue(name, out var value) ? value : null;
+
+        private static long? QueryLong(ApiRequest request, string name)
+        {
+            var value = Query(request, name);
+            if (value == null)
+            {
+                return null;
+            }
+
+            return long.TryParse(value, out var number) ? number : throw ApiException.BadRequest($"{name} must be a whole number.");
+        }
 
         private static int? OptionalInt(JObject body, string name)
         {

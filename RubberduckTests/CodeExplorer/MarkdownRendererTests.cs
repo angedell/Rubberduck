@@ -37,6 +37,21 @@ namespace RubberduckTests.CodeExplorer
         }
 
         [Test]
+        public void ToDocument_UsesTheChosenFont_ThenTheEmojiFonts()
+        {
+            var document = MarkdownRenderer.ToDocument("rocket", "Georgia");
+
+            StringAssert.StartsWith("Georgia, Segoe UI Emoji", document.FontFamily.Source);
+        }
+
+        [Test]
+        public void FontChain_DefaultsWhenThereIsNoName_AndDoesNotRepeatAFont()
+        {
+            StringAssert.StartsWith("Segoe UI, ", MarkdownRenderer.FontChain(null));
+            Assert.AreEqual(1, MarkdownRenderer.FontChain("segoe ui emoji").Split(',').Count(font => font.Trim().ToLowerInvariant() == "segoe ui emoji"));
+        }
+
+        [Test]
         public void Highlight_Vba_ColoursKeywords()
         {
             var names = string.Join(",", typeof(ResourceSyntaxColors).Assembly.GetManifestResourceNames().Where(n => n.EndsWith(".xshd")));

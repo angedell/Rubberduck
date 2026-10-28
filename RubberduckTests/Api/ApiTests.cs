@@ -255,6 +255,26 @@ namespace RubberduckTests.Api
         private string Hash => ModuleApi.HashOf(_store.Code["Module1"]);
 
         [Test]
+        [TestCase("/api/v1")]
+        [TestCase("/api/v1/")]
+        public void Root_ListsTheRoutes(string path)
+        {
+            var response = Send("GET", path);
+
+            Assert.AreEqual(200, response.Status);
+            var routes = JObject.FromObject(response.Body)["routes"].Select(r => (string)r).ToList();
+            Assert.Contains("GET /api/v1/projects", routes);
+            Assert.Contains("GET,POST /api/v1/projects/{p}/modules", routes);
+            Assert.IsFalse(routes.Any(r => r.Contains("/notes")), "a part that is not there is not listed");
+        }
+
+        [Test]
+        public void Root_OnlyAllowsGet()
+        {
+            Assert.AreEqual(405, Send("POST", "/api/v1").Status);
+        }
+
+        [Test]
         public void ListProjects_NeedsNoApproval()
         {
             var response = Send("GET", "/api/v1/projects");
@@ -529,6 +549,30 @@ namespace RubberduckTests.Api
 
             Assert.IsNotNull(result["result"]["capabilities"]["tools"]);
             Assert.AreEqual("rubberduck", (string)result["result"]["serverInfo"]["name"]);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TheDebugPrintAdvice_IsGivenOnlyWhileTheToolForItIsOffered(bool immediateOn)
+        {
+            _immediateOn = immediateOn;
+
+            var instructions = (string)Rpc("initialize", new { protocolVersion = "2025-03-26" })["result"]["instructions"];
+            var offered = Rpc("tools/list")["result"]["tools"].Any(t => (string)t["name"] == "read_debug_output");
+
+            Assert.AreEqual(immediateOn, offered);
+            Assert.AreEqual(immediateOn, instructions.Contains("DEBUGGING WITH Debug.Print"));
+            Assert.AreEqual(immediateOn, instructions.Contains("#Const DebugLog"));
+        }
+
+        [Test]
+        public void ToolResults_UseCamelCase_LikeTheRestApi()
+        {
+            _immediateOn = true;
+
+            var answer = JObject.Parse(TextOf(Call("read_debug_output", new { })));
+
+            CollectionAssert.AreEquivalent(new[] { "text", "lineCount", "next", "more", "missed" }, answer.Properties().Select(p => p.Name));
         }
 
         [Test]

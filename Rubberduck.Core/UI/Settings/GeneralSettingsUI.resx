@@ -220,6 +220,12 @@ Allow writes?</value>
   <data name="ApiApproval_Caption" xml:space="preserve">
     <value>Rubberduck API: allow writes?</value>
   </data>
+  <data name="ApiAllowImmediateRead" xml:space="preserve">
+    <value>Also let agents read the Immediate window (Debug.Print output), without running anything</value>
+  </data>
+  <data name="ApiAllowImmediateRead_Tooltip" xml:space="preserve">
+    <value>Agents can read what the Immediate window shows, including what your code prints with Debug.Print, but cannot type into it. What the window shows can include values from your data. Implied by the next option.</value>
+  </data>
   <data name="ApiAllowImmediate" xml:space="preserve">
     <value>Also let agents run code: the Immediate window and the unit tests</value>
   </data>

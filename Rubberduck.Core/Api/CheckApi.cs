@@ -39,6 +39,14 @@ namespace Rubberduck.Api
             {
                 report.Tests = _tests.Run(client, project, module, null, null);
             }
+            else if (parsed)
+            {
+                var count = _tests.List(project, module).Count;
+                if (count > 0)
+                {
+                    report.TestsNotRun = $"{count} unit test(s) exist and were not run. Call check_work again with runTests: true; that also shows the Test Explorer to the user.";
+                }
+            }
 
             report.Clean = parsed
                            && report.InspectionsStatus == null

@@ -137,6 +137,18 @@ namespace Rubberduck.UI.Settings {
             }
         }
 
+        public static string ApiAllowImmediateRead {
+            get {
+                return ResourceManager.GetString("ApiAllowImmediateRead", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowImmediateRead_Tooltip {
+            get {
+                return ResourceManager.GetString("ApiAllowImmediateRead_Tooltip", resourceCulture);
+            }
+        }
+
         public static string ApiAllowImmediate {
             get {
                 return ResourceManager.GetString("ApiAllowImmediate", resourceCulture);

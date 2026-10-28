@@ -33,10 +33,37 @@ namespace Rubberduck.Api
             _dispatcher = dispatcher;
         }
 
-        public string Read()
-        {
-            var handle = Locate();
+        //Found once and kept while it is still the visible window, so that looking often costs the editor's thread nothing.
+        private volatile IntPtr _known;
 
+        public string Read() => ReadText(Locate(true));
+
+        public string Peek()
+        {
+            try
+            {
+                var handle = _known;
+                if (handle == IntPtr.Zero || !IsWindow(handle) || !IsWindowVisible(handle) || ClassOf(handle) != WindowClass)
+                {
+                    handle = Locate(false);
+                    _known = IsWindowVisible(handle) ? handle : IntPtr.Zero;
+                    if (_known == IntPtr.Zero)
+                    {
+                        return null;
+                    }
+                }
+
+                return ReadText(handle);
+            }
+            catch (ApiException)
+            {
+                _known = IntPtr.Zero;
+                return null;
+            }
+        }
+
+        private static string ReadText(IntPtr handle)
+        {
             //Called from a thread that is not the editor's, so the editor can answer while this waits.
             var window = AutomationElement.FromHandle(handle);
             var document = window.FindFirst(TreeScope.Descendants,
@@ -51,7 +78,7 @@ namespace Rubberduck.Api
 
         public void Send(string line)
         {
-            var handle = Locate();
+            var handle = Locate(true);
             foreach (var character in line)
             {
                 PostMessage(handle, WmChar, (IntPtr)character, (IntPtr)1);
@@ -63,7 +90,7 @@ namespace Rubberduck.Api
         }
 
         //The window can be closed or hidden by the user at any time, so it is looked up for every call. The editor's objects are only touched on its own thread.
-        private IntPtr Locate()
+        private IntPtr Locate(bool show)
         {
             var task = _dispatcher.StartTask(() =>
             {
@@ -77,7 +104,7 @@ namespace Rubberduck.Api
                             if (caption == null && window.Type == WindowKind.Immediate)
                             {
                                 caption = window.Caption;
-                                if (!window.IsVisible)
+                                if (show && !window.IsVisible)
                                 {
                                     window.IsVisible = true;
                                 }
@@ -120,6 +147,12 @@ namespace Rubberduck.Api
 
         [DllImport("user32.dll")]
         private static extern bool EnumChildWindows(IntPtr parent, EnumProc callback, IntPtr parameter);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindow(IntPtr window);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr window);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);

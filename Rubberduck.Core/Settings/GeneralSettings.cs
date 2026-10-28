@@ -27,6 +27,7 @@ namespace Rubberduck.Settings
         bool ApiEnabled { get; set; }
         bool ApiAllowNetwork { get; set; }
         bool ApiAllowImmediate { get; set; }
+        bool ApiAllowImmediateRead { get; set; }
         int ApiPort { get; set; }
     }
 
@@ -94,6 +95,9 @@ namespace Rubberduck.Settings
         /// <summary>Lets agents read the Immediate window and enter commands in it, which runs them. Off until the user switches it on.</summary>
         public bool ApiAllowImmediate { get; set; }
 
+        /// <summary>Lets agents read what the Immediate window shows (<c>Debug.Print</c> output) without being able to run anything. Implied by <see cref="ApiAllowImmediate"/>. Off until the user switches it on.</summary>
+        public bool ApiAllowImmediateRead { get; set; }
+
         public int ApiPort { get; set; }
 
         public GeneralSettings()
@@ -125,6 +129,7 @@ namespace Rubberduck.Settings
                    ApiEnabled == other.ApiEnabled &&
                    ApiAllowNetwork == other.ApiAllowNetwork &&
                    ApiAllowImmediate == other.ApiAllowImmediate &&
+                   ApiAllowImmediateRead == other.ApiAllowImmediateRead &&
                    ApiPort == other.ApiPort &&
                    ApiBaseUrl == other.ApiBaseUrl;
         }

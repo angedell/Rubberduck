@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Rubberduck.Ship;
 using Rubberduck.SmartIndenter;
 
 namespace Rubberduck.Settings
@@ -167,6 +168,85 @@ namespace Rubberduck.Settings
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Sets the <c>ship</c> section of the config text and leaves everything else as it is, comments and layout included. The section is added after the last one if the text has none.
+        /// Throws <see cref="JsonReaderException"/> if the text is not a JSON object.
+        /// </summary>
+        public static string SetShip(string text, ShipSettings ship)
+        {
+            var newline = text.Contains("\r\n") ? "\r\n" : "\n";
+            var starts = LineStarts(text);
+            int Index(JsonTextReader reader) => starts[reader.LineNumber - 1] + reader.LinePosition - 1;
+
+            int rootOpen = -1, rootClose = -1, shipOpen = -1, shipClose = -1, lastEnd = -1;
+            using (var reader = new JsonTextReader(new System.IO.StringReader(text)))
+            {
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonToken.Comment)
+                    {
+                        continue;
+                    }
+
+                    if (rootOpen < 0)
+                    {
+                        if (reader.TokenType != JsonToken.StartObject)
+                        {
+                            throw new JsonReaderException("The config must be a JSON object.", reader.Path, reader.LineNumber, reader.LinePosition, null);
+                        }
+
+                        rootOpen = lastEnd = Index(reader);
+                    }
+                    else if (reader.Depth == 0 && reader.TokenType == JsonToken.EndObject)
+                    {
+                        rootClose = Index(reader);
+                        break;
+                    }
+                    else if (reader.Depth == 1 && reader.TokenType == JsonToken.PropertyName
+                             && string.Equals((string)reader.Value, ShipSettingsJson.Key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        do
+                        {
+                            reader.Read();
+                        }
+                        while (reader.TokenType == JsonToken.Comment);
+
+                        if (reader.TokenType != JsonToken.StartObject)
+                        {
+                            throw new JsonReaderException("'ship' must be an object.", reader.Path, reader.LineNumber, reader.LinePosition, null);
+                        }
+
+                        shipOpen = Index(reader);
+                        reader.Skip();
+                        shipClose = lastEnd = Index(reader);
+                    }
+                    else
+                    {
+                        lastEnd = Index(reader);
+                    }
+                }
+            }
+
+            if (rootClose < 0)
+            {
+                throw new JsonReaderException("The config is not complete JSON.");
+            }
+
+            string IndentOf(int index) => new string(text.Skip(text.LastIndexOf('\n', Math.Max(index - 1, 0)) + 1).TakeWhile(c => c == ' ' || c == '\t').ToArray());
+
+            if (shipOpen >= 0)
+            {
+                return text.Substring(0, shipOpen) + ShipSettingsJson.Section(ship, IndentOf(shipOpen), newline) + text.Substring(shipClose + 1);
+            }
+
+            var added = newline
+                        + string.Concat(ShipSettingsJson.SectionComment.Select(line => "  // " + line + newline))
+                        + "  \"" + ShipSettingsJson.Key + "\": " + ShipSettingsJson.Section(ship, "  ", newline);
+            return lastEnd == rootOpen
+                ? text.Substring(0, rootOpen + 1) + newline + added.Substring(newline.Length) + newline + text.Substring(rootOpen + 1)
+                : text.Substring(0, lastEnd + 1) + "," + newline + added + text.Substring(lastEnd + 1);
         }
 
         private static List<int> LineStarts(string text)

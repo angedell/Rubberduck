@@ -83,16 +83,21 @@ namespace Rubberduck.Parsing.VBA.ReferenceManagement
                 return;
             }
 
+            var parsingStageTimer = ParsingStageTimer.StartNew();
+
             PerformPreResolveCleanup(_toResolve.AsReadOnly(), token);
             token.ThrowIfCancellationRequested();
 
-            var parsingStageTimer = ParsingStageTimer.StartNew();
+            parsingStageTimer.Stop();
+            parsingStageTimer.Log($"Cleaned up before resolving references in {_toResolve.Count} modules in {{0}}ms.");
+            parsingStageTimer.Restart();
 
             AddSuperTypeNamesForDocumentModules(_toResolve.AsReadOnly(), _state);
             token.ThrowIfCancellationRequested();
 
             parsingStageTimer.Stop();
             parsingStageTimer.Log("Added supertypes for document modules in {0}ms.");
+            parsingStageTimer.Restart();
 
             ExecuteCompilationPasses(_toResolve.AsReadOnly(), token);
             token.ThrowIfCancellationRequested();
@@ -110,7 +115,7 @@ namespace Rubberduck.Parsing.VBA.ReferenceManagement
             token.ThrowIfCancellationRequested();
 
             parsingStageTimer.Stop();
-            parsingStageTimer.Log("Resolved references in {0}ms.");
+            parsingStageTimer.Log($"Resolved references in {parseTreesToResolve.Count} modules in {{0}}ms.");
             parsingStageTimer.Restart();
 
             AddModuleToModuleReferences(_state.DeclarationFinder, token);

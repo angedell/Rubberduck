@@ -26,6 +26,8 @@ namespace Rubberduck.Api
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
         private readonly NotesApi _notes;
+        private readonly ShipApi _ship;
+        private readonly FormApi _forms;
         private readonly IFirewallCheck _firewall;
         private readonly VbeResetApi _vbeReset;
         private readonly ReadyWait _ready;
@@ -42,9 +44,13 @@ namespace Rubberduck.Api
             RefactorRenameApi renameRefactor = null, RefactorEncapsulateFieldApi encapsulateRefactor = null,
             RefactorMoveToFolderApi moveRefactor = null,
             QuickFixApi quickFix = null,
-            NotesApi notes = null)
+            NotesApi notes = null,
+            ShipApi ship = null,
+            FormApi forms = null)
         {
+            _forms = forms;
             _notes = notes;
+            _ship = ship;
             _firewall = firewall;
             _syncAttributes = syncAttributes;
             _ready = ready ?? (parser == null ? null : ReadyWait.For(parser));
@@ -105,7 +111,7 @@ namespace Rubberduck.Api
                             ["protocolVersion"] = ProtocolVersion,
                             ["capabilities"] = new JObject { ["tools"] = new JObject(), ["resources"] = new JObject() },
                             ["serverInfo"] = new JObject { ["name"] = "rubberduck", ["version"] = BuildInfo.Current.Version, ["build"] = BuildInfo.Current.Display },
-                            ["instructions"] = "Rubberduck is an open-source add-in for the VBA editor (VBE) of Microsoft Office (Excel, Word, Access, PowerPoint, Outlook...). It parses the VBA of every open project, and this server gives you the user's live editor session: what you read and write is the code they have open, not files on disk.\n\nWHAT YOU CAN DO\n- Navigate: list_projects, list_modules, get_structure (folders from '@Folder annotations), list_libraries (references), list_symbols (what a module declares), find_definition, find_references. Prefer these to reading whole modules.\n- Read and write code: read_module, write_module, edit_lines, batch_edit (several modules atomically), create_module, delete_module (a backup is kept). Every write needs the hash of your last read of that module; a stale hash is refused, so re-read and retry. The first write has to be approved by the user in Rubberduck.\n- Check your work: check_work reports parse errors, inspection findings and optionally test results in one call; get_parser_errors, get_diagnostics (code inspections) and get_metrics (complexity) are the parts. Always run check_work after editing.\n- Unit tests: list_tests and run_tests for Rubberduck's '@TestMethod tests. run_tests EXECUTES the user's VBA and needs their approval.\n- Document resources: list_resources, read_resource, write_resource, delete_resource work on what lives inside the project's document file besides VBA: the ribbon XML (customUI.xml / customUI14.xml), the pictures it uses (customUI/images) and rubberduck.json, Rubberduck's per-project config (indenter and git sync settings). Only saved Open XML documents (xlsm, docm, pptm...) have them. Office keeps an open document locked, so writes are staged and go into the file when the document is closed; reads already include staged changes. Reference a picture in the ribbon XML by its file name without extension." + NoteInstructions() + "\n- Immediate window: read_immediate and run_immediate type into the editor's Immediate window. run_immediate EXECUTES CODE with the user's rights and is only available if the user switched it on.\n\nHOW TO WORK\n1. list_projects, then list_modules/get_structure to find your way; read a module before changing it.\n2. Change the smallest thing that does the job (edit_lines, or batch_edit when several modules must change together).\n3. check_work. Fix what it reports until 'clean' is true.\n4. Tell the user what you changed. Anything you wrote to a document's resources is staged until they close the document.\n\nTools that run code (run_tests, run_immediate) and the first write all need the user's consent; if one is refused, say so and carry on without it. The same data is also offered as MCP resources (module code, diagnostics, parser errors)."
+                            ["instructions"] = "Rubberduck is an open-source add-in for the VBA editor (VBE) of Microsoft Office (Excel, Word, Access, PowerPoint, Outlook...). It parses the VBA of every open project, and this server gives you the user's live editor session: what you read and write is the code they have open, not files on disk.\n\nWHAT YOU CAN DO\n- Navigate: list_projects, list_modules, get_structure (folders from '@Folder annotations), list_libraries (references), list_symbols (what a module declares), find_definition, find_references. Prefer these to reading whole modules.\n- Read and write code: read_module, write_module, edit_lines, batch_edit (several modules atomically), create_module, delete_module (a backup is kept). Every write needs the hash of your last read of that module; a stale hash is refused, so re-read and retry. The first write has to be approved by the user in Rubberduck.\n- Check your work: check_work reports parse errors, inspection findings and optionally test results in one call; get_parser_errors, get_diagnostics (code inspections) and get_metrics (complexity) are the parts. Always run check_work after editing.\n- Unit tests: list_tests and run_tests for Rubberduck's '@TestMethod tests. Use them: a clean check_work without a test run does not show the code works. Running shows the Test Explorer window to the user. run_tests EXECUTES the user's VBA and needs their approval.\n- Document resources: list_resources, read_resource, write_resource, delete_resource work on what lives inside the project's document file besides VBA: the ribbon XML (customUI.xml / customUI14.xml), the pictures it uses (customUI/images) and rubberduck.json, Rubberduck's per-project config (indenter and git sync settings). Only saved Open XML documents (xlsm, docm, pptm...) have them. Office keeps an open document locked, so writes are staged and go into the file when the document is closed; reads already include staged changes. Reference a picture in the ribbon XML by its file name without extension." + NoteInstructions() + "\n- Immediate window: read_immediate shows the editor's Immediate window and run_immediate types into it. run_immediate EXECUTES CODE with the user's rights. Reading and running are separate settings of the user, and a tool is only there if its setting is on (running includes reading).\n\nHOW TO WORK\n1. list_projects, then list_modules/get_structure to find your way; read a module before changing it.\n2. Change the smallest thing that does the job (edit_lines, or batch_edit when several modules must change together).\n3. check_work. Fix what it reports until 'clean' is true.\n4. If the project has unit tests (list_tests), call check_work with runTests: true, and fix failures. This also opens the Test Explorer for the user. If 'testsNotRun' is in a report, you skipped tests that exist. Add a '@TestMethod test for behaviour you add or change.\n5. Tell the user what you changed. Anything you wrote to a document's resources is staged until they close the document.\n\nTools that run code (run_tests, run_immediate) and the first write all need the user's consent; if one is refused, say so and carry on without it. The same data is also offered as MCP resources (module code, diagnostics, parser errors)." + (_immediate.CanRead ? DebugAdvice.Replace("{run}", _immediate.IsEnabled ? "run the code with run_immediate (or ask the user to run it)" : "ask the user to run the code, since you may not run it yourself") : string.Empty)
                         });
                     case "ping":
                         return Result(id, new JObject());
@@ -128,6 +134,9 @@ namespace Rubberduck.Api
                 return RpcError(id, -32602, exception.Message);
             }
         }
+
+        //Only said while read_debug_output is offered, which is while the user allows reading the Immediate window.
+        private const string DebugAdvice = "\n\nDEBUG OUTPUT\nread_debug_output returns what Debug.Print wrote, also from code you did not start yourself, and only what is new since your last call (pass back its 'next' as 'since').\n\nDEBUGGING WITH Debug.Print\nYou cannot step through VBA, so make the code tell you what it does. When you write or fix code that is not trivial, or something does not behave as expected, add Debug.Print lines and read them with read_debug_output instead of guessing. Keep them switchable with a conditional compilation constant, so they cost nothing and can be turned off in one place:\n  #Const DebugLog = True      (once, at the top of the module, below Option Explicit)\n  #If DebugLog Then\n      Debug.Print \"[Orders.Total] qty=\" & qty & \" price=\" & price\n  #End If\nPrefix each line with a short tag ('[Module.Procedure]') so you can filter with 'contains', print the values that matter (inputs, branch taken, results), and put one at the entry and exit of the procedure under suspicion. #Const is private to its module, so turn it on per module. Before you finish, set the constant to False (or remove the lines) unless the user wants to keep them, and tell them. To see the output: {run}, then read_debug_output; use 'waitMs' with 'contains' if the code is still running.";
 
         private JObject CallTool(JObject parameters, string client)
         {
@@ -190,6 +199,7 @@ namespace Rubberduck.Api
 
         //The Immediate window tools are only offered while the user allows them.
         private IEnumerable<Tool> Tools() => ModuleTools()
+            .Concat(_forms != null ? FromSpecs(_forms.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_notes != null ? NoteTools() : Enumerable.Empty<Tool>())
             .Concat(_resources != null ? ResourceTools() : Enumerable.Empty<Tool>())
             .Concat(_insight != null ? InsightTools() : Enumerable.Empty<Tool>())
@@ -203,7 +213,8 @@ namespace Rubberduck.Api
             .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_moveRefactor != null ? FromSpecs(_moveRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_quickFix != null ? FromSpecs(_quickFix.Tools()) : Enumerable.Empty<Tool>())
-            .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
+            .Concat(_ship != null ? FromSpecs(_ship.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_immediate.CanRead ? ImmediateTools().Where(t => t.Name != "run_immediate" || _immediate.IsEnabled) : Enumerable.Empty<Tool>());
 
         //Tools that come with their feature, described by the feature (see RefactorToolSpec).
         private static IEnumerable<Tool> FromSpecs(IEnumerable<RefactorToolSpec> specs)
@@ -301,7 +312,7 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "run_tests",
-                Description = "Runs unit tests and returns their outcomes and output. THIS EXECUTES THE USER'S VBA. The user has to approve the first run. Without module and test, every test of the project runs. 'completed' is false if the wait ran out first; list_tests shows the rest later.",
+                Description = "Runs unit tests, shows the Test Explorer window to the user, and returns their outcomes and output. THIS EXECUTES THE USER'S VBA. The user has to approve the first run. Without module and test, every test of the project runs. 'completed' is false if the wait ran out first; list_tests shows the rest later.",
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),
@@ -408,7 +419,7 @@ namespace Rubberduck.Api
                 {
                     ["project"] = String("Project id or name."),
                     ["module"] = String("Limit the inspections (and tests) to this module."),
-                    ["runTests"] = Boolean("Also run the unit tests. Only works if the user allowed running code."),
+                    ["runTests"] = Boolean("Also run the unit tests and show the Test Explorer. Use it whenever the project has tests (else 'testsNotRun' says they were skipped). Only works if the user allowed running code."),
                     ["waitSeconds"] = Integer("How long to wait for the inspections (default 60, at most 300). If they are not done, 'inspectionsStatus' is 'running' and 'clean' is false: call again, and they are there.")
                 },
                 Required = new[] { "project" },
@@ -504,7 +515,8 @@ namespace Rubberduck.Api
         //Told to agents up front, with the caveats, because a note looks like code to every other tool.
         private string NoteInstructions() => _notes == null
             ? string.Empty
-            : "\n- Notes: list_notes, read_note, write_note, delete_note work on markdown notes kept inside the project itself (CLAUDE.md at the root, or in a folder). Start with list_notes and read the notes at the root and in the folders you will work in. You send and get plain markdown; the plumbing is done for you. CAVEATS: "
+            : "\n- Notes: THIS IS NOT A REGULAR REPOSITORY. The project lives inside an Office document (its VBA): there is no folder of files to put a CLAUDE.md or AGENTS.md in, and a file you create on disk is not part of the project. Instead list_notes, read_note, write_note and delete_note keep markdown notes inside the project itself, and you can create a CLAUDE.md or an AGENTS.md there (at the root, or in a folder for the modules of that folder) to set up your own work and that of the agents after you: conventions, how to build and test, what not to touch. Start with list_notes and read the notes at the root and in the folders you will work in. You send and get plain markdown; the plumbing is done for you. MIND THE LINE LENGTH: a note is stored as VBA comments and the editor holds at most "
+              + (NoteModule.MaxLineLength - 2) + " characters in a line, so keep every line short (break paragraphs at sentence ends); write_note refuses a longer one. Every character outside ASCII (accents, emoji, typographic quotes) counts about 8. CAVEATS: "
               + string.Join(" ", NotesApi.Caveats.Select((caveat, index) => (index + 1) + ") " + caveat));
 
         private IList<Tool> _noteTools;
@@ -638,6 +650,21 @@ namespace Rubberduck.Api
                 },
                 Required = new[] { "command" },
                 Run = (args, client) => _immediate.Run(client, Arg(args, "command"), args["waitMs"] != null ? Int(args, "waitMs") : (int?)null)
+            },
+            new Tool
+            {
+                Name = "read_debug_output",
+                Description = "Returns what code printed with Debug.Print (and everything else that appeared in the Immediate window), including output nobody asked for at the time: a form event, a timer, a macro the user ran. Rubberduck keeps the newest 5,000 lines. Typical use: add Debug.Print lines to the code (see the instructions: wrap them in '#If DebugLog Then'), have it run (run_immediate, or ask the user to click), then call this. The answer has 'next': pass it as 'since' on the next call to get only what is new. Without 'since' you get the newest lines. 'waitMs' waits for output to appear when there is none yet; to wait for one particular line, give 'contains' as well (without it, the echo of a command you ran is enough to end the wait, and an echoed command that contains your tag also matches). Does not run anything.",
+                Properties = new JObject
+                {
+                    ["since"] = Integer("The 'next' of your last answer: only lines printed after it. Leave out for the newest lines."),
+                    ["contains"] = String("Only lines containing this text, e.g. the tag you put in your Debug.Print lines."),
+                    ["limit"] = Integer("At most this many lines. Default 200, maximum 1000. With 'since', the oldest come first and 'more' says whether there are further ones."),
+                    ["waitMs"] = Integer("If there is nothing to return yet, wait this long for output (at most 30000). Default 0.")
+                },
+                Required = new string[0],
+                Run = (args, client) => _immediate.Output(args["since"] != null ? args.Value<long>("since") : (long?)null, args["limit"] != null ? Int(args, "limit") : (int?)null,
+                    args.Value<string>("contains"), args["waitMs"] != null ? Int(args, "waitMs") : (int?)null)
             }
         };
 
@@ -704,7 +731,7 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "write_module",
-                Description = "Replaces a module's whole code. Send the hash from your last read. Give 'code' for the code alone (the header and a form's layout stay), or 'text' to replace the module as exported, header included. Give 'attributes' ({module:{VB_PredeclaredId:true}, members:{Name:{VB_UserMemId:0}}}) to set hidden attributes without rebuilding the header, alone or together with 'code'.",
+                Description = "Replaces a module's whole code. Send the hash from your last read. Give 'code' for the code alone (the header and a form's layout stay), or 'text' to replace the module as exported, header included. Forms: use 'code' (the editor rejects 'text' for a form); the controls have their own tools: list_controls, add_control, set_control_properties, delete_control. Give 'attributes' ({module:{VB_PredeclaredId:true}, members:{Name:{VB_UserMemId:0}}}) to set hidden attributes without rebuilding the header, alone or together with 'code'.",
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),
@@ -797,7 +824,7 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "create_module",
-                Description = "Adds a standard module, class or (empty) form to a project.",
+                Description = "Adds a standard module, class or (empty) form to a project. A new form has no controls; add them with add_control.",
                 Properties = new JObject
                 {
                     ["project"] = String("Project id or name."),

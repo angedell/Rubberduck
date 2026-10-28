@@ -2255,6 +2255,24 @@ namespace Rubberduck.Resources.CodeExplorer {
                 return ResourceManager.GetString("NoteEditor_ZoomResetTip", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_PreviewFont.
+        /// </summary>
+        public static string NoteEditor_PreviewFont {
+            get {
+                return ResourceManager.GetString("NoteEditor_PreviewFont", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to NoteEditor_PreviewFontTip.
+        /// </summary>
+        public static string NoteEditor_PreviewFontTip {
+            get {
+                return ResourceManager.GetString("NoteEditor_PreviewFontTip", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to NoteEditor_SplitterTip.

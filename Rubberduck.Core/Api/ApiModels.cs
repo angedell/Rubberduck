@@ -268,6 +268,23 @@ namespace Rubberduck.Api
         public bool Truncated { get; set; }
     }
 
+    public class ImmediateOutput
+    {
+        /// <summary>The lines, one per line of the window, oldest first. Includes what the user and agents typed there, and what <c>Debug.Print</c> wrote.</summary>
+        public string Text { get; set; }
+
+        public int LineCount { get; set; }
+
+        /// <summary>Pass this as <c>since</c> next time to get only what was printed after this answer.</summary>
+        public long Next { get; set; }
+
+        /// <summary>There are more lines after these (the limit cut the answer); ask again with <c>Next</c>.</summary>
+        public bool More { get; set; }
+
+        /// <summary>Lines between <c>since</c> and the oldest line still kept were lost: the buffer holds the newest 5,000, and Rubberduck sees the window twice a second.</summary>
+        public bool Missed { get; set; }
+    }
+
     public class ImmediateRun
     {
         /// <summary>What appeared in the window after the command(s) were entered, the echo of the commands included.</summary>
@@ -460,6 +477,9 @@ namespace Rubberduck.Api
         /// <summary>What the inspections found below the severity that makes the code unclean (hints, suggestions), counted by severity and not listed. Ask for the diagnostics to see them.</summary>
         public Dictionary<string, int> Suppressed { get; set; } = new Dictionary<string, int>();
         public TestRunReport Tests { get; set; }
+
+        /// <summary>Set when the project has unit tests that this check did not run, so a clean result is not mistaken for "tested". Call again with runTests.</summary>
+        public string TestsNotRun { get; set; }
 
         /// <summary>"running" when the inspections were not done within the wait, so Clean cannot be known (it is false). Ask again; the results are kept.</summary>
         public string InspectionsStatus { get; set; }

@@ -23,7 +23,7 @@ namespace Rubberduck.Api
     /// Whole-module writes go through the VBE's own export and import, the only way the hidden header survives; the files for that live in a temp folder for the length of the call.
     /// Before a module is changed for the first time, or ever replaced or deleted, the version it had is exported to Rubberduck's backup folder.
     /// </summary>
-    public class VbeModuleStore : IModuleStore
+    public partial class VbeModuleStore : IModuleStore, IFormControlStore
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly TimeSpan UiTimeout = TimeSpan.FromSeconds(60);
@@ -234,7 +234,8 @@ namespace Rubberduck.Api
                         _fileSystem.File.WriteAllText(prepared, Normalize(text), GitSyncFolderProcessor.EncodingFor(exported));
                         BackUp(found, existing, true);
 
-                        Suspended(() =>
+                        //The parser is already paused, see OnUiWriteWithParserPause.
+                        Action replace = () =>
                         {
                             if (existing.Type == ComponentType.Document)
                             {
@@ -248,13 +249,23 @@ namespace Rubberduck.Api
                             {
                                 using (components.Import(prepared)) { }
                             }
-                            catch (Exception)
+                            catch (Exception failure)
                             {
+                                //The editor writes why it refused a file to a .log next to it, which is gone with the temp folder; the caller gets its text.
+                                var reason = LoadLog(prepared);
+
                                 //Removed and not imported would leave the project without it.
                                 using (components.Import(exported)) { }
-                                throw;
+                                if (reason == null)
+                                {
+                                    throw;
+                                }
+
+                                throw new ApiException(422, "import_refused", $"The editor refused the module ({failure.Message}). Nothing was changed. Its load log says:{Environment.NewLine}{reason}");
                             }
-                        });
+                        };
+
+                        replace();
                     }
                     finally
                     {
@@ -292,7 +303,18 @@ namespace Rubberduck.Api
 
                     using (var created = components.Add(type))
                     {
-                        created.Name = module;
+                        try
+                        {
+                            created.Name = module;
+                        }
+                        catch (Exception exception) when (exception is COMException || exception is UnauthorizedAccessException)
+                        {
+                            //The editor can refuse a name it has just released (a deleted form's, for one: "Path/File access error", 0x800A004B).
+                            //Without this the nameless UserForm1 or Module1 stays in the project.
+                            try { components.Remove(created); } catch (Exception) { /* nothing more to do */ }
+                            throw new ApiException(422, "name_refused", $"The editor refused the name '{module}' ({exception.Message}). Nothing was added. If a module with that name was just deleted, use a different name.");
+                        }
+
                         if (code.Length > 0)
                         {
                             using (var codeModule = created.CodeModule)
@@ -315,7 +337,8 @@ namespace Rubberduck.Api
                 {
                     CheckHash(component, expectedHash);
                     BackUp(found, component, true);
-                    Suspended(() => components.RemoveSafely(component));
+                    //The parser is already paused, see OnUiWriteWithParserPause.
+                    components.RemoveSafely(component);
                     return true;
                 }
             });
@@ -363,9 +386,10 @@ namespace Rubberduck.Api
                 return work();
             });
 
-        //A write that pauses the parser must not do so from the UI thread while a parse is running: the pause waits for the parse to let go of its lock,
-        //the parse needs the UI thread to read components, and neither ever finishes (Excel then shows "waiting for an OLE action"). So the wait for the parser
-        //is done here, on the caller's thread, with the UI thread still free.
+        //A write that pauses the parser must not take the pause on the UI thread: the pause waits for a running parse to let go of its lock, the parse needs
+        //the UI thread to read components, and neither ever finishes (Excel then shows "waiting for an OLE action"). A parse can start after the status
+        //looked settled, as it does when a module was created a moment before. So the pause is taken here, on the caller's thread, which waits for the parse
+        //with the UI thread still free, and only then is the work handed to the UI thread. If the parse does not finish in time the request fails instead.
         private T OnUiWriteWithParserPause<T>(Func<T> work)
         {
             var timer = System.Diagnostics.Stopwatch.StartNew();
@@ -379,7 +403,9 @@ namespace Rubberduck.Api
                 Thread.Sleep(100);
             }
 
-            return OnUiWrite(work);
+            var result = default(T);
+            Suspended(() => result = OnUiWrite(work));
+            return result;
         }
 
         private static bool IsSettled(ParserState state)
@@ -567,6 +593,19 @@ namespace Rubberduck.Api
                 throw ApiException.Unavailable(suspension.Outcome == SuspensionOutcome.IncompatibleState
                     ? "Rubberduck is parsing right now, so the edit cannot be made. Try again in a moment."
                     : $"The parser could not be paused for the edit ({suspension.Outcome}). Try again in a moment.");
+            }
+        }
+
+        private string LoadLog(string importedFile)
+        {
+            try
+            {
+                var log = _fileSystem.Path.ChangeExtension(importedFile, ".log");
+                return _fileSystem.File.Exists(log) ? _fileSystem.File.ReadAllText(log).Trim() : null;
+            }
+            catch (Exception exception) when (exception is System.IO.IOException || exception is UnauthorizedAccessException)
+            {
+                return null;
             }
         }
 

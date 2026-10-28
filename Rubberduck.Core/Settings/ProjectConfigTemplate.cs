@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Rubberduck.Ship;
 using Rubberduck.SmartIndenter;
 
 namespace Rubberduck.Settings
@@ -92,7 +93,14 @@ namespace Rubberduck.Settings
             Line("    // VBA does not care about case, so with true (the default) a difference in upper and lower case is not a difference,");
             Line("    // except inside a string literal, where it matters. Set to false to treat every change of case as a change.");
             Line("    \"ignoreCaseOutsideStrings\": true");
-            Line("  }");
+            Line("  },");
+            Line();
+            foreach (var comment in ShipSettingsJson.SectionComment)
+            {
+                Line("  // " + comment);
+            }
+
+            Line("  \"" + ShipSettingsJson.Key + "\": " + ShipSettingsJson.Section(new ShipSettings(), "  "));
             Line("}");
             return text.ToString();
         }

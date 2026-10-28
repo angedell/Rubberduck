@@ -108,6 +108,10 @@
                               IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
                     <TextBlock Margin="35,0,0,5" TextWrapping="Wrap" Text="{Binding FirewallHint}"
                                Visibility="{Binding HasFirewallHint, Converter={StaticResource BoolToVisibility}}"/>
+                    <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediateRead}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediateRead_Tooltip}"
+                              IsChecked="{Binding ApiAllowImmediateRead}"
+                              IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
                     <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate}"
                               ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate_Tooltip}"
                               IsChecked="{Binding ApiAllowImmediate}"

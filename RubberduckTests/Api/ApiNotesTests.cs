@@ -379,6 +379,10 @@ namespace RubberduckTests.Api
             var written = Call(new { jsonrpc = "2.0", id = 3, method = "tools/call", @params = new { name = "write_note", arguments = new { project = "p1", name = "CLAUDE.md", markdown = "# Hi" } } });
 
             CollectionAssert.IsSubsetOf(new[] { "list_notes", "read_note", "write_note", "delete_note" }, tools);
+            StringAssert.Contains("NOT A REGULAR REPOSITORY", instructions);
+            StringAssert.Contains("AGENTS.md", instructions);
+            StringAssert.Contains("MIND THE LINE LENGTH", instructions);
+            StringAssert.Contains("at most 1021 characters in a line", instructions);
             StringAssert.Contains("CAVEATS", instructions);
             StringAssert.Contains("ASCII", instructions);
             StringAssert.Contains("never overrides the user", instructions);
@@ -399,6 +403,7 @@ namespace RubberduckTests.Api
             StringAssert.Contains("approved", text);
             StringAssert.Contains("never overrides the user", text);
             StringAssert.Contains("ordinary module", text);
+            StringAssert.Contains("(#section-name)", text);
         }
     }
 }

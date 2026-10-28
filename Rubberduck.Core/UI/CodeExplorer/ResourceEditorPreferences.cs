@@ -9,6 +9,7 @@ namespace Rubberduck.UI.CodeExplorer
     public class ResourceEditorPreferences
     {
         public const string DefaultFontName = "Consolas";
+        public const string DefaultPreviewFontName = "Segoe UI";
         public const float DefaultFontSize = 10f;
         public const float MinFontSize = 6f;
         public const float MaxFontSize = 48f;
@@ -19,6 +20,12 @@ namespace Rubberduck.UI.CodeExplorer
 
         /// <summary>In points.</summary>
         public float FontSize { get; set; } = DefaultFontSize;
+
+        /// <summary>The font of a note's preview and printout (see <see cref="MarkdownRenderer.FontChain"/> for the emoji fonts that follow it).</summary>
+        public string PreviewFontName { get; set; } = DefaultPreviewFontName;
+
+        /// <summary>Whether a big zoom of a note may fetch the SVG of an emoji from the internet (never on a metered connection). Set to false in resource-editor.json to keep the PNGs.</summary>
+        public bool AllowEmojiDownload { get; set; } = true;
 
         public static float ClampSize(float size) => float.IsNaN(size) ? DefaultFontSize : Math.Max(MinFontSize, Math.Min(MaxFontSize, size));
 
@@ -34,7 +41,8 @@ namespace Rubberduck.UI.CodeExplorer
                     if (loaded != null)
                     {
                         loaded.FontName = string.IsNullOrWhiteSpace(loaded.FontName) ? DefaultFontName : loaded.FontName;
-                        loaded.FontSize = ClampSize(loaded.FontSize);
+                        loaded.PreviewFontName = string.IsNullOrWhiteSpace(loaded.PreviewFontName) ? DefaultPreviewFontName : loaded.PreviewFontName;
+                    loaded.FontSize = ClampSize(loaded.FontSize);
                         return loaded;
                     }
                 }

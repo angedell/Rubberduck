@@ -49,7 +49,7 @@ namespace Rubberduck.Api
         }
 
         /// <summary>One for each parser, so the REST routes and the MCP tools share the catch-up in progress.</summary>
-        public static ReadyWait For(ParserSync parser) => Shared.GetValue(parser, p => new ReadyWait(p.ResolveProject, p.CatchUp));
+        public static ReadyWait For(ParserSync parser) => Shared.GetValue(parser, p => new ReadyWait(p.ResolveProject, () => p.CatchUp()));
 
         /// <summary>Whether <c>wait=ready</c> means anything for this request: a GET of /projects/{p}/&lt;what&gt;[/...] that reads parser results.</summary>
         public static bool Applies(string method, string[] segments)

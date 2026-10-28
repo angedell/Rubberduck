@@ -587,6 +587,10 @@
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}"
                                   Visibility="{Binding VBAVisibility}" />
                     </MenuItem>
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.Ship.ShipUI, Key=Ship_Menu}"
+                              Command="{Binding ShipCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding VBAVisibility}" />
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddModule}"
                           ItemsSource="{StaticResource AddModuleCommands}">
                         <MenuItem.Icon>
