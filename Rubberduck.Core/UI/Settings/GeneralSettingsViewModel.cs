@@ -6,6 +6,7 @@ using Rubberduck.Settings;
 using Rubberduck.Common;
 using Rubberduck.Interaction;
 using NLog;
+using Rubberduck.Api;
 using Rubberduck.SettingsProvider;
 using Rubberduck.UI.Command;
 using Rubberduck.VBEditor.VbeRuntime.Settings;
@@ -33,15 +34,29 @@ namespace Rubberduck.UI.Settings
         private readonly IReadOnlyList<Type> _experimentalFeatureTypes;
 
         public GeneralSettingsViewModel(
-            Configuration config, 
-            IOperatingSystem operatingSystem, 
+            Configuration config,
+            IOperatingSystem operatingSystem,
             IMessageBox messageBox,
             IVbeSettings vbeSettings,
             IExperimentalTypesProvider experimentalTypesProvider,
             IConfigurationService<Rubberduck.Settings.GeneralSettings> service,
-            IConfigurationService<HotkeySettings> hotkeyService) 
+            IConfigurationService<HotkeySettings> hotkeyService)
+            : this(config, operatingSystem, messageBox, vbeSettings, experimentalTypesProvider, service, hotkeyService, null)
+        {
+        }
+
+        public GeneralSettingsViewModel(
+            Configuration config,
+            IOperatingSystem operatingSystem,
+            IMessageBox messageBox,
+            IVbeSettings vbeSettings,
+            IExperimentalTypesProvider experimentalTypesProvider,
+            IConfigurationService<Rubberduck.Settings.GeneralSettings> service,
+            IConfigurationService<HotkeySettings> hotkeyService,
+            ApiConnection apiConnection)
             : base(service)
         {
+            _apiConnection = apiConnection;
             _operatingSystem = operatingSystem;
             _messageBox = messageBox;
             _vbeSettings = vbeSettings;
@@ -210,6 +225,81 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private bool _apiEnabled;
+        public bool ApiEnabled
+        {
+            get => _apiEnabled;
+            set
+            {
+                if (_apiEnabled != value)
+                {
+                    _apiEnabled = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private bool _apiAllowNetwork;
+        public bool ApiAllowNetwork
+        {
+            get => _apiAllowNetwork;
+            set
+            {
+                if (_apiAllowNetwork != value)
+                {
+                    _apiAllowNetwork = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private bool _apiAllowImmediate;
+        public bool ApiAllowImmediate
+        {
+            get => _apiAllowImmediate;
+            set
+            {
+                if (_apiAllowImmediate != value)
+                {
+                    _apiAllowImmediate = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private int _apiPort;
+        public int ApiPort
+        {
+            get => _apiPort;
+            set
+            {
+                if (_apiPort != value)
+                {
+                    _apiPort = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        //Null where the API is not available, as in tests.
+        private readonly ApiConnection _apiConnection;
+
+        private CommandBase _copyApiConnectionCommand;
+        public CommandBase CopyApiConnectionCommand => _copyApiConnectionCommand ?? (_copyApiConnectionCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(), _ => System.Windows.Clipboard.SetText(_apiConnection.Details()), _ => _apiConnection != null));
+
+        private CommandBase _regenerateApiTokenCommand;
+        public CommandBase RegenerateApiTokenCommand => _regenerateApiTokenCommand ?? (_regenerateApiTokenCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(),
+            _ =>
+            {
+                if (_messageBox.ConfirmYesNo(GeneralSettingsUI.ApiRegenerateToken_Confirm, GeneralSettingsUI.ApiRegenerateToken_Caption, false))
+                {
+                    _apiConnection.Regenerate();
+                }
+            },
+            _ => _apiConnection != null));
+
         private bool _setDpiUnaware;
         public bool SetDpiUnaware
         {
@@ -321,6 +411,10 @@ namespace Rubberduck.UI.Settings
                 CompileBeforeParse = CompileBeforeParse,
                 SetDpiUnaware =  SetDpiUnaware,
                 EnableFolderDragAndDrop = EnableFolderDragAndDrop,
+                ApiEnabled = ApiEnabled,
+                ApiAllowNetwork = ApiAllowNetwork,
+                ApiAllowImmediate = ApiAllowImmediate,
+                ApiPort = ApiPort,
                 IsSmartIndenterPrompted = _indenterPrompted,
                 IsAutoSaveEnabled = AutoSaveEnabled,
                 AutoSavePeriod = AutoSavePeriod,
@@ -348,6 +442,10 @@ namespace Rubberduck.UI.Settings
             CompileBeforeParse = general.CompileBeforeParse;
             SetDpiUnaware = general.SetDpiUnaware;
             EnableFolderDragAndDrop = general.EnableFolderDragAndDrop;
+            ApiEnabled = general.ApiEnabled;
+            ApiAllowNetwork = general.ApiAllowNetwork;
+            ApiAllowImmediate = general.ApiAllowImmediate;
+            ApiPort = general.ApiPort;
             _indenterPrompted = general.IsSmartIndenterPrompted;
             AutoSaveEnabled = general.IsAutoSaveEnabled;
             AutoSavePeriod = general.AutoSavePeriod;

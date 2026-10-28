@@ -20,10 +20,17 @@ namespace Rubberduck.UI.CodeExplorer
 
         private void TreeView_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            if (e.Handled)
+            {
+                return;
+            }
+
             if (ViewModel != null && ViewModel.OpenCommand.CanExecute(ViewModel.SelectedItem))
             {
-                ViewModel.OpenCommand.Execute(ViewModel.SelectedItem);
+                //Before the command runs: it may show a dialog and not return until that is closed, and the event would meanwhile
+                //go on to the parent nodes (Resources, the project), each of which would open the same item again.
                 e.Handled = true;
+                ViewModel.OpenCommand.Execute(ViewModel.SelectedItem);
             }
         }
 
@@ -37,6 +44,17 @@ namespace Rubberduck.UI.CodeExplorer
         {
             if (e.Key == Key.Delete)
             {
+                if (ViewModel.SelectedItem is CodeExplorerResourceViewModel)
+                {
+                    if (ViewModel.RemoveResourceCommand.CanExecute(ViewModel.SelectedItem))
+                    {
+                        ViewModel.RemoveResourceCommand.Execute(ViewModel.SelectedItem);
+                    }
+
+                    e.Handled = true;
+                    return;
+                }
+
                 ViewModel.RemoveCommand.Execute(ViewModel.SelectedItem);
                 e.Handled = true;
             }

@@ -584,6 +584,27 @@
                             <Image Source="{StaticResource RemoveImage}" Style="{StaticResource ToolbarImageOpacity}" />
                         </MenuItem.Icon>
                     </MenuItem>
+                    <!-- The resource commands only show on the Resources node and what is in it. -->
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddResourceImages}"
+                              Command="{Binding AddResourceImagesCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_AddRibbonXml}"
+                              Command="{Binding AddRibbonXmlCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_RemoveResource}"
+                              Command="{Binding RemoveResourceCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource RemoveImage}" Style="{StaticResource ToolbarImageOpacity}" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_DiscardResourceChanges}"
+                              Command="{Binding DiscardResourceChangesCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     <Separator />
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.RubberduckUI, Key=Find}">
                         <MenuItem.Icon>

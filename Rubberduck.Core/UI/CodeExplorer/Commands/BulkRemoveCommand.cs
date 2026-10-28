@@ -20,6 +20,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
     /// <summary>
     /// Removes all modules ticked in the code explorer's selection mode in one go,
     /// after offering to export them first, either keeping their folder structure or into a single folder.
+    /// Ticked ribbon pictures are removed along with them (staged, until the document is closed).
     /// </summary>
     public class BulkRemoveCommand : ComCommandBase
     {
@@ -29,6 +30,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
         private readonly IFileSystemBrowserFactory _dialogFactory;
         private readonly IFileSystem _fileSystem;
         private readonly IMessageBox _messageBox;
+        private readonly ResourceEditorService _resourceEditor;
 
         public BulkRemoveCommand(
             RemoveCommand removeCommand,
@@ -37,6 +39,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             IFileSystemBrowserFactory dialogFactory,
             IFileSystem fileSystem,
             IMessageBox messageBox,
+            ResourceEditorService resourceEditor,
             IVbeEvents vbeEvents)
             : base(vbeEvents)
         {
@@ -46,8 +49,37 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             _dialogFactory = dialogFactory;
             _fileSystem = fileSystem;
             _messageBox = messageBox;
+            _resourceEditor = resourceEditor;
 
-            AddToCanExecuteEvaluation(parameter => MarkedModules(parameter).Any());
+            AddToCanExecuteEvaluation(parameter => MarkedModules(parameter).Any() || MarkedImages(parameter).Any());
+        }
+
+        private static IEnumerable<CodeExplorerResourceViewModel> MarkedImages(object parameter)
+        {
+            return parameter is IEnumerable<ICodeExplorerNode> nodes
+                ? MarkedImages(nodes)
+                : Enumerable.Empty<CodeExplorerResourceViewModel>();
+        }
+
+        private static IEnumerable<CodeExplorerResourceViewModel> MarkedImages(IEnumerable<ICodeExplorerNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (node is CodeExplorerResourceViewModel image)
+                {
+                    if (image.IsMarked && image.CanBeMarked)
+                    {
+                        yield return image;
+                    }
+
+                    continue;
+                }
+
+                foreach (var marked in MarkedImages(node.Children))
+                {
+                    yield return marked;
+                }
+            }
         }
 
         private static IEnumerable<CodeExplorerComponentViewModel> MarkedModules(object parameter)
@@ -92,17 +124,44 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 .GroupBy(module => module.Declaration.QualifiedModuleName)
                 .Select(group => group.First())
                 .ToList();
-            if (modules.Count == 0)
+            var images = MarkedImages(parameter)
+                .GroupBy(image => image.DocumentPath)
+                .Where(group => group.Key != null)
+                .ToList();
+            if (modules.Count == 0 && images.Count == 0)
             {
                 return;
             }
 
+            //One question for all the pictures, up front, so cancelling it (or the modules' dialog) leaves everything as it was.
+            var pictureCount = images.Sum(group => group.Count());
+            if (pictureCount > 0 && !_messageBox.ConfirmYesNo(string.Format(CodeExplorerUI.Resources_RemoveConfirm, pictureCount), CodeExplorerUI.Resources_Caption, false))
+            {
+                return;
+            }
+
+            if (modules.Count > 0 && !RemoveModules(modules))
+            {
+                return;
+            }
+
+            foreach (var document in images)
+            {
+                _resourceEditor.RemoveImages(document.Key, document.Select(image => image.ResourceName).ToList(), false);
+            }
+
+            Completed?.Invoke(this, EventArgs.Empty);
+        }
+
+        //False if the user cancelled.
+        private bool RemoveModules(List<CodeExplorerComponentViewModel> modules)
+        {
             var options = ReadRememberedOptions();
             using (var dialog = new BulkRemoveDialog(modules.Count, options, BrowseForFolder))
             {
                 if (dialog.ShowDialog() != DialogResult.OK)
                 {
-                    return;
+                    return false;
                 }
 
                 options = dialog.Result;
@@ -113,7 +172,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 RememberOptions(options);
                 if (!TryExport(modules, options))
                 {
-                    return;
+                    return false;
                 }
             }
             else
@@ -125,7 +184,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             }
 
             Remove(modules);
-            Completed?.Invoke(this, EventArgs.Empty);
+            return true;
         }
 
         private string BrowseForFolder(string initialFolder)

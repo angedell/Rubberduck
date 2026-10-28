@@ -24,6 +24,10 @@ namespace Rubberduck.Settings
         bool SetDpiUnaware { get; set; }
         bool EnableFolderDragAndDrop { get; set; }
         List<ExperimentalFeature> EnableExperimentalFeatures { get; set; }
+        bool ApiEnabled { get; set; }
+        bool ApiAllowNetwork { get; set; }
+        bool ApiAllowImmediate { get; set; }
+        int ApiPort { get; set; }
     }
 
     [SettingsSerializeAs(SettingsSerializeAs.Xml)]
@@ -81,12 +85,24 @@ namespace Rubberduck.Settings
 
         public List<ExperimentalFeature> EnableExperimentalFeatures { get; set; } = new List<ExperimentalFeature>();
 
+        /// <summary>Lets AI agents read and edit modules over HTTP. Off until the user switches it on.</summary>
+        public bool ApiEnabled { get; set; }
+
+        /// <summary>Answer on the machine's network addresses, not only on loopback, for agents that run in a sandbox or a VM.</summary>
+        public bool ApiAllowNetwork { get; set; }
+
+        /// <summary>Lets agents read the Immediate window and enter commands in it, which runs them. Off until the user switches it on.</summary>
+        public bool ApiAllowImmediate { get; set; }
+
+        public int ApiPort { get; set; }
+
         public GeneralSettings()
         {
             //Enforce non-default default value for members
             //In other words, if we want a bool to default to
             //true, it must be set here for correct behavior
             CompileBeforeParse = true;
+            ApiPort = 7437;
         }
 
         public bool Equals(GeneralSettings other)
@@ -106,6 +122,10 @@ namespace Rubberduck.Settings
                    EnableExperimentalFeatures.All(other.EnableExperimentalFeatures.Contains) &&
                    SetDpiUnaware == other.SetDpiUnaware &&
                    EnableFolderDragAndDrop == other.EnableFolderDragAndDrop &&
+                   ApiEnabled == other.ApiEnabled &&
+                   ApiAllowNetwork == other.ApiAllowNetwork &&
+                   ApiAllowImmediate == other.ApiAllowImmediate &&
+                   ApiPort == other.ApiPort &&
                    ApiBaseUrl == other.ApiBaseUrl;
         }
     }

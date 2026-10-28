@@ -18,6 +18,11 @@ namespace Rubberduck.UI.Converters
         private static readonly ImageSource ReferenceFolderIcon = ToImageSource(CodeExplorerUI.ObjectAssembly);
         private static readonly ImageSource ReferenceIcon = ToImageSource(CodeExplorerUI.Reference);
 
+        private static readonly ImageSource ResourceFolderIcon = ToImageSource(CodeExplorerUI.ui_tab_content);
+        private static readonly ImageSource RibbonXmlIcon = ToImageSource(CodeExplorerUI.document_office);
+        private static readonly ImageSource ConfigResourceIcon = ToImageSource(CodeExplorerUI.pencil_ruler);
+        private static readonly ImageSource ImageResourceIcon = ToImageSource(CodeExplorerUI.document_globe);
+
         private static readonly ImageSource LockedReferenceIcon = ToImageSource(CodeExplorerUI.LockedReference);
         private static readonly ImageSource BrokenReferenceIcon = ToImageSource(CodeExplorerUI.BrokenReference);
 
@@ -47,6 +52,10 @@ namespace Rubberduck.UI.Converters
                         : reference.Reference.IsBuiltIn
                             ? LockedReferenceIcon
                             : ReferenceIcon;
+                case CodeExplorerResourceFolderViewModel _:
+                    return ResourceFolderIcon;
+                case CodeExplorerResourceViewModel resource:
+                    return resource.IsRibbonXml ? RibbonXmlIcon : resource.IsConfig ? ConfigResourceIcon : ImageResourceIcon;
                 case CodeExplorerCustomFolderViewModel folder:
                     return folder.IsExpanded ? OpenFolderIcon : ClosedFolderIcon;
                 case CodeExplorerComponentViewModel component:

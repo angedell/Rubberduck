@@ -27,6 +27,8 @@ namespace Rubberduck.Navigation.CodeExplorer
         public static Comparer<ICodeExplorerNode> ReferencePriority { get; } = new CompareByReferencePriority();
 
         public static Comparer<ICodeExplorerNode> ReferenceType { get; } = new CompareByReferenceType();
+
+        public static Comparer<ICodeExplorerNode> Resource { get; } = new CompareByResource();
     }
 
     public class CompareByDeclarationTypeAndCodeLine : Comparer<ICodeExplorerNode>
@@ -263,6 +265,13 @@ namespace Rubberduck.Navigation.CodeExplorer
                 return x is CodeExplorerReferenceFolderViewModel ? -1 : 1;
             }
 
+            // then the resources (ribbon XML, pictures)
+            if (x is CodeExplorerResourceFolderViewModel ^
+                y is CodeExplorerResourceFolderViewModel)
+            {
+                return x is CodeExplorerResourceFolderViewModel ? -1 : 1;
+            }
+
             // folders come next
             if (x is CodeExplorerCustomFolderViewModel ^
                 y is CodeExplorerCustomFolderViewModel)
@@ -271,6 +280,31 @@ namespace Rubberduck.Navigation.CodeExplorer
             }
 
             return 0;
+        }
+    }
+
+    /// <summary>Ribbon XML first, then the pictures by name.</summary>
+    public class CompareByResource : Comparer<ICodeExplorerNode>
+    {
+        public override int Compare(ICodeExplorerNode x, ICodeExplorerNode y)
+        {
+            if (x == y)
+            {
+                return 0;
+            }
+
+            if (!(x is CodeExplorerResourceViewModel first))
+            {
+                return -1;
+            }
+
+            if (!(y is CodeExplorerResourceViewModel second))
+            {
+                return 1;
+            }
+
+            var kind = first.Resource.Kind.CompareTo(second.Resource.Kind);
+            return kind != 0 ? kind : string.Compare(first.ResourceName, second.ResourceName, StringComparison.OrdinalIgnoreCase);
         }
     }
 

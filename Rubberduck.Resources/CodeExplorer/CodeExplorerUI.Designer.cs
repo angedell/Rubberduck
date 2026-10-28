@@ -1932,5 +1932,246 @@ namespace Rubberduck.Resources.CodeExplorer {
                 return ResourceManager.GetString("GitSync_Compare_DiscardEdits", resourceCulture);
             }
         }
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_Resources.
+        /// </summary>
+        public static string CodeExplorer_Resources {
+            get {
+                return ResourceManager.GetString("CodeExplorer_Resources", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_ResourcesPending.
+        /// </summary>
+        public static string CodeExplorer_ResourcesPending {
+            get {
+                return ResourceManager.GetString("CodeExplorer_ResourcesPending", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_ResourceRemoved.
+        /// </summary>
+        public static string CodeExplorer_ResourceRemoved {
+            get {
+                return ResourceManager.GetString("CodeExplorer_ResourceRemoved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_AddResourceImages.
+        /// </summary>
+        public static string CodeExplorer_AddResourceImages {
+            get {
+                return ResourceManager.GetString("CodeExplorer_AddResourceImages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_AddRibbonXml.
+        /// </summary>
+        public static string CodeExplorer_AddRibbonXml {
+            get {
+                return ResourceManager.GetString("CodeExplorer_AddRibbonXml", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_RemoveResource.
+        /// </summary>
+        public static string CodeExplorer_RemoveResource {
+            get {
+                return ResourceManager.GetString("CodeExplorer_RemoveResource", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_DiscardResourceChanges.
+        /// </summary>
+        public static string CodeExplorer_DiscardResourceChanges {
+            get {
+                return ResourceManager.GetString("CodeExplorer_DiscardResourceChanges", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_Caption.
+        /// </summary>
+        public static string Resources_Caption {
+            get {
+                return ResourceManager.GetString("Resources_Caption", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_RemoveConfirm.
+        /// </summary>
+        public static string Resources_RemoveConfirm {
+            get {
+                return ResourceManager.GetString("Resources_RemoveConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_AddFailed.
+        /// </summary>
+        public static string Resources_AddFailed {
+            get {
+                return ResourceManager.GetString("Resources_AddFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_FilterPictures.
+        /// </summary>
+        public static string Resources_FilterPictures {
+            get {
+                return ResourceManager.GetString("Resources_FilterPictures", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_DiscardConfirm.
+        /// </summary>
+        public static string Resources_DiscardConfirm {
+            get {
+                return ResourceManager.GetString("Resources_DiscardConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_Failed.
+        /// </summary>
+        public static string Resources_Failed {
+            get {
+                return ResourceManager.GetString("Resources_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Title.
+        /// </summary>
+        public static string ResourceEditor_Title {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Linearize.
+        /// </summary>
+        public static string ResourceEditor_Linearize {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Linearize", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Font.
+        /// </summary>
+        public static string ResourceEditor_Font {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Font", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Format.
+        /// </summary>
+        public static string ResourceEditor_Format {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Format", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Save.
+        /// </summary>
+        public static string ResourceEditor_Save {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Save", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Cancel.
+        /// </summary>
+        public static string ResourceEditor_Cancel {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Cancel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_WellFormed.
+        /// </summary>
+        public static string ResourceEditor_WellFormed {
+            get {
+                return ResourceManager.GetString("ResourceEditor_WellFormed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_NotWellFormed.
+        /// </summary>
+        public static string ResourceEditor_NotWellFormed {
+            get {
+                return ResourceManager.GetString("ResourceEditor_NotWellFormed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Position.
+        /// </summary>
+        public static string ResourceEditor_Position {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Position", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Note.
+        /// </summary>
+        public static string ResourceEditor_Note {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Note", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Stale.
+        /// </summary>
+        public static string ResourceEditor_Stale {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Stale", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_DiscardEdits.
+        /// </summary>
+        public static string ResourceEditor_DiscardEdits {
+            get {
+                return ResourceManager.GetString("ResourceEditor_DiscardEdits", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ResourceEditor_Namespace.
+        /// </summary>
+        public static string ResourceEditor_Namespace {
+            get {
+                return ResourceManager.GetString("ResourceEditor_Namespace", resourceCulture);
+            }
+        }
+        /// <summary>
+        ///   Looks up a localized string similar to Resources_ReplaceConfirm.
+        /// </summary>
+        public static string Resources_ReplaceConfirm {
+            get {
+                return ResourceManager.GetString("Resources_ReplaceConfirm", resourceCulture);
+            }
+        }
     }
 }

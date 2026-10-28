@@ -295,7 +295,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
 
             item.MergedText = merged;
             item.MergedViolations.Clear();
-            item.MergedViolations.AddRange(SyncHygiene.Check(item.Name, merged, SyncSide.File, _scan.Config.Sync, item.RelativePath.IndexOfAny(new[] { '\\', '/' }) >= 0));
+            if (!item.IsResource)
+            {
+                item.MergedViolations.AddRange(SyncHygiene.Check(item.Name, merged, SyncSide.File, _scan.Config.Sync, item.RelativePath.IndexOfAny(new[] { '\\', '/' }) >= 0));
+            }
             _actions[item] = SyncAction.Merge;
             RefreshRow(row);
             row.Checked = false;

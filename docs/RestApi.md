@@ -1,0 +1,137 @@
+# API for AI agents
+
+Lets an AI agent read and edit the modules, classes and forms of the projects open in the VBA editor, over HTTP, without exporting anything to a folder. It can also run Rubberduck's code inspections to check what it wrote and, only if you allow it, use the Immediate window. It never touches cells.
+
+## Switching it on
+
+Settings > General > **Let AI agents read and edit modules and forms**. Then **Copy connection details** gives you the addresses and the token to paste into the agent's setup.
+
+- **Also accept agents from the network** is for agents in a sandbox or VM that cannot reach `127.0.0.1` on your machine. The traffic is not encrypted: use it on a network you trust. Windows needs a one-time permission for it, and when it is missing Rubberduck shows a setup window:
+  1. It explains why, and shows the exact command with a **Copy** button. **Run as administrator** runs it for you after the Windows permission prompt; or paste it into a Command Prompt opened as administrator.
+  2. Only if the sandbox still cannot connect: a second command opens the firewall for private and domain networks. A checkbox adds it to what **Run as administrator** does.
+  3. **Try again** starts the API. **Use this PC only** switches the network option off instead.
+- **Also let agents use the Immediate window (this runs code)** is separate and off by default; see [the Immediate window](#the-immediate-window).
+- **New token** locks out whoever has the current one.
+- The first write asks you to allow writes. Yes covers the rest until you switch the API off or ask for a new token.
+- Before a module is first changed, and whenever one is replaced or deleted, a copy goes to `%LOCALAPPDATA%\Rubberduck\ApiBackups`.
+
+## MCP
+
+Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
+
+The server also offers MCP *resources* (`resources/list`, `resources/read`): `rubberduck://{project}/modules/{module}` (the code), `rubberduck://{project}/diagnostics` and `rubberduck://{project}/parser-errors`, for clients that let the user attach them to a conversation.
+
+## REST
+
+All requests need `Authorization: Bearer <token>`. Bodies and answers are JSON. `{p}` is a project's id or name, `{m}` a module's name.
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/info` | Which build is answering: `version` (all four parts, e.g. `2.5.92.28`; the last number counts up with every `build.cmd` run), `commit` (the start of the git hash, if the build recorded one), `display` (what the splash screen shows) and `api`. The same build is in the MCP `initialize` answer (`serverInfo.version`, `serverInfo.build`) and the `get_info` tool. Say it when you report a problem. |
+| `GET /api/v1/log` | Rubberduck's own log: `configuredLevel` (the setting), `effectiveLevel` (what logging really runs at; a `note` says when they differ or logging is off), `path`, and `entries` (`time`, `level`, `logger`, `message`; a stack trace stays with its entry), oldest first. Query: `tail` (latest entries, default 200, at most 2000), `minLevel` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`), `contains` (in the message or class, any case), `logger` (part of the class name). Only the last 4 MB of the file are read; older entries are in the `archives` folder next to it. |
+| `PUT /api/v1/log` | `{ "level": "Debug" }` (`Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal` or `Off`). Saved in the user's settings as their own choice (so Rubberduck does not reset a Trace level to Off at shutdown) and applied at once. Needs the same approval as writes. Answers like the read, without entries. |
+| `GET /api/v1/projects` | Lists the open projects: `id`, `name`, and the file's `path` and `extension` (both absent for a document that was never saved). Names are not unique (two `DevMacros`, say); the path tells them apart, and the `id` addresses them. |
+| `GET /api/v1/projects/{p}/modules` | Lists modules: `name`, `kind` (`standard`, `class`, `form`, `document`), `lineCount`. |
+| `GET /api/v1/projects/{p}/modules/{m}[?include=text,attributes]` | Reads `code` and `hash` (also the `ETag`). With `include=text`, also the module as exported, header included. With `include=attributes`, the hidden attributes as data: `"attributes": { "module": { "VB_PredeclaredId": true, "VB_Description": "..." }, "members": { "Greet": { "VB_UserMemId": 0 } } }`. |
+| `PUT /api/v1/projects/{p}/modules/{m}` | Replaces the code: `{ "code": "...", "expectedHash": "..." }`. Send `"text"` instead of `"code"` to replace the module as exported, header included (a form keeps its layout). |
+| `PATCH /api/v1/projects/{p}/modules/{m}` | Replaces lines: `{ "startLine": 3, "endLine": 5, "replacement": "...", "expectedHash": "..." }`. `endLine` = `startLine - 1` inserts. |
+| `POST /api/v1/projects/{p}/modules` | Adds a module: `{ "name": "modX", "kind": "standard\|class\|form", "code": "..." }`. Add `"attributes": { ... }` (the shape above) to set hidden attributes as well; the module is created first, so a bad attribute leaves it behind without them. |
+| `DELETE /api/v1/projects/{p}/modules/{m}` | Removes it (a document module only loses its code). Needs `If-Match`. |
+
+`expectedHash` may be sent as the `If-Match` header instead.
+
+**Hidden attributes without the header.** `PUT` also takes `"attributes"`, alone or together with `"code"`: `{ "attributes": { "module": { "VB_PredeclaredId": true }, "members": { "Greet": { "VB_UserMemId": 0, "VB_Description": "Greets" } } }, "expectedHash": "..." }`. Values are strings, numbers or `true`/`false`; names start with `VB_`; a member has to exist. An attribute that is there is replaced, otherwise it is added. This is what the `Missing...Attribute` and `...OutOfSync` inspections ask for, without reading the export and rebuilding the header yourself. It does not read `'@PredeclaredId`-style annotations for you: set the attributes the annotations name.
+
+### Diagnostics
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/projects/{p}/diagnostics` | Runs Rubberduck's inspections over the project. |
+| `GET /api/v1/projects/{p}/modules/{m}/diagnostics` | The same for one module (or `?module=`). |
+
+Every answer has `countsBySeverity`: how many results there were of each severity before `minSeverity` and `limit` were applied. A project-level result (a missing project name, say) has no `module`.
+
+Query: `minSeverity` (`hint`, `suggestion`, `warning`, `error`; leave out anything less severe) and `limit` (default 200, maximum 1000). The answer lists the worst first, each with `module`, `inspection`, `annotationName` (what goes in `'@Ignore` to silence it), `severity`, `description` and the line and column range. `parserState` is `Ready`, or an error state if a module could not be parsed, in which case the list is incomplete. It asks the parser to catch up with the editor and waits for it, so it can take a few seconds after a write; it needs no approval.
+
+### Batch edits
+
+`POST /api/v1/projects/{p}/edits` with `{ "edits": [ ... ] }`, at most 50, **one edit per module**. Each edit has `op` (`replaceCode`, `editLines`, `replaceText`, `create`, `delete`), `module` and the fields of that operation: `expectedHash` (all but `create`), `code` (`replaceCode`, `create`), `text` (`replaceText`), `startLine`, `endLine`, `replacement` (`editLines`), `kind` (`create`). Everything that can be checked first is: fields, names, and **every hash**. A stale hash in any edit fails the whole batch (412) before the first is applied. Then the edits are applied in order under one approval. If one still fails, the error names the modules already changed (their old versions are in the backup folder) and says nothing after it was applied. The batch is not atomic beyond that. Answer: `{ "modules": [ ... ] }`.
+
+### Understanding the code
+
+All read-only and without approval. Each waits for the parser to catch up with the editor.
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/projects/{p}/parser-errors` | The code the parser could not understand: `module`, `line`, `column`, `message`, `token`, `codeKind`. Inspections of such code are incomplete. |
+| `GET /api/v1/projects/{p}/symbols?module=M` | What the module declares, with `kind`, `asType`, `accessibility`, `startLine`, `endLine`, `annotations`. `includeLocals=true` adds parameters and local variables; `kind=` filters. |
+| `GET /api/v1/projects/{p}/symbols/references?name=N` | Every use of a declared name, per declaration (`module=` narrows, `limit=` default 200, maximum 2000). |
+| `GET /api/v1/projects/{p}/symbols/definition?module=M&line=L&column=C` | Where the identifier at a position (1-based) is declared. `found` is `false` for things outside the project's own code. |
+| `GET /api/v1/projects/{p}/libraries` | The referenced libraries: name, version, path, `isBuiltIn`, `isBroken`. |
+| `GET /api/v1/projects/{p}/structure` | The modules by `'@Folder`. |
+| `GET /api/v1/projects/{p}/metrics` | Code metrics per module and member (`module=` narrows). |
+
+### Unit tests
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/projects/{p}/tests` | Lists the `'@TestMethod` procedures (`module=` narrows) with the outcome of their last run since Rubberduck started (`Unknown` if none). Runs nothing, needs no opt-in. |
+| `POST /api/v1/projects/{p}/tests/run` | `{ "module": "...", "test": "...", "waitSeconds": 60 }`, all optional (`test` needs `module`). Runs them and answers with counts and each test's `outcome` and `output`. `completed: false` if the wait (at most 300 s) ran out first. One run at a time (409 otherwise). |
+
+**Running tests executes your VBA.** It needs **Also let agents run code** switched on (otherwise 403 `execute_disabled`) and shares the Immediate window's approval: the first run, or the first command, asks you once. The editor has to be in design mode with the parser ready, otherwise 503.
+
+### Check my work
+
+`POST /api/v1/projects/{p}/check` with `{ "module": "...", "runTests": false }` (both optional). Parser errors first; if the code parsed, the inspections of `warning` or `error` severity; and with `runTests`, the unit tests (same rules as above). `clean` is `true` when there is nothing to fix. It looks at warnings and errors only; `suppressed` counts what was left out (`{ "suggestion": 4, "hint": 1 }`), so a clean answer is not mistaken for "the inspections found nothing". Ask for the diagnostics to see those. Code that did not parse gets no inspections or tests: fix the parser errors first.
+
+### Ribbon XML and pictures
+
+The ribbon XML and pictures stored inside the project's document file: `customUI.xml` (Office 2007) or `customUI14.xml` (2010 and later), and the pictures in `customUI/images` (png, jpg, gif, bmp, ico; 5 MB at most). Only saved Open XML documents have them; for others `supported` is `false`. `{r}` is the resource's file name.
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/projects/{p}/resources` | Lists them: `name`, `kind` (`ribbon`, `image`), `size`, `pending`. |
+| `DELETE /api/v1/projects/{p}/resources` | Discards every change that is staged and not yet in the file (what the Code Explorer's discard does). Answers with the list. Needs the same approval as writes, unless nothing is staged. |
+| `GET /api/v1/projects/{p}/resources/{r}` | Reads one with its `hash` (also the `ETag`): `xml` for ribbon XML, `contentBase64` for a picture. |
+| `PUT /api/v1/projects/{p}/resources/{r}` | Adds or replaces: `{ "xml": "...", "expectedHash": "..." }` or `{ "contentBase64": "...", "expectedHash": "..." }`. The hash is only needed when the resource exists. |
+| `DELETE /api/v1/projects/{p}/resources/{r}` | Removes a picture (ribbon XML can only be replaced). Needs `If-Match`. |
+
+The document is open, so Office has its file locked: a write is **staged** and goes into the file when the document is closed (`pending` is `added`, `modified` or `removed` until then). Reads already include staged changes. The root of the XML must be `<customUI>` in the namespace that goes with the file name, or the write is refused with 400 and the line of the problem. Pictures are referred to in the XML by file name without extension, e.g. `image="logo"` for `logo.png`. Writes need the same approval as module writes.
+
+#### rubberduck.json
+
+The project's `rubberduck.json` lives in the same list, as the resource named `rubberduck.json` (`kind` `config`), stored in the document at `customUI/rubberduck.json`. If the document has none, Rubberduck creates one (staged) the first time the project is shown. It is text: read it from `text`, write it with `{ "text": "...", "expectedHash": "..." }`. Malformed JSON is refused with 400 and the position; settings that are wrong but parse (an unknown value, say) are accepted and returned in `warnings`. It cannot be deleted. The same applies to the MCP tools `list_resources`, `read_resource`, `write_resource` (with `text`) and `delete_resource`.
+
+### The Immediate window
+
+Only with **Also let agents run code** switched on, otherwise 403 `immediate_disabled`.
+
+| Request | Does |
+|---|---|
+| `GET /api/v1/immediate` | `{ "text": "..." }`: what the window shows (the last 20,000 characters). |
+| `POST /api/v1/immediate` | `{ "command": "?1+1", "waitMs": 5000 }`: enters the line(s) and runs them. Answers `{ "output": "...", "completed": true }`. |
+
+**Entering a command runs it**, with your rights: `?expression` prints a value, a statement runs, a procedure name calls it. The first command shows a dialog (separate from the one for writes) that you have to accept. `completed: false` means the window was still changing when `waitMs` (at most 60,000) ran out, for example because the code is still running: read the window again later. Commands are limited to 50 lines and 10,000 characters, and to characters the editor's window can take (no Unicode beyond the ANSI code page). The editor has to be open; the window is shown if it was hidden.
+
+**Error dialogs.** Code that fails shows the editor's error dialog, which nobody but a human could click. While a command runs, these dialogs are looked for: the editor's own error dialog (it has a Help button and belongs to the editor window) is closed with **End**, never **Debug**, so the editor does not stay in break mode, and its text is added to the answer's `errors`. Any other dialog (a message box of your code, Excel's own) is left alone: the answer then has `completed: false` and `blockedByDialog` with its `title`, `message` and `buttons`, and the user has to answer it. Finding and closing the error dialog was tried on an English Office 365 editor; the dialog's buttons are matched by their text.
+
+Errors look like `{ "error": { "code": "...", "message": "..." } }`:
+
+| Status | Meaning |
+|---|---|
+| 401 / 403 | Wrong or missing token; a browser request; network access off; writes not allowed by the user. |
+| 412 | The module changed since you read it. Read it again. |
+| 422 | The code contains `Attribute VB_...` lines (send it without its header, or use `text`); or a command has a character the Immediate window cannot take. |
+| 428 | No hash sent. |
+| 409 | `vbe_not_in_design_mode`: a macro is running or stopped (break mode), so the parser cannot work. Reset it (Run > Reset) and retry; waiting does not help. Also: a project name is ambiguous (use the id). |
+| 503 | Rubberduck is still parsing or the editor did not answer in time. Retry after the seconds in the `Retry-After` header. Edits are possible while the parser is in an error state, so a module that does not parse can be fixed or deleted. |
+
+## Example
+
+```
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:7437/api/v1/projects/VBAProject/modules/Module1
+curl -X PUT -H "Authorization: Bearer $TOKEN" -d '{"code":"Option Explicit\r\nSub Hello()\r\nEnd Sub","expectedHash":"<hash from the read>"}' \
+     http://127.0.0.1:7437/api/v1/projects/VBAProject/modules/Module1
+```
+
+The reasoning behind the design is in `docs/adr/0001-local-api-for-ai-agents.md`.

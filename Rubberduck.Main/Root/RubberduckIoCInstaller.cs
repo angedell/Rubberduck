@@ -67,6 +67,13 @@ using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.UI.Command.ComCommands;
 using Rubberduck.UI.CodeExplorer.GitSync;
 using Rubberduck.VBEditor.ComManagement.NonDisposalDecorators;
+using Rubberduck.Api;
+using Rubberduck.PackageResources;
+using Rubberduck.UI.CodeExplorer;
+using Rubberduck.Interaction;
+using Rubberduck.Parsing.UIContext;
+using System.Threading;
+using GeneralSettingsUI = Rubberduck.UI.Settings.GeneralSettingsUI;
 
 namespace Rubberduck.Root
 {
@@ -181,6 +188,10 @@ namespace Rubberduck.Root
 
             container.Register(Component.For<GitSyncService>()
                 .LifestyleSingleton());
+
+            RegisterPackageResources(container);
+
+            RegisterApi(container);
 
             RegisterCommands(container);
             RegisterCommandMenuItems(container);
@@ -1202,6 +1213,123 @@ namespace Rubberduck.Root
             var transitiveReferences = referencedAssemblies.SelectMany(asmbly => GetDistinctTransitivelyReferencedAssemblies(asmbly, filterPredicate)).ToList();
             referencedAssemblies.AddRange(transitiveReferences);
             return referencedAssemblies.Distinct();
+        }
+
+        private void RegisterPackageResources(IWindsorContainer container)
+        {
+            container.Register(Component.For<IPackageResourceService>()
+                .UsingFactoryMethod(kernel => new PackageResourceService(
+                    kernel.Resolve<IFileSystem>(),
+                    //A new rubberduck.json in a document starts from the user's own indenter settings.
+                    () => ProjectConfigTemplate.Create(kernel.Resolve<IConfigurationService<Configuration>>().Read().UserSettings.IndenterSettings)))
+                .LifestyleSingleton());
+            container.Register(Component.For<PackageResourceApplier>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ResourceEditorService>()
+                .LifestyleSingleton());
+        }
+
+        private void RegisterApi(IWindsorContainer container)
+        {
+            container.Register(Component.For<ApiState>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiToken>()
+                .UsingFactoryMethod(kernel => new ApiToken(
+                    kernel.Resolve<IFileSystem>(),
+                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Rubberduck", "api-token.txt")))
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiRequestGuard>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var state = kernel.Resolve<ApiState>();
+                    return new ApiRequestGuard(kernel.Resolve<ApiToken>(), () => state.Network);
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiWriteApproval>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var messageBox = kernel.Resolve<IMessageBox>();
+                    var dispatcher = kernel.Resolve<IUiDispatcher>();
+                    return new ApiWriteApproval(client =>
+                    {
+                        //Asked from the listener's thread; the dialog itself belongs on the UI thread. No answer in five minutes counts as no.
+                        var answer = dispatcher.StartTask(() => messageBox.ConfirmYesNo(
+                            string.Format(GeneralSettingsUI.ApiApproval_Text, client), GeneralSettingsUI.ApiApproval_Caption, false), CancellationToken.None);
+                        return answer.Wait(TimeSpan.FromMinutes(5)) && answer.Result;
+                    });
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiExecuteApproval>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var messageBox = kernel.Resolve<IMessageBox>();
+                    var dispatcher = kernel.Resolve<IUiDispatcher>();
+                    return new ApiExecuteApproval(client =>
+                    {
+                        var answer = dispatcher.StartTask(() => messageBox.ConfirmYesNo(
+                            string.Format(GeneralSettingsUI.ApiExecuteApproval_Text, client), GeneralSettingsUI.ApiExecuteApproval_Caption, false), CancellationToken.None);
+                        return answer.Wait(TimeSpan.FromMinutes(5)) && answer.Result;
+                    });
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<IModuleStore>()
+                .ImplementedBy<VbeModuleStore>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ParserSync>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IDialogWatcher>()
+                .ImplementedBy<Win32DialogWatcher>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IDiagnosticsSource>()
+                .ImplementedBy<InspectorDiagnosticsSource>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IInsightSource>()
+                .ImplementedBy<RubberduckInsightSource>()
+                .LifestyleSingleton());
+            container.Register(Component.For<InsightApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ITestSource>()
+                .ImplementedBy<EngineTestSource>()
+                .LifestyleSingleton());
+            container.Register(Component.For<TestsApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var state = kernel.Resolve<ApiState>();
+                    return new TestsApi(kernel.Resolve<ITestSource>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate);
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<CheckApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<DiagnosticsApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IImmediateWindow>()
+                .ImplementedBy<Win32ImmediateWindow>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ImmediateApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var state = kernel.Resolve<ApiState>();
+                    return new ImmediateApi(kernel.Resolve<IImmediateWindow>(), kernel.Resolve<ApiExecuteApproval>(), () => state.Immediate, dialogs: kernel.Resolve<IDialogWatcher>());
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<ModuleApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<IProjectFiles>()
+                .ImplementedBy<VbeProjectFiles>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ResourceApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ILogControl>()
+                .ImplementedBy<RubberduckLogControl>()
+                .LifestyleSingleton());
+            container.Register(Component.For<LogApi>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiRouter>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiServer>()
+                .LifestyleSingleton());
+            container.Register(Component.For<ApiConnection>()
+                .LifestyleSingleton());
         }
 
         private void RegisterAppWithSpecialDependencies(IWindsorContainer container)

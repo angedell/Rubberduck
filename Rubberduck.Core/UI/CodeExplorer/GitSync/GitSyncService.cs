@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.PackageResources;
 using Rubberduck.Settings;
 using Rubberduck.SettingsProvider;
 using Rubberduck.SmartIndenter;
@@ -69,12 +70,14 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         private readonly ProjectConfigWriter _configWriter;
         private readonly GitSyncStateStore _stateStore;
         private readonly GitSyncLinks _links;
+        private readonly GitSyncResources _resourceSync;
 
         public GitSyncService(
             IParseManager parseManager,
             IFileSystem fileSystem,
             IIndenter indenter,
-            IConfigurationService<Configuration> configuration)
+            IConfigurationService<Configuration> configuration,
+            IPackageResourceService resources)
         {
             _parseManager = parseManager;
             _fileSystem = fileSystem;
@@ -86,6 +89,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             _configWriter = new ProjectConfigWriter(fileSystem);
             _stateStore = new GitSyncStateStore(fileSystem);
             _links = new GitSyncLinks(fileSystem);
+            _resourceSync = new GitSyncResources(fileSystem, resources);
         }
 
         /// <summary>The folder last used for the project, or null.</summary>
@@ -143,6 +147,13 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             var plan = Background(
                 () => planner.Plan(modules, files, state, ignored, progress.Token),
                 progress, SyncStage.Comparing, () => planner.Completed, modules.Count + files.Count);
+
+            //The ribbon XML, pictures and rubberduck.json stored in the document are synced along with the modules, in the same list.
+            var document = project.FileName;
+            if (_resourceSync.AppliesTo(document))
+            {
+                _resourceSync.Plan(document, root, config.Path, state, ignored, plan);
+            }
 
             cache.Save(_fileSystem);
 
@@ -278,6 +289,10 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 chosen.Remove(blocked);
             }
 
+            //Resources have nothing to do with the VBE or the parser; they are synced on their own below.
+            var chosenResources = chosen.Where(item => item.IsResource).ToList();
+            chosen.RemoveAll(item => item.IsResource);
+
             var temp = NewTempFolder();
             var backup = _fileSystem.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Rubberduck", "GitSyncBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
@@ -335,6 +350,12 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
                 result.Imported = applied.Count(a => a.Item.Chosen == SyncAction.Import);
                 result.Exported = applied.Count(a => a.Item.Chosen == SyncAction.Export);
                 result.Merged = applied.Count(a => a.Item.Chosen == SyncAction.Merge);
+
+                if (chosenResources.Count > 0)
+                {
+                    _resourceSync.Apply(project.FileName, scan, chosenResources, path => BackUp(path, _fileSystem.Path.Combine(backup, "resources")), result);
+                }
+
                 if (result.Merged > 0)
                 {
                     result.Notes.Add($"{result.Merged} module(s) were merged from both sides; the project and the folder now hold the same text.");
@@ -629,7 +650,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             }
         }
 
-        private static void RemoveLeadingBlankLines(IVBComponent component)
+        internal static void RemoveLeadingBlankLines(IVBComponent component)
         {
             if (component == null)
             {
@@ -647,7 +668,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             }
         }
 
-        private static IVBComponent FindComponent(IVBComponents components, string name)
+        internal static IVBComponent FindComponent(IVBComponents components, string name)
         {
             IVBComponent found = null;
             foreach (var component in components)

@@ -18,6 +18,8 @@ using Application = System.Windows.Forms.Application;
 using Rubberduck.SettingsProvider;
 using System.IO.Abstractions;
 using Microsoft.Win32;
+using Rubberduck.Api;
+using Rubberduck.PackageResources;
 
 namespace Rubberduck
 {
@@ -29,11 +31,13 @@ namespace Rubberduck
         private readonly IRubberduckHooks _hooks;
         private readonly IVersionCheckService _version;
         private readonly CommandBase _checkVersionCommand;
+        private readonly ApiServer _api;
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         
         private Configuration _config;
         private IFileSystem _filesystem;
+        private readonly PackageResourceApplier _packageResources;
 
         public App(IMessageBox messageBox,
             IConfigurationService<Configuration> configService,
@@ -41,7 +45,9 @@ namespace Rubberduck
             IRubberduckHooks hooks,
             IVersionCheckService version,
             CommandBase checkVersionCommand,
-            IFileSystem filesystem)
+            IFileSystem filesystem,
+            ApiServer api,
+            PackageResourceApplier packageResources)
         {
             _messageBox = messageBox;
             _configService = configService;
@@ -49,6 +55,8 @@ namespace Rubberduck
             _hooks = hooks;
             _version = version;
             _checkVersionCommand = checkVersionCommand;
+            _api = api;
+            _packageResources = packageResources;
 
             _configService.SettingsChanged += _configService_SettingsChanged;
             _filesystem = filesystem;
@@ -61,6 +69,7 @@ namespace Rubberduck
             _config = _configService.Read();
             _hooks.HookHotkeys();
             UpdateLoggingLevel();
+            ApplyApiConfig();
 
             if (e.LanguageChanged)
             {
@@ -104,6 +113,45 @@ namespace Rubberduck
             }
         }
 
+        private void ApplyApiConfig()
+        {
+            var general = _config.UserSettings.GeneralSettings;
+            var network = general.ApiAllowNetwork;
+            while (true)
+            {
+                try
+                {
+                    _api.Apply(general.ApiEnabled, network, general.ApiPort, general.ApiAllowImmediate);
+                    return;
+                }
+                catch (ApiStartException exception) when (exception.Problem == ApiStartProblem.NeedsUrlAcl)
+                {
+                    Logger.Warn(exception, "The API could not listen on the network: Windows has to allow it first.");
+                    switch (ApiSetupDialog.Ask(exception.Port))
+                    {
+                        case ApiSetupChoice.TryAgain:
+                            continue;
+                        case ApiSetupChoice.LocalOnly:
+                            //Switched off in the saved settings too, so the question is not asked again at every start.
+                            general.ApiAllowNetwork = false;
+                            network = false;
+                            _configService.Save(_config);
+                            continue;
+                        default:
+                            //Left switched on, so the setting still says what the user wants; the server just is not running.
+                            _api.Apply(false, false, general.ApiPort, false);
+                            return;
+                    }
+                }
+                catch (ApiStartException exception)
+                {
+                    Logger.Warn(exception, "The API could not start.");
+                    _messageBox.NotifyWarn(exception.Message, "Rubberduck");
+                    return;
+                }
+            }
+        }
+
         private void UpdateLoggingLevel()
         {
             LogLevelHelper.SetMinimumLogLevel(LogLevel.FromOrdinal(_config.UserSettings.GeneralSettings.MinimumLogLevel));
@@ -135,6 +183,8 @@ namespace Rubberduck
 
             LogRubberduckStart();
             UpdateLoggingLevel();
+            ApplyApiConfig();
+            _packageResources.Start();
             
             CheckForLegacyIndenterSettings();
             _appMenus.Initialize();
@@ -153,6 +203,8 @@ namespace Rubberduck
             {
                 Debug.WriteLine("App calling Hooks.Detach.");
                 _hooks.Detach();
+                _api.Dispose();
+                _packageResources.Shutdown();
 
                 UpdateLoggingLevelOnShutdown();
             }

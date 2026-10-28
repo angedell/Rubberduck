@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using Rubberduck.AddRemoveReferences;
 using Rubberduck.Navigation.Folders;
+using Rubberduck.PackageResources;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.VBEditor.ComManagement;
@@ -23,6 +24,8 @@ namespace Rubberduck.Navigation.CodeExplorer
 
         private readonly IVBE _vbe;
         private readonly IProjectsProvider _projectsProvider;
+        private readonly IPackageResourceService _resources;
+        private bool _loggedNoResourceService;
 
         public CodeExplorerProjectViewModel(
             Declaration project, 
@@ -30,17 +33,20 @@ namespace Rubberduck.Navigation.CodeExplorer
             RubberduckParserState state, 
             IVBE vbe, 
             IProjectsProvider projectsProvider,
-            bool references = true) 
+            bool references = true,
+            IPackageResourceService resources = null) 
             : base(null, project)
         {
             State = state;
             _vbe = vbe;
             _projectsProvider = projectsProvider;
             ShowReferences = references;
+            _resources = resources;
 
             SetName();
             var children = ExtractTrackedDeclarationsForProject(project, ref declarations);
             AddNewChildren(ref children);
+            SynchronizeResources();
             IsExpanded = true;
         }
 
@@ -116,6 +122,7 @@ namespace Rubberduck.Navigation.CodeExplorer
             }
 
             SynchronizeReferences();
+            SynchronizeResources();
 
             foreach (var rootFolder in updated.GroupBy(declaration => declaration.RootFolder())
                 .Where(folder => !string.IsNullOrEmpty(folder.Key)))
@@ -153,6 +160,68 @@ namespace Rubberduck.Navigation.CodeExplorer
             {
                 AddChild(new CodeExplorerReferenceFolderViewModel(this, State?.DeclarationFinder, type.ToList(), type.Key));
             }
+        }
+
+        /// <summary>
+        /// Shows the ribbon XML and pictures stored in the document's file, if it has any to show. Called with every synchronization, and when staged changes are made.
+        /// </summary>
+        public void SynchronizeResources()
+        {
+            if (_resources == null || Declaration == null)
+            {
+                //Says why there is no Resources node when the service was never handed over, once per project. Code Metrics builds its nodes without it on purpose.
+                if (_resources == null && !_loggedNoResourceService)
+                {
+                    _loggedNoResourceService = true;
+                    Logger.Debug("No package resource service was given to the node of project '{0}', so it shows no Resources.", Name);
+                }
+
+                return;
+            }
+
+            var folder = Children.OfType<CodeExplorerResourceFolderViewModel>().FirstOrDefault();
+            var document = _projectsProvider.Project(Declaration.ProjectId)?.FileName;
+
+            IReadOnlyList<PackageResource> listing = null;
+            try
+            {
+                if (_resources.IsSupported(document))
+                {
+                    //A document without a rubberduck.json gets one (staged, so it is written when the document is closed).
+                    _resources.EnsureConfig(document);
+                    listing = _resources.List(document);
+                }
+            }
+            catch (PackageResourceException exception)
+            {
+                // The file is locked or odd; show nothing rather than an error in the tree.
+                Logger.Warn(exception, "No resources listed for '{0}'.", document);
+            }
+
+            if (listing == null)
+            {
+                Logger.Debug("No Resources node for project '{0}': document '{1}' is {2}.", Name, document, _resources.IsSupported(document) ? "supported, but listing it failed" : "not a saved Open XML file");
+
+                if (folder != null)
+                {
+                    RemoveChild(folder);
+                }
+
+                return;
+            }
+
+            if (folder == null || folder.DocumentPath != document)
+            {
+                if (folder != null)
+                {
+                    RemoveChild(folder);
+                }
+
+                AddChild(new CodeExplorerResourceFolderViewModel(this, document, listing) { SortOrder = SortOrder });
+                return;
+            }
+
+            folder.Synchronize(listing);
         }
 
         private List<ReferenceModel> GetProjectReferenceModels()
