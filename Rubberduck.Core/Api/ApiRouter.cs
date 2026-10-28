@@ -46,11 +46,14 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly SyncAttributesApi _syncAttributes;
         private readonly McpEndpoint _mcp;
 
         public ApiRouter(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            SyncAttributesApi syncAttributes = null)
         {
+            _syncAttributes = syncAttributes;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -61,7 +64,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, syncAttributes);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -250,6 +253,26 @@ namespace Rubberduck.Api
                 }
 
                 return Resource(request, method, segments[1], segments[3]);
+            }
+
+            // /projects/{p}/modules/{m}/sync-attributes: GET previews, POST applies
+            if (segments.Length == 5 && segments[0] == "projects" && segments[2] == "modules" && segments[4] == "sync-attributes" && _syncAttributes != null)
+            {
+                switch (method)
+                {
+                    case "GET":
+                        return ApiResponse.Json(_syncAttributes.Preview(segments[1], segments[3]));
+                    case "POST":
+                        var sync = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
+                        if (Bool(sync, "dryRun"))
+                        {
+                            return ApiResponse.Json(_syncAttributes.Preview(segments[1], segments[3]));
+                        }
+
+                        return ApiResponse.Json(_syncAttributes.Apply(request.Client, segments[1], segments[3], ExpectedHash(request, sync)));
+                    default:
+                        throw MethodNotAllowed("GET, POST");
+                }
             }
 
             if (segments.Length >= 3 && segments[0] == "projects")

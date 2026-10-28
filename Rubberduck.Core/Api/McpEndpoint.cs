@@ -24,10 +24,13 @@ namespace Rubberduck.Api
         private readonly LogApi _log;
         private readonly ParserSync _parser;
         private readonly DumpApi _dump;
+        private readonly SyncAttributesApi _syncAttributes;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
-            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null)
+            InsightApi insight = null, TestsApi tests = null, CheckApi check = null, LogApi log = null, ParserSync parser = null, DumpApi dump = null,
+            SyncAttributesApi syncAttributes = null)
         {
+            _syncAttributes = syncAttributes;
             _log = log;
             _dump = dump;
             _parser = parser;
@@ -171,6 +174,7 @@ namespace Rubberduck.Api
             .Concat(_check != null ? CheckTools() : Enumerable.Empty<Tool>())
             .Concat(_log != null ? LogTools() : Enumerable.Empty<Tool>())
             .Concat(_dump != null ? DumpTools() : Enumerable.Empty<Tool>())
+            .Concat(_syncAttributes != null ? SyncAttributesTools() : Enumerable.Empty<Tool>())
             .Concat(_immediate.IsEnabled ? ImmediateTools() : Enumerable.Empty<Tool>());
 
         private static JObject Boolean(string description) => new JObject { ["type"] = "boolean", ["description"] = description };
@@ -321,6 +325,28 @@ namespace Rubberduck.Api
                 },
                 Required = new string[0],
                 Run = (args, client) => _dump.Capture(client, args.Value<string>("kind"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
+            }
+        }.ToList());
+
+        private IList<Tool> _syncAttributesTools;
+
+        private IEnumerable<Tool> SyncAttributesTools() => _syncAttributesTools ?? (_syncAttributesTools = new[]
+        {
+            new Tool
+            {
+                Name = "sync_attributes",
+                Description = "Brings a module's hidden attributes in line with its annotations: VB_Name, VB_PredeclaredId and VB_Exposed (from @PredeclaredId, @Exposed), @ModuleAttribute and @ModuleDescription, and the members' VB_UserMemId (@DefaultMember, @Enumerator), VB_Description (@Description) and @MemberAttribute. Annotations are never changed. Without 'apply' it only lists what would change ('changes', each with from, to and the annotation it comes from; 'inSync' when there is nothing). With 'apply' it writes them, needing 'expectedHash' (from the preview or a read), the user's approval as for writes, and the editor in design mode (otherwise vbe_not_in_design_mode).",
+                Properties = new JObject
+                {
+                    ["project"] = String("Project id or name."),
+                    ["module"] = String("Module name."),
+                    ["apply"] = Boolean("Write the changes. Default false: preview only."),
+                    ["expectedHash"] = String("The module's hash from your last read or preview. Required with apply.")
+                },
+                Required = new[] { "project", "module" },
+                Run = (args, client) => args.Value<bool?>("apply") == true
+                    ? _syncAttributes.Apply(client, Arg(args, "project"), Arg(args, "module"), args.Value<string>("expectedHash"))
+                    : _syncAttributes.Preview(Arg(args, "project"), Arg(args, "module"))
             }
         }.ToList());
 

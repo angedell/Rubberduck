@@ -1326,6 +1326,9 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<DumpApi>()
                 .LifestyleSingleton());
+            container.Register(Component.For<SyncAttributesApi>()
+                .UsingFactoryMethod(kernel => new SyncAttributesApi(kernel.Resolve<IModuleStore>(), kernel.Resolve<ApiWriteApproval>(), () => kernel.Resolve<ParserSync>().IsEditorInDesignMode()))
+                .LifestyleSingleton());
             container.Register(Component.For<ApiRouter>()
                 .LifestyleSingleton());
             container.Register(Component.For<ApiServer>()
