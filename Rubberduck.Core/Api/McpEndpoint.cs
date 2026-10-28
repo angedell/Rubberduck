@@ -116,7 +116,7 @@ namespace Rubberduck.Api
             try
             {
                 var result = tool.Run(arguments, client);
-                return Content(JsonConvert.SerializeObject(result, Formatting.Indented), false);
+                return Content(JsonConvert.SerializeObject(result, ApiServer.JsonSettings), false);
             }
             catch (ApiException exception)
             {
@@ -417,11 +417,11 @@ namespace Rubberduck.Api
             }
             else if (parts.Length == 2 && parts[1] == "diagnostics")
             {
-                text = JsonConvert.SerializeObject(_diagnostics.Get(parts[0], null, null, null), Formatting.Indented);
+                text = JsonConvert.SerializeObject(_diagnostics.Get(parts[0], null, null, null), ApiServer.JsonSettings);
             }
             else if (parts.Length == 2 && parts[1] == "parser-errors" && _insight != null)
             {
-                text = JsonConvert.SerializeObject(_insight.ParserErrors(parts[0]), Formatting.Indented);
+                text = JsonConvert.SerializeObject(_insight.ParserErrors(parts[0]), ApiServer.JsonSettings);
             }
             else
             {

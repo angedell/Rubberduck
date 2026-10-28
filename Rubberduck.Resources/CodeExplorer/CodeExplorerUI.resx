@@ -925,4 +925,40 @@ They are taken out of the document's file when the document is closed.</value>
   <data name="NoteEditor_Duplicate" xml:space="preserve">
     <value>There is already a note at {0}. Save anyway?</value>
   </data>
+  <data name="CodeExplorer_CopyToProject" xml:space="preserve">
+    <value>Copy to project...</value>
+  </data>
+  <data name="CodeExplorer_MoveToProject" xml:space="preserve">
+    <value>Move to project...</value>
+  </data>
+  <data name="ProjectPicker_CopyTitle" xml:space="preserve">
+    <value>Copy to project</value>
+  </data>
+  <data name="ProjectPicker_MoveTitle" xml:space="preserve">
+    <value>Move to project</value>
+  </data>
+  <data name="ProjectPicker_Prompt" xml:space="preserve">
+    <value>Choose the project:</value>
+  </data>
+  <data name="ProjectPicker_Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="ProjectPicker_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ProjectPicker_Unsaved" xml:space="preserve">
+    <value>(not saved)</value>
+  </data>
+  <data name="Transfer_NameTaken" xml:space="preserve">
+    <value>The project {0} already has a module named {1}. Keep both and name the new one {2}?</value>
+  </data>
+  <data name="Transfer_NoteTaken" xml:space="preserve">
+    <value>The project {0} already has a note at {1}. Keep both and name the new one {2}?</value>
+  </data>
+  <data name="Transfer_Referrers" xml:space="preserve">
+    <value>{0} is used by: {1}. These will no longer find it once it is moved. Move it anyway?</value>
+  </data>
+  <data name="Transfer_Failed" xml:space="preserve">
+    <value>The module could not be transferred: {0}</value>
+  </data>
 </root>

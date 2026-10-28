@@ -506,6 +506,8 @@ namespace Rubberduck.Navigation.CodeExplorer
         public SetAsStartupProjectCommand SetAsStartupProjectCommand { get; set; }
         public RenameCommand RenameCommand { get; set; }
         public CodeExplorerMoveToFolderCommand MoveToFolderCommand { get; set; }
+        public CopyToProjectCommand CopyToProjectCommand { get; set; }
+        public MoveToProjectCommand MoveToProjectCommand { get; set; }
         public IndentCommand IndenterCommand { get; set; }
         public CodeExplorerFindAllReferencesCommand FindAllReferencesCommand { get; set; }
         public CodeExplorerFindAllImplementationsCommand FindAllImplementationsCommand { get; set; }

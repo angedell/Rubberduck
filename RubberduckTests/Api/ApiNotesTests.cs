@@ -166,9 +166,23 @@ namespace RubberduckTests.Api
         }
 
         [Test]
-        public void APlainNameThatIsAmbiguous_AsksForThePath()
+        public void ANameWithoutAFolder_IsTheRootsNote_EvenWhenOtherFoldersUseTheName()
         {
             _store.Add("Rules", "standard", Claude);
+            var api = _notes.Write("c", "P", "CLAUDE.md", "# Api", null, "Api");
+
+            Assert.AreEqual("# Rules", _notes.Read("P", "CLAUDE.md").Markdown, "the root's, as its path says");
+            Assert.AreEqual("# Api", _notes.Read("P", "CLAUDE.md", "Api").Markdown);
+
+            _notes.Delete("c", "P", "CLAUDE.md", _notes.Read("P", "CLAUDE.md").Hash);
+
+            CollectionAssert.AreEqual(new[] { "Api/CLAUDE.md" }, _notes.List("P").Notes.Select(n => n.Path).ToArray());
+        }
+
+        [Test]
+        public void APlainNameThatIsAmbiguous_AsksForThePath()
+        {
+            _notes.Write("c", "P", "CLAUDE.md", "# Models", null, "Models");
             _notes.Write("c", "P", "CLAUDE.md", "# Api", null, "Api");
 
             var ambiguous = Assert.Throws<ApiException>(() => _notes.Read("P", "CLAUDE.md"));
@@ -176,6 +190,7 @@ namespace RubberduckTests.Api
             Assert.AreEqual("ambiguous_note", ambiguous.Code);
             StringAssert.Contains("Api/CLAUDE.md", ambiguous.Message);
             Assert.AreEqual("# Api", _notes.Read("P", "api/claude.MD").Markdown, "paths ignore case, like folders");
+            StringAssert.Contains("Models/CLAUDE.md", ambiguous.Message);
         }
 
         [Test]

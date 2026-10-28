@@ -2384,6 +2384,114 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_CopyToProject.
+        /// </summary>
+        public static string CodeExplorer_CopyToProject {
+            get {
+                return ResourceManager.GetString("CodeExplorer_CopyToProject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CodeExplorer_MoveToProject.
+        /// </summary>
+        public static string CodeExplorer_MoveToProject {
+            get {
+                return ResourceManager.GetString("CodeExplorer_MoveToProject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_CopyTitle.
+        /// </summary>
+        public static string ProjectPicker_CopyTitle {
+            get {
+                return ResourceManager.GetString("ProjectPicker_CopyTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_MoveTitle.
+        /// </summary>
+        public static string ProjectPicker_MoveTitle {
+            get {
+                return ResourceManager.GetString("ProjectPicker_MoveTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Prompt.
+        /// </summary>
+        public static string ProjectPicker_Prompt {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Prompt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Ok.
+        /// </summary>
+        public static string ProjectPicker_Ok {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Ok", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Cancel.
+        /// </summary>
+        public static string ProjectPicker_Cancel {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Cancel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ProjectPicker_Unsaved.
+        /// </summary>
+        public static string ProjectPicker_Unsaved {
+            get {
+                return ResourceManager.GetString("ProjectPicker_Unsaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_NameTaken.
+        /// </summary>
+        public static string Transfer_NameTaken {
+            get {
+                return ResourceManager.GetString("Transfer_NameTaken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_NoteTaken.
+        /// </summary>
+        public static string Transfer_NoteTaken {
+            get {
+                return ResourceManager.GetString("Transfer_NoteTaken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_Referrers.
+        /// </summary>
+        public static string Transfer_Referrers {
+            get {
+                return ResourceManager.GetString("Transfer_Referrers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transfer_Failed.
+        /// </summary>
+        public static string Transfer_Failed {
+            get {
+                return ResourceManager.GetString("Transfer_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to NoteEditor_LineTooLong.
         /// </summary>
         public static string NoteEditor_LineTooLong {

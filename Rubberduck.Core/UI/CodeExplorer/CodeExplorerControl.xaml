@@ -493,6 +493,14 @@
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveToFolder}"
                               Command="{Binding MoveToFolderCommand}"
                               CommandParameter="{Binding SelectedItem, Mode=OneWay}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_CopyToProject}"
+                              Command="{Binding CopyToProjectCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                    <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_MoveToProject}"
+                              Command="{Binding MoveToProjectCommand}"
+                              CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                              Visibility="{Binding Path=IsEnabled, RelativeSource={RelativeSource Self}, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=CodeExplorer_Annotate}" IsEnabled="{Binding CanBeAnnotated}">
                         <MenuItem.ItemsSource>
                             <CompositeCollection>

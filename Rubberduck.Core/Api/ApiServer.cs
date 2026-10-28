@@ -51,7 +51,7 @@ namespace Rubberduck.Api
 
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
+        internal static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
