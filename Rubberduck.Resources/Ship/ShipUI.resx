@@ -149,7 +149,7 @@
     <value>Keep both</value>
   </data>
   <data name="Ship_Confirm_Removes" xml:space="preserve">
-    <value>Removes: {0}</value>
+    <value>Changes: {0}</value>
   </data>
   <data name="Ship_Confirm_RemovesNothing" xml:space="preserve">
     <value>nothing</value>
@@ -294,6 +294,9 @@
   <data name="Ship_Step_descriptiveAttributes" xml:space="preserve">
     <value>Descriptive module attributes</value>
   </data>
+  <data name="Ship_Step_lineNumbers" xml:space="preserve">
+    <value>Add line numbers, the line of the source module, for Erl in error handlers</value>
+  </data>
   <data name="Ship_Step_notes" xml:space="preserve">
     <value>Notes (modules that only hold comments)</value>
   </data>
@@ -301,7 +304,7 @@
     <value>Unit test modules and the unit testing reference</value>
   </data>
   <data name="Ship_StepsGroup" xml:space="preserve">
-    <value>Remove from the shipped copy</value>
+    <value>Change in the shipped copy</value>
   </data>
   <data name="Ship_Title" xml:space="preserve">
     <value>Ship {0}</value>
@@ -320,5 +323,30 @@
   <data name="Ship_Working" xml:space="preserve">
     <value>Shipping {0}...</value>
     <comment>{0} project name</comment>
+  </data>
+  <data name="Ship_Step_treeShaking" xml:space="preserve">
+    <value>Unreachable code (tree shaking, can remove code you need: read the list below)</value>
+  </data>
+  <data name="Ship_TreeShaking_Mode_Conservative" xml:space="preserve">
+    <value>Keep every public procedure of a standard module (safe)</value>
+  </data>
+  <data name="Ship_TreeShaking_Mode_EntryPointsOnly" xml:space="preserve">
+    <value>Keep only what is marked or named</value>
+  </data>
+  <data name="Ship_TreeShaking_ModeHint" xml:space="preserve">
+    <value>Safe keeps every public procedure of a standard module, because it may be a macro or a worksheet function. The other choice removes them too unless they are marked @EntryPoint or @ExcelHotkey, named in the list below, or found by Rubberduck (event handlers, ribbon callbacks, names written as text).</value>
+  </data>
+  <data name="Ship_TreeShaking_KeepLabel" xml:space="preserve">
+    <value>Always keep these (one name per line, as Member or Module.Member):</value>
+  </data>
+  <data name="Ship_TreeShaking_KeepHint" xml:space="preserve">
+    <value>Use this for code that is only reached by a name Rubberduck cannot follow, such as the dynamic calls listed in the summary.</value>
+  </data>
+  <data name="Ship_Preview_DynamicCalls" xml:space="preserve">
+    <value>Calls Rubberduck cannot follow (the name is worked out while the program runs). What they reach may be removed: add it to the list of names to keep if you need it.</value>
+  </data>
+  <data name="Ship_Confirm_TreeShaking" xml:space="preserve">
+    <value>Tree shaking is on ({0}; {1} names always kept): code that nothing reaches is removed from the shipped copy. Check the list of removals first.</value>
+    <comment>{0} mode, {1} count</comment>
   </data>
 </root>

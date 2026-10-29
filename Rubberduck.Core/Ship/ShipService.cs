@@ -25,19 +25,28 @@ namespace Rubberduck.Ship
         private readonly string _tempRoot;
         private readonly ShipSource _source;
 
-        /// <summary>The service as Rubberduck runs it: the real Excel, the real machine, the user's own settings folder.</summary>
+        /// <summary>The service without tree shaking: the step is skipped, with a warning, when it is switched on.</summary>
         public ShipService(IFileSystem fileSystem, IPackageResourceService resources, IStringParser parser)
+            : this(fileSystem, resources, parser, (IShipAnalysis)null)
+        {
+        }
+
+        /// <summary>
+        /// The service as Rubberduck runs it: the real Excel, the real machine, the user's own settings folder, and the analysis over the parser state.
+        /// Windsor takes the constructor with the most arguments it can satisfy, so a container without an <see cref="IShipAnalysis"/> gets the one above.
+        /// </summary>
+        public ShipService(IFileSystem fileSystem, IPackageResourceService resources, IStringParser parser, IShipAnalysis analysis)
             : this(fileSystem, resources, parser, new ShipArtifactWriter(fileSystem, new ShipModuleText(parser)), new ShipEnvironment(),
-                ShipUnattended.FilePath, fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "Rubberduck-Ship"))
+                ShipUnattended.FilePath, fileSystem.Path.Combine(fileSystem.Path.GetTempPath(), "Rubberduck-Ship"), analysis)
         {
         }
 
         public ShipService(IFileSystem fileSystem, IPackageResourceService resources, IStringParser parser, IShipArtifactWriter writer, IShipEnvironment environment,
-            string unattendedFile, string tempRoot)
+            string unattendedFile, string tempRoot, IShipAnalysis analysis = null)
         {
             _fileSystem = fileSystem;
             _resources = resources;
-            _pipeline = new ShipPipeline(parser);
+            _pipeline = new ShipPipeline(parser, analysis);
             _writer = writer;
             _folders = new ShipFolders(fileSystem, environment);
             _unattendedFile = unattendedFile;
@@ -239,7 +248,7 @@ namespace Rubberduck.Ship
             try
             {
                 var set = _source.Build(project, _fileSystem.Path.Combine(work, "export"), PackageOf(project));
-                var report = _pipeline.Run(set, settings, dryRun: true);
+                var report = _pipeline.Run(set, settings, dryRun: true, project: project);
                 if (folder != null)
                 {
                     report.OutputPath = _fileSystem.Path.Combine(folder, FileNameOf(project, settings) + Extension(settings.Format));
@@ -283,7 +292,7 @@ namespace Rubberduck.Ship
             {
                 progress?.Report("Reading the project");
                 var set = _source.Build(project, _fileSystem.Path.Combine(work, "export"), PackageOf(project));
-                var report = _pipeline.Run(set, settings, dryRun: false);
+                var report = _pipeline.Run(set, settings, dryRun: false, project: project);
 
                 //Built under the name it will have: an add-in takes its name from its file.
                 var artifact = _fileSystem.Path.Combine(work, "out", _fileSystem.Path.GetFileName(target));

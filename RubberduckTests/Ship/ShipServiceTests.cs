@@ -111,9 +111,25 @@ namespace RubberduckTests.Ship
             }
         }
 
-        private ShipService Service(IShipEnvironment environment = null)
+        private ShipService Service(IShipEnvironment environment = null, IShipAnalysis analysis = null)
             => new ShipService(new FileSystem(), _resources.Object, ShipTestParser.Create(), _writer, environment ?? new FakeEnvironment(),
-                Path.Combine(_root, "settings", "ship-unattended.json"), Path.Combine(_root, "temp"));
+                Path.Combine(_root, "settings", "ship-unattended.json"), Path.Combine(_root, "temp"), analysis);
+
+        private class FakeAnalysis : IShipAnalysis
+        {
+            public IVBProject AskedAbout { get; private set; }
+            public ShipWorkingSet Seen { get; private set; }
+            public ShipAnalysisResult Result { get; set; }
+            public string WhyNot { get; set; }
+
+            public ShipAnalysisResult Analyze(IVBProject project, ShipWorkingSet set, ShipTreeShakingSettings settings, out string whyNot)
+            {
+                AskedAbout = project;
+                Seen = set;
+                whyNot = WhyNot;
+                return Result;
+            }
+        }
 
         private ShipSettings Settings(ShipOnExisting onExisting = ShipOnExisting.Ask, string folder = null)
             => new ShipSettings { OutputFolder = folder ?? _outputFolder, OnExisting = onExisting, FileName = "Tool" };
@@ -223,7 +239,7 @@ namespace RubberduckTests.Ship
             Assert.IsTrue(job.Set.Modules.Single(m => m.Name == "TestMath").Removed);
             Assert.IsTrue(job.Set.Modules.Single(m => m.Name == "Note_1").Removed);
             Assert.AreEqual("Attribute VB_Name = \"ModCode\"\r\nOption Explicit\r\nPublic Sub Foo()\r\n    Debug.Print 1\r\nEnd Sub", job.Set.Modules.Single(m => m.Name == "ModCode").Text);
-            Assert.AreEqual(ShipSteps.All, report.Steps.Select(s => s.Step).ToArray());
+            Assert.AreEqual(ShipSteps.All.Where(step => !ShipSteps.OffByDefault(step)).ToArray(), report.Steps.Select(s => s.Step).ToArray(), "Tree shaking is off unless asked for.");
         }
 
         [Test]
@@ -581,6 +597,63 @@ namespace RubberduckTests.Ship
             Assert.IsFalse(Service().IsUnattended(_project.Object));
             Assert.That(new Rubberduck.Settings.ProjectConfigReader(null).Parse("{ \"ship\": { \"unattended\": true } }", null).Errors.Any(e => e.Contains("unattended")),
                 "An agent that writes it into the file gets an error, not a switch.");
+        }
+
+        #endregion
+
+        #region Tree shaking
+
+        [Test]
+        public void TreeShakingSwitchedOnWithoutAnAnalysisIsAWarningNotACrash()
+        {
+            var settings = Settings();
+            settings.Steps[ShipSteps.TreeShaking] = true;
+
+            var report = Service().Preview(_project.Object, settings);
+
+            Assert.That(report.Warnings, Has.Some.StartsWith("Tree shaking was skipped"));
+            Assert.IsNull(report.Steps.SingleOrDefault(s => s.Step == ShipSteps.TreeShaking));
+            Assert.IsNotNull(report.Steps.SingleOrDefault(s => s.Step == ShipSteps.Comments), "The other steps still run.");
+        }
+
+        [Test]
+        public void ThePreviewAsksTheAnalysisAboutTheProjectAndCarriesItsRootsAndDynamicCalls()
+        {
+            var analysis = new FakeAnalysis { Result = new ShipAnalysisResult { Roots = { "ModCode.Foo: test" }, DynamicCalls = { "ModCode.Foo: Application.Run" } } };
+            var settings = Settings();
+            settings.Steps[ShipSteps.TreeShaking] = true;
+
+            var report = Service(analysis: analysis).Preview(_project.Object, settings);
+
+            Assert.AreSame(_project.Object, analysis.AskedAbout);
+            CollectionAssert.Contains(analysis.Seen.Modules.Select(m => m.Name), "ModCode");
+            CollectionAssert.AreEqual(new[] { "ModCode.Foo: test" }, report.Roots);
+            CollectionAssert.AreEqual(new[] { "ModCode.Foo: Application.Run" }, report.DynamicCalls);
+            Assert.IsNotNull(report.Steps.SingleOrDefault(s => s.Step == ShipSteps.TreeShaking));
+        }
+
+        [Test]
+        public void AnAnalysisThatSaysNoLeavesTheShipGoingWithTheReasonAsAWarning()
+        {
+            var analysis = new FakeAnalysis { WhyNot = "module ModCode does not parse" };
+            var settings = Settings();
+            settings.Steps[ShipSteps.TreeShaking] = true;
+
+            var report = Service(analysis: analysis).Ship(_project.Object, settings, ShipOnExisting.Ask, null);
+
+            Assert.That(report.Warnings, Has.Some.Contain("module ModCode does not parse"));
+            Assert.IsNotNull(report.OutputPath);
+            Assert.AreEqual(1, _writer.Jobs.Count, "The artifact is still written.");
+        }
+
+        [Test]
+        public void TreeShakingOffNeverAsksTheAnalysis()
+        {
+            var analysis = new FakeAnalysis { Result = new ShipAnalysisResult() };
+
+            Service(analysis: analysis).Preview(_project.Object, Settings());
+
+            Assert.IsNull(analysis.AskedAbout);
         }
 
         #endregion

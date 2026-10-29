@@ -42,3 +42,14 @@ _Avoid_: build, release file
 **Unattended ship** — A user's own switch (not in `rubberduck.json`) that lets Ship, from the dialog or an agent, run without asking for confirmation or write approval. Set only from the Ship dialog.
 
 **Functional attribute** — An `Attribute VB_...` line that changes how the code runs (predeclared id, default member, enumerator, exposure) or that Excel shows for macros and functions (description and invoke data of public procedures in a standard module). Ship keeps these and drops the other attributes.
+
+**Tree shaking** — A Ship step, off by default, that takes out declarations nothing reachable uses. See `docs/adr/0004-tree-shaking-reads-the-parser-state-and-removes-by-name.md`.
+
+**Root** — Code that tree shaking keeps because something outside the code, or the code's own rules, can reach it: a macro, a UDF, an event handler, an `@EntryPoint`, a name found in a string, the ribbon or the document.
+_Avoid_: entry (alone), keep-alive
+
+**Line numbers** — A Ship step, off by default, that numbers executable lines with their line in the user's own module so shipped error handlers can use `Erl`. See `docs/Ship.md`.
+
+**Keep list** — Names the user pins so tree shaking never removes them, in the `ship` settings of `rubberduck.json`.
+
+**Dynamic call** — A call whose target is computed (`Application.Run`, `CallByName`, `OnTime` with a name that is not a literal). Tree shaking cannot see what it reaches, so it is listed.

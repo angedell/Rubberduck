@@ -545,6 +545,15 @@ namespace Rubberduck.Resources.Ship {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Add line numbers, the line of the source module, for Erl in error handlers.
+        /// </summary>
+        public static string Ship_Step_lineNumbers {
+            get {
+                return ResourceManager.GetString("Ship_Step_lineNumbers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Notes (modules that only hold comments).
         /// </summary>
         public static string Ship_Step_notes {
@@ -613,6 +622,78 @@ namespace Rubberduck.Resources.Ship {
         public static string Ship_Working {
             get {
                 return ResourceManager.GetString("Ship_Working", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Unreachable code (tree shaking, can remove code you need: read the list below).
+        /// </summary>
+        public static string Ship_Step_treeShaking {
+            get {
+                return ResourceManager.GetString("Ship_Step_treeShaking", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keep every public procedure of a standard module (safe).
+        /// </summary>
+        public static string Ship_TreeShaking_Mode_Conservative {
+            get {
+                return ResourceManager.GetString("Ship_TreeShaking_Mode_Conservative", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keep only what is marked or named.
+        /// </summary>
+        public static string Ship_TreeShaking_Mode_EntryPointsOnly {
+            get {
+                return ResourceManager.GetString("Ship_TreeShaking_Mode_EntryPointsOnly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Safe keeps every public procedure of a standard module, because it may be a macro or a worksheet function. The other choice removes them too unless they are marked @EntryPoint or @ExcelHotkey, named in the list below, or found by Rubberduck (event handlers, ribbon callbacks, names written as text).
+        /// </summary>
+        public static string Ship_TreeShaking_ModeHint {
+            get {
+                return ResourceManager.GetString("Ship_TreeShaking_ModeHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Always keep these (one name per line, as Member or Module.Member):.
+        /// </summary>
+        public static string Ship_TreeShaking_KeepLabel {
+            get {
+                return ResourceManager.GetString("Ship_TreeShaking_KeepLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use this for code that is only reached by a name Rubberduck cannot follow, such as the dynamic calls listed in the summary.
+        /// </summary>
+        public static string Ship_TreeShaking_KeepHint {
+            get {
+                return ResourceManager.GetString("Ship_TreeShaking_KeepHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Calls Rubberduck cannot follow (the name is worked out while the program runs). What they reach may be removed: add it to the list of names to keep if you need it.
+        /// </summary>
+        public static string Ship_Preview_DynamicCalls {
+            get {
+                return ResourceManager.GetString("Ship_Preview_DynamicCalls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tree shaking is on ({0}; {1} names always kept): code that nothing reaches is removed from the shipped copy. Check the list of removals first.
+        /// </summary>
+        public static string Ship_Confirm_TreeShaking {
+            get {
+                return ResourceManager.GetString("Ship_Confirm_TreeShaking", resourceCulture);
             }
         }
     }

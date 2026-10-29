@@ -190,6 +190,9 @@ namespace Rubberduck.Root
             container.Register(Component.For<GitSyncService>()
                 .LifestyleSingleton());
 
+            container.Register(Component.For<IShipAnalysis>()
+                .ImplementedBy<ParserStateShipAnalysis>()
+                .LifestyleSingleton());
             container.Register(Component.For<IShipService>()
                 .ImplementedBy<ShipService>()
                 .LifestyleSingleton());

@@ -65,6 +65,52 @@ namespace Rubberduck.Ship
         }
     }
 
+    /// <summary>
+    /// Numbers the executable lines of every procedure with their line in the user's own module, so the shipped project's error handlers can report <c>Erl</c>.
+    /// It runs before the steps that take lines out, which is what keeps the numbers true to the source.
+    /// </summary>
+    public class AddLineNumbersStep : IShipStep
+    {
+        private readonly ShipModuleText _text;
+
+        public AddLineNumbersStep(ShipModuleText text)
+        {
+            _text = text;
+        }
+
+        public string Name => ShipSteps.LineNumbers;
+
+        public ShipStepReport Run(ShipWorkingSet set)
+        {
+            var report = new ShipStepReport { Step = Name };
+            var modules = 0;
+            foreach (var module in set.Modules.Where(m => !m.Removed && m.UnparsedReason == null))
+            {
+                var result = _text.NumberLines(module.Name, set.ProjectId, module.Text);
+                if (!result.Parsed)
+                {
+                    module.UnparsedReason = result.Problem;
+                    continue;
+                }
+
+                module.Text = result.Text;
+                if (result.Numbered > 0)
+                {
+                    modules++;
+                    report.Removed += result.Numbered;
+                }
+
+                foreach (var procedure in result.Skipped)
+                {
+                    set.Warnings.Add($"Line numbers: {module.Name}.{procedure} has line numbers of its own and was left as it is.");
+                }
+            }
+
+            report.Details.Add($"{report.Removed} line(s) in {modules} module(s)");
+            return report;
+        }
+    }
+
     /// <summary>Takes out every comment and annotation, with the parser.</summary>
     public class RemoveCommentsStep : IShipStep
     {

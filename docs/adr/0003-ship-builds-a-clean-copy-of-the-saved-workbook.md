@@ -22,9 +22,9 @@ Ship (see the glossary) writes an `.xlam` or `.xlsm` without what Rubberduck add
 
 Rejected: (a) a fresh workbook with imported modules, which loses sheets, data, forms' binaries and the ribbon; (b) stripping the user's live project and undoing it, which breaks the rule that Ship never touches the working project; (c) rewriting `vbaProject.bin` ourselves, fragile and unsupported.
 
-## Seam for tree shaking (v2, not built)
+## Seam for tree shaking (built in ADR 0004)
 
-The pipeline is an ordered list of steps over a working set. Tree shaking will be added as one more step placed after an analysis step that reads parser state (entry points and the declaration graph) and marks declarations. Nothing for it exists in v1: the working set and step list are the only extension points, and the analysis step is simply not in the list.
+The pipeline is an ordered list of steps over a working set. Tree shaking will be added as one more step placed after an analysis step that reads parser state (entry points and the declaration graph) and marks declarations. In v1 nothing for it existed; ADR 0004 adds the analysis stage and the step exactly there.
 
 ## Consequences
 

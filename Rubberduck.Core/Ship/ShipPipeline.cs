@@ -4,6 +4,7 @@ using Stream = System.IO.Stream;
 using System.Linq;
 using Rubberduck.Parsing.VBA.Parsing;
 using Rubberduck.VBEditor.SafeComWrappers;
+using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 
 namespace Rubberduck.Ship
 {
@@ -85,31 +86,86 @@ namespace Rubberduck.Ship
     public class ShipPipeline
     {
         private readonly IReadOnlyList<IShipStep> _steps;
+        private readonly IShipAnalysis _analysis;
+        private readonly ShipDeclarationRemover _remover;
 
-        public ShipPipeline(IStringParser parser)
+        public ShipPipeline(IStringParser parser) : this(parser, null)
+        {
+        }
+
+        /// <param name="analysis">What tree shaking needs; without one the step is skipped with a warning.</param>
+        public ShipPipeline(IStringParser parser, IShipAnalysis analysis)
         {
             var text = new ShipModuleText(parser);
+            _analysis = analysis;
+            _remover = new ShipDeclarationRemover(parser);
             _steps = new IShipStep[]
             {
                 new RemoveNotesStep(),
                 new RemoveTestModulesStep(),
+                new AddLineNumbersStep(text),
                 new RemoveCommentsStep(text),
                 new RemoveDescriptiveAttributesStep(text),
                 new RemoveConfigStep()
             };
         }
 
-        public ShipReport Run(ShipWorkingSet set, ShipSettings settings, bool dryRun)
+        /// <param name="project">The project the working set was read from; tree shaking asks the analysis about it.</param>
+        public ShipReport Run(ShipWorkingSet set, ShipSettings settings, bool dryRun, IVBProject project = null)
         {
             var report = new ShipReport { DryRun = dryRun };
-            foreach (var step in _steps.Where(s => settings.IsOn(s.Name)))
+            //The steps run in the order of ShipSteps.All. Line numbers come after the notes and test modules and before everything that takes lines out, so they are the lines of the source. Tree shaking comes after the notes and test modules (they are gone for the analysis) and before the comments (the annotations are still there).
+            foreach (var name in ShipSteps.All.Where(settings.IsOn))
             {
-                report.Steps.Add(step.Run(set));
+                if (name == ShipSteps.TreeShaking)
+                {
+                    var shaking = TreeShaking(set, settings, project, report);
+                    if (shaking != null)
+                    {
+                        report.Steps.Add(shaking.Run(set));
+                    }
+
+                    continue;
+                }
+
+                report.Steps.Add(_steps.First(s => s.Name == name).Run(set));
             }
 
             report.Unparsed.AddRange(set.Modules.Where(m => !m.Removed && m.UnparsedReason != null).Select(m => $"{m.Name}: {m.UnparsedReason}"));
             report.Warnings.AddRange(set.Warnings);
             return report;
+        }
+
+        private IShipStep TreeShaking(ShipWorkingSet set, ShipSettings settings, IVBProject project, ShipReport report)
+        {
+            if (_analysis == null || project == null)
+            {
+                report.Warnings.Add("Tree shaking was skipped: it needs the parser's view of the open project, which is not available here.");
+                return null;
+            }
+
+            ShipAnalysisResult result;
+            string whyNot;
+            try
+            {
+                result = _analysis.Analyze(project, set, settings.TreeShaking, out whyNot);
+            }
+            catch (Exception exception) when (!(exception is OperationCanceledException))
+            {
+                report.Warnings.Add("Tree shaking was skipped: the analysis failed: " + exception.Message);
+                return null;
+            }
+
+            if (result == null)
+            {
+                report.Warnings.Add("Tree shaking was skipped: " + (whyNot ?? "the project could not be analysed."));
+                return null;
+            }
+
+            report.DynamicCalls.AddRange(result.DynamicCalls);
+            report.Roots.AddRange(result.Roots);
+            report.Warnings.AddRange(result.Warnings);
+            return new TreeShakingStep(_remover, result.Removals);
         }
     }
 }
