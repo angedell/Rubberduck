@@ -140,7 +140,7 @@ namespace Rubberduck.Parsing.TypeResolvers
                 return setTypeDeterminingDeclaration.FullAsTypeName;
             }
 
-            return setTypeDeterminingDeclaration.AsTypeName == Tokens.Variant
+            return string.Equals(setTypeDeterminingDeclaration.AsTypeName, Tokens.Variant, System.StringComparison.OrdinalIgnoreCase)
                 ? setTypeDeterminingDeclaration.AsTypeName
                 : NotAnObject;
         }

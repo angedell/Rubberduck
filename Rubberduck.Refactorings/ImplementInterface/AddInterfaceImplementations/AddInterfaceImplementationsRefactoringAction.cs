@@ -47,7 +47,7 @@ namespace Rubberduck.Refactorings.AddInterfaceImplementations
 
                 var members = new List<string> { propertyGet };
 
-                if (variable.AsTypeName.Equals(Tokens.Variant) || !variable.IsObject)
+                if (variable.AsTypeName.Equals(Tokens.Variant, System.StringComparison.OrdinalIgnoreCase) || !variable.IsObject)
                 {
                     if (!_codeBuilder.TryBuildPropertyLetCodeBlock(variable, $"{interfaceName}_{variable.IdentifierName}", out var propertyLet, Accessibility.Private, memberBody))
                     {
@@ -56,7 +56,7 @@ namespace Rubberduck.Refactorings.AddInterfaceImplementations
                     members.Add(propertyLet);
                 }
 
-                if (variable.AsTypeName.Equals(Tokens.Variant) || variable.IsObject)
+                if (variable.AsTypeName.Equals(Tokens.Variant, System.StringComparison.OrdinalIgnoreCase) || variable.IsObject)
                 {
                     if (!_codeBuilder.TryBuildPropertySetCodeBlock(variable, $"{interfaceName}_{variable.IdentifierName}", out var propertySet, Accessibility.Private, memberBody))
                     {

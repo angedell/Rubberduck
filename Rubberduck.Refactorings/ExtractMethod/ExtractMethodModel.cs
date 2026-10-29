@@ -26,7 +26,7 @@ namespace Rubberduck.Refactorings.ExtractMethod
         public IEnumerable<ParserRuleContext> SelectedContexts { get; }
         public QualifiedSelection QualifiedSelection { get; }
         public IEnumerable<string> ComponentNames =>
-            _declarationFinderProvider.DeclarationFinder.UserDeclarations(DeclarationType.Member).Where(d => d.ComponentName == QualifiedSelection.QualifiedName.ComponentName)
+            _declarationFinderProvider.DeclarationFinder.UserDeclarations(DeclarationType.Member).Where(d => string.Equals(d.ComponentName, QualifiedSelection.QualifiedName.ComponentName, System.StringComparison.OrdinalIgnoreCase))
                 .Select(d => d.IdentifierName);
         public string SourceMethodName { get => TargetMethod.IdentifierName; }
         public Declaration TargetMethod { get; set; }
@@ -199,7 +199,7 @@ namespace Rubberduck.Refactorings.ExtractMethod
                     lastLineWasPruned = true;
                 }
                 //Remove code for declarations that need to be moved out of the selection to stay in the parent method
-                foreach (var decl in _declarationsToMoveOut.Except(_declarationsToMoveOut.Where(d => d.IdentifierName == ReturnParameter.Name)))
+                foreach (var decl in _declarationsToMoveOut.Except(_declarationsToMoveOut.Where(d => string.Equals(d.IdentifierName, ReturnParameter.Name, System.StringComparison.OrdinalIgnoreCase))))
                 {
                     var variableListStmt = (VBAParser.VariableListStmtContext)decl.Context.Parent;
                     //TODO - Build ability to cope with multiple variables in a list declaration.

@@ -73,7 +73,7 @@ namespace Rubberduck.Parsing.Symbols
 
             return member.DeclarationType == DeclarationType.Function
                 && member.IsInterfaceMember
-                && IdentifierName.Equals(member.ImplementingIdentifierName)
+                && IdentifierName.Equals(member.ImplementingIdentifierName, System.StringComparison.OrdinalIgnoreCase)
                    && ((ClassModuleDeclaration)member.ParentDeclaration).Subtypes.Any(implementation => ReferenceEquals(implementation, ParentDeclaration));
         }
 

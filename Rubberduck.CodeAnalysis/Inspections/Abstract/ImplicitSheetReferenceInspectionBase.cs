@@ -28,7 +28,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Abstract
                 .SelectMany(moduleClass => moduleClass.Members)
                 .Where(declaration => TargetMemberNames.Contains(declaration.IdentifierName)
                                       && declaration.DeclarationType.HasFlag(DeclarationType.Member)
-                                      && declaration.AsTypeName == "Range");
+                                      && string.Equals(declaration.AsTypeName, "Range", System.StringComparison.OrdinalIgnoreCase));
         }
 
         protected virtual string[] GlobalObjectClassNames => new[]

@@ -43,7 +43,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
         protected override bool IsResultDeclaration(Declaration declaration, DeclarationFinder finder)
         {
-            if (declaration.AsTypeName != Tokens.Integer)
+            if (!string.Equals(declaration.AsTypeName, Tokens.Integer, System.StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

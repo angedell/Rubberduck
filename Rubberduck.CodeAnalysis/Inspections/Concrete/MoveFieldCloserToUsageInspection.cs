@@ -84,8 +84,8 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
             var asType = fieldDeclaration.AsTypeDeclaration;
             return asType != null
                    && asType.ProjectName.Equals("Rubberduck")
-                   && (asType.IdentifierName.Equals("PermissiveAssertClass")
-                       || asType.IdentifierName.Equals("AssertClass"));
+                   && (asType.IdentifierName.Equals("PermissiveAssertClass", System.StringComparison.OrdinalIgnoreCase)
+                       || asType.IdentifierName.Equals("AssertClass", System.StringComparison.OrdinalIgnoreCase));
         }
 
         protected override string ResultDescription(Declaration declaration)

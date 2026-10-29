@@ -144,7 +144,7 @@ namespace Rubberduck.Refactorings.EncapsulateField
                 AsTypeName = candidate.PropertyAsTypeName,
                 RHSParameterIdentifier = Resources.Refactorings.Refactorings.CodeBuilder_DefaultPropertyRHSParam,
                 GeneratePropertyLet = !candidate.IsReadOnly && !candidate.Declaration.IsObject && !candidate.Declaration.IsArray,
-                GeneratePropertySet = !candidate.IsReadOnly && !candidate.Declaration.IsArray && (candidate.Declaration.IsObject || candidate.Declaration.AsTypeName == Tokens.Variant),
+                GeneratePropertySet = !candidate.IsReadOnly && !candidate.Declaration.IsArray && (candidate.Declaration.IsObject || string.Equals(candidate.Declaration.AsTypeName, Tokens.Variant, System.StringComparison.OrdinalIgnoreCase)),
                 UsesSetAssignment = candidate.Declaration.IsObject,
                 Declaration = candidate.Declaration
             };

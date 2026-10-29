@@ -399,7 +399,7 @@ namespace Rubberduck.Refactorings.ReorderParameters
             return _declarationFinderProvider.DeclarationFinder
                 .UserDeclarations(declarationType)
                 .FirstOrDefault(item => item.QualifiedModuleName.Equals(declaration.QualifiedModuleName)
-                                        && item.IdentifierName == declaration.IdentifierName);
+                                        && string.Equals(item.IdentifierName, declaration.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
         }
 
         private static ReorderParametersModel ModelForNewTarget(ReorderParametersModel oldModel, Declaration newTarget)

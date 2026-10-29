@@ -61,7 +61,7 @@ namespace Rubberduck.Refactorings.Rename
             {
                 var members = _declarationFinderProvider.DeclarationFinder.MatchName(model.Target.IdentifierName)
                     .Where(item => item.ProjectId == model.Target.ProjectId
-                        && item.ComponentName == model.Target.ComponentName
+                        && string.Equals(item.ComponentName, model.Target.ComponentName, System.StringComparison.OrdinalIgnoreCase)
                         && item.DeclarationType.HasFlag(DeclarationType.Property));
 
                 foreach (var member in members)
@@ -81,7 +81,7 @@ namespace Rubberduck.Refactorings.Rename
 
             var implementations = _declarationFinderProvider.DeclarationFinder.FindAllInterfaceImplementingMembers()
                 .Where(impl => ReferenceEquals(model.Target.ParentDeclaration, impl.InterfaceImplemented)
-                               && impl.InterfaceMemberImplemented.IdentifierName.Equals(model.Target.IdentifierName));
+                               && impl.InterfaceMemberImplemented.IdentifierName.Equals(model.Target.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             RenameDefinedFormatMembers(model, implementations.ToList(), PrependUnderscoreFormat, rewriteSession);
         }
@@ -93,7 +93,7 @@ namespace Rubberduck.Refactorings.Rename
                 var parameters = _declarationFinderProvider.DeclarationFinder.MatchName(model.Target.IdentifierName).Where(param =>
                    param.ParentDeclaration.DeclarationType.HasFlag(DeclarationType.Property)
                    && param.DeclarationType == DeclarationType.Parameter
-                    && param.ParentDeclaration.IdentifierName.Equals(model.Target.ParentDeclaration.IdentifierName)
+                    && param.ParentDeclaration.IdentifierName.Equals(model.Target.ParentDeclaration.IdentifierName, System.StringComparison.OrdinalIgnoreCase)
                     && param.ParentDeclaration.ParentScopeDeclaration.Equals(model.Target.ParentDeclaration.ParentScopeDeclaration));
 
                 foreach (var param in parameters)
@@ -112,7 +112,7 @@ namespace Rubberduck.Refactorings.Rename
             RenameStandardElements(model.Target, model.NewName, rewriteSession);
 
             var withEventsDeclarations = _declarationFinderProvider.DeclarationFinder.UserDeclarations(DeclarationType.Variable)
-                .Where(varDec => varDec.IsWithEvents && varDec.AsTypeName.Equals(model.Target.ParentDeclaration.IdentifierName));
+                .Where(varDec => varDec.IsWithEvents && varDec.AsTypeName.Equals(model.Target.ParentDeclaration.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             var eventHandlers = withEventsDeclarations.SelectMany(we => _declarationFinderProvider.DeclarationFinder.FindHandlersForWithEventsField(we));
             RenameDefinedFormatMembers(model, eventHandlers.ToList(), PrependUnderscoreFormat, rewriteSession);
@@ -132,7 +132,7 @@ namespace Rubberduck.Refactorings.Rename
                 var component = _projectsProvider.Component(model.Target.QualifiedName.QualifiedModuleName);
                 using (var controls = component.Controls)
                 {
-                    using (var control = controls.SingleOrDefault(item => item.Name == model.Target.IdentifierName))
+                    using (var control = controls.SingleOrDefault(item => string.Equals(item.Name, model.Target.IdentifierName, System.StringComparison.OrdinalIgnoreCase)))
                     {
                         Debug.Assert(control != null,
                             $"input validation fail: unable to locate '{model.Target.IdentifierName}' in Controls collection");

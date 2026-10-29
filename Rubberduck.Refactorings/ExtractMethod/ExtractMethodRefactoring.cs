@@ -91,7 +91,7 @@ namespace Rubberduck.Refactorings.ExtractMethod
             }
             var _declarations = _declarationFinderProvider.DeclarationFinder.AllUserDeclarations;
             var selection = target.Selection;
-            var procedures = _declarations.Where(d => d.ComponentName == target.QualifiedName.ComponentName && d.IsUserDefined && (ExtractMethodSelectionValidation.ProcedureTypes.Contains(d.DeclarationType)));
+            var procedures = _declarations.Where(d => string.Equals(d.ComponentName, target.QualifiedName.ComponentName, System.StringComparison.OrdinalIgnoreCase) && d.IsUserDefined && (ExtractMethodSelectionValidation.ProcedureTypes.Contains(d.DeclarationType)));
             var declarations = procedures as IList<Declaration> ?? procedures.ToList();
             Declaration ProcOfLine(int sl) => declarations.FirstOrDefault(d => d.Context.Start.Line < sl && d.Context.Stop.EndLine() > sl);
             var targetProc = ProcOfLine(selection.StartLine);

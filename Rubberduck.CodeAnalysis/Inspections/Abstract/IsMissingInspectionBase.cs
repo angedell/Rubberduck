@@ -70,7 +70,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Abstract
             return finder.Members(module, DeclarationType.Member)
                 .OfType<ModuleBodyElementDeclaration>()
                 .FirstOrDefault(decl => decl.Context.Parent == procedure)?.Parameters
-                    .FirstOrDefault(param => param.IdentifierName.Equals(name.GetText()));
+                    .FirstOrDefault(param => param.IdentifierName.Equals(name.GetText(), System.StringComparison.OrdinalIgnoreCase));
         }
     }
 }

@@ -44,7 +44,7 @@ namespace Rubberduck.Refactorings.ExtractMethod
             IEnumerable<Declaration> declarations = _declarationFinderProvider.DeclarationFinder.AllUserDeclarations;
             var existingName = declarations.FirstOrDefault(d =>
                         Enumerable.Contains(ProcedureTypes, d.DeclarationType)
-                    && d.IdentifierName.Equals(methodName));
+                    && d.IdentifierName.Equals(methodName, System.StringComparison.OrdinalIgnoreCase));
             return existingName != null;
         }
 

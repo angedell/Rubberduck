@@ -285,7 +285,7 @@ namespace Rubberduck.Refactorings.RemoveParameters
             return _declarationFinderProvider.DeclarationFinder
                 .UserDeclarations(declarationType)
                 .FirstOrDefault(item => item.QualifiedModuleName.Equals(declaration.QualifiedModuleName)
-                                        && item.IdentifierName == declaration.IdentifierName);
+                                        && string.Equals(item.IdentifierName, declaration.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
         }
 
         private static RemoveParametersModel ModelForNewTarget(RemoveParametersModel oldModel, Declaration newTarget)

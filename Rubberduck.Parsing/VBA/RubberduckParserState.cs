@@ -266,11 +266,11 @@ namespace Rubberduck.Parsing.VBA
             {
                 if (declaration.ProjectId == e.ProjectId &&
                     declaration is ClassModuleDeclaration classModule &&
-                    declaration.IdentifierName == e.OldName)
+                    string.Equals(declaration.IdentifierName, e.OldName, System.StringComparison.OrdinalIgnoreCase))
                 {
                     foreach (var superType in classModule.Supertypes)
                     {
-                        if (superType.IdentifierName == "Worksheet")
+                        if (string.Equals(superType.IdentifierName, "Worksheet", System.StringComparison.OrdinalIgnoreCase))
                         {
                             componentIsWorksheet = true;
                             break;

@@ -37,7 +37,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
             }
 
             var isObjectVariable = declaration.IsObject;
-            if (!isObjectVariable && !(declaration.IsUndeclared || Tokens.Variant.Equals(declaration.AsTypeName)))
+            if (!isObjectVariable && !(declaration.IsUndeclared || Tokens.Variant.Equals(declaration.AsTypeName, System.StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
             }
@@ -129,7 +129,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
             //todo: Use code path analysis to ensure that we are really picking up the last assignment to the RHS.
             // is the reference referring to something else in scope that's a object?
             return declarationFinderProvider.DeclarationFinder.MatchName(expression.GetText())
-                .Any(decl => (decl.DeclarationType.HasFlag(DeclarationType.ClassModule) || Tokens.Object.Equals(decl.AsTypeName))
+                .Any(decl => (decl.DeclarationType.HasFlag(DeclarationType.ClassModule) || Tokens.Object.Equals(decl.AsTypeName, System.StringComparison.OrdinalIgnoreCase))
                 && AccessibilityCheck.IsAccessible(project, module, reference.ParentScoping, decl));
         }
 

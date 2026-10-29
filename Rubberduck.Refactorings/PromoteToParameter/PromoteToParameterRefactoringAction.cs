@@ -100,17 +100,17 @@ namespace Rubberduck.Refactorings.PromoteToParameter
             var propertyGet = declarationFinder.UserDeclarations(DeclarationType.PropertyGet)
                 .FirstOrDefault(d =>
                     d.QualifiedModuleName.Equals(knownProperty.QualifiedModuleName)
-                    && d.IdentifierName == knownProperty.IdentifierName);
+                    && string.Equals(d.IdentifierName, knownProperty.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             var propertyLet = declarationFinder.UserDeclarations(DeclarationType.PropertyLet)
                 .FirstOrDefault(d =>
                     d.QualifiedModuleName.Equals(knownProperty.QualifiedModuleName)
-                    && d.IdentifierName == knownProperty.IdentifierName);
+                    && string.Equals(d.IdentifierName, knownProperty.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             var propertySet = declarationFinder.UserDeclarations(DeclarationType.PropertySet)
                 .FirstOrDefault(d =>
                     d.QualifiedModuleName.Equals(knownProperty.QualifiedModuleName)
-                    && d.IdentifierName == knownProperty.IdentifierName);
+                    && string.Equals(d.IdentifierName, knownProperty.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             var properties = new List<Declaration>();
 
