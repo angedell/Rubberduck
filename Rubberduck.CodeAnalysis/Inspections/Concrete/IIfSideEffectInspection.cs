@@ -119,9 +119,14 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
         //contained in a module.
         protected override IEnumerable<IInspectionResult> DoGetInspectionResults(QualifiedModuleName module, DeclarationFinder finder)
         {
-            var iifReferences = _declarationFinderProvider.DeclarationFinder.BuiltInDeclarations(DeclarationType.Function)
-                .SingleOrDefault(d => string.Compare(d.IdentifierName, "IIf", System.StringComparison.InvariantCultureIgnoreCase) == 0)
-                .References.Where(rf => rf.QualifiedModuleName == module);
+            var iifDeclaration = _declarationFinderProvider.DeclarationFinder.BuiltInDeclarations(DeclarationType.Function)
+                .SingleOrDefault(d => string.Compare(d.IdentifierName, "IIf", System.StringComparison.InvariantCultureIgnoreCase) == 0);
+            if (iifDeclaration == null)
+            {
+                return new List<IInspectionResult>();
+            }
+
+            var iifReferences = iifDeclaration.References.Where(rf => rf.QualifiedModuleName == module);
 
             if (!iifReferences.Any())
             {
@@ -156,16 +161,19 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
             foreach (var iifReference in iifReferences)
             {
-                var argumentContexts = (iifReference.Context.Parent as ParserRuleContext)
-                    .GetChild<VBAParser.ArgumentListContext>()
-                    .children.OfType<VBAParser.ArgumentContext>()
-                    .ToList();
+                //A reference to IIf need not be a call with an argument list, e.g. one in code that does not parse completely.
+                var argumentList = (iifReference.Context.Parent as ParserRuleContext)?.GetChild<VBAParser.ArgumentListContext>();
+                var argumentContexts = argumentList?.children?.OfType<VBAParser.ArgumentContext>().ToList();
+                if (argumentContexts == null)
+                {
+                    continue;
+                }
 
                 results.Add(ExtractArgumentContext(argumentContexts, truePartParam));
                 results.Add(ExtractArgumentContext(argumentContexts, falsePartParam));
             }
 
-            return results;
+            return results.Where(argumentContext => argumentContext != null).ToList();
         }
 
         private static VBAParser.ArgumentContext ExtractArgumentContext(IEnumerable<VBAParser.ArgumentContext> argumentContexts, (int PositionIndex, string Identifier) partParam)
@@ -178,7 +186,8 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
                 var unrestrictedIDContextsByName = namedArgumentContexts
                     .SelectMany(ctxt => ctxt.children.OfType<VBAParser.UnrestrictedIdentifierContext>())
                     //'ToUpperInvariant' in case the user has (at some point) entered a declaration that re-cased any IIf parameter names
-                    .ToDictionary(ch => ch.GetText().ToUpperInvariant());
+                    .GroupBy(ch => ch.GetText().ToUpperInvariant())
+                    .ToDictionary(group => group.Key, group => group.First());
 
                 if (unrestrictedIDContextsByName.TryGetValue(partParam.Identifier.ToUpperInvariant(), out var expressionUnrestrictedIDContext))
                 {
@@ -186,7 +195,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
                 }
             }
 
-            return argumentContexts.ElementAt(partParam.PositionIndex);
+            return argumentContexts.ElementAtOrDefault(partParam.PositionIndex);
         }
 
         protected override string ResultDescription(IdentifierReference reference)

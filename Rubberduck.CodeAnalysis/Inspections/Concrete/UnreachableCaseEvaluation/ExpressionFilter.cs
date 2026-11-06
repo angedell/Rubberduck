@@ -110,8 +110,22 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete.UnreachableCaseEvaluation
 
             if (!ComparablePredicateFilters.ContainsKey(variable))
             {
-                ComparablePredicateFilters.Add(variable, ExpressionFilterFactory.Create(variableTypeName));
-                ComparablePredicateFiltersInverse.Add(variable, ExpressionFilterFactory.Create(variableTypeName));
+                IExpressionFilter filter;
+                IExpressionFilter inverseFilter;
+                try
+                {
+                    filter = ExpressionFilterFactory.Create(variableTypeName);
+                    inverseFilter = ExpressionFilterFactory.Create(variableTypeName);
+                }
+                catch (KeyNotFoundException)
+                {
+                    //A variable of a type that no literal can be coerced to (a Variant, an Object, a user defined type)
+                    //cannot be compared as a predicate; leave it out rather than fail the whole inspection.
+                    return;
+                }
+
+                ComparablePredicateFilters.Add(variable, filter);
+                ComparablePredicateFiltersInverse.Add(variable, inverseFilter);
             }
         }
 

@@ -85,11 +85,11 @@ namespace Rubberduck.CodeAnalysis.Inspections.Abstract
             stopwatch.Stop();
             if (result.Count > 0)
             {
-                Logger.Trace("'Returned {2} results, completed in {3}ms.", result.Count, stopwatch.ElapsedMilliseconds);
+                Logger.Trace("Returned {0} results, completed in {1}ms.", result.Count, stopwatch.ElapsedMilliseconds);
             }
             else
             {
-                Logger.Trace("Completed in {2}ms", stopwatch.ElapsedMilliseconds);
+                Logger.Trace("Completed in {0}ms", stopwatch.ElapsedMilliseconds);
             }
             return result;
         }
@@ -111,11 +111,11 @@ namespace Rubberduck.CodeAnalysis.Inspections.Abstract
             stopwatch.Stop();
             if (result.Count > 0)
             {
-                Logger.Trace("'Returned {2} results, completed in {3}ms.", result.Count, stopwatch.ElapsedMilliseconds);
+                Logger.Trace("Returned {0} results, completed in {1}ms.", result.Count, stopwatch.ElapsedMilliseconds);
             }
             else
             {
-                Logger.Trace("Completed in {2}ms", stopwatch.ElapsedMilliseconds);
+                Logger.Trace("Completed in {0}ms", stopwatch.ElapsedMilliseconds);
             }
             return result;
         }

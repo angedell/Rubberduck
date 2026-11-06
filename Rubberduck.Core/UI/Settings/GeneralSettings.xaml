@@ -112,6 +112,11 @@
                               ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediateRead_Tooltip}"
                               IsChecked="{Binding ApiAllowImmediateRead}"
                               IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
+                    <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowProcDump}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowProcDump_Tooltip}"
+                              IsChecked="{Binding ApiAllowProcDump}"
+                              Command="{Binding EnsureProcDumpCommand}"
+                              IsEnabled="{Binding IsChecked, ElementName=IsApiEnabled}"/>
                     <CheckBox Margin="15,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate}"
                               ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=ApiAllowImmediate_Tooltip}"
                               IsChecked="{Binding ApiAllowImmediate}"

@@ -1353,6 +1353,14 @@ namespace Rubberduck.Root
             container.Register(Component.For<LogApi>()
                 .LifestyleSingleton());
             container.Register(Component.For<DumpApi>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var state = kernel.Resolve<ApiState>();
+                    return new DumpApi(kernel.Resolve<ApiWriteApproval>(), kernel.Resolve<IFileSystem>(), activated: () => state.ProcDump);
+                })
+                .LifestyleSingleton());
+            container.Register(Component.For<IProcDumpInstaller>()
+                .ImplementedBy<ProcDumpInstaller>()
                 .LifestyleSingleton());
             container.Register(Component.For<IFirewallCheck>()
                 .ImplementedBy<FirewallCheck>()

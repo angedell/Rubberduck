@@ -98,6 +98,7 @@ namespace RubberduckTests.Api
             _launcher = new Launcher();
             _asked = 0;
             _allow = true;
+            _activated = true;
 
             var system = new Mock<IFileSystem>();
             system.SetupGet(s => s.Path).Returns(new FileSystem().Path);
@@ -116,7 +117,43 @@ namespace RubberduckTests.Api
             info.Setup(i => i.FromFileName(It.IsAny<string>())).Returns(length.Object);
             system.SetupGet(s => s.FileInfo).Returns(info.Object);
 
-            _api = new DumpApi(new ApiWriteApproval(_ => { _asked++; return _allow; }), system.Object, _runner, () => 4242, key => _environment.TryGetValue(key, out var value) ? value : null, _analyzer, _launcher);
+            _api = new DumpApi(new ApiWriteApproval(_ => { _asked++; return _allow; }), system.Object, _runner, () => 4242, key => _environment.TryGetValue(key, out var value) ? value : null, _analyzer, _launcher, activated: () => _activated);
+        }
+
+        private bool _activated = true;
+
+        [Test]
+        public void Capture_WhenProcDumpIsSwitchedOff_IsForbidden_AndAsksNothing()
+        {
+            _files.Add(Tool);
+            _activated = false;
+
+            var failure = Assert.Throws<ApiException>(() => _api.Capture("agent", null, null));
+
+            Assert.AreEqual(403, failure.Status);
+            Assert.AreEqual("procdump_off", failure.Code);
+            Assert.AreEqual(0, _asked);
+            Assert.IsNull(_runner.File);
+        }
+
+        [Test]
+        public void StartMonitor_WhenProcDumpIsSwitchedOff_IsForbidden()
+        {
+            _files.Add(Tool);
+            _activated = false;
+
+            var failure = Assert.Throws<ApiException>(() => _api.StartMonitor("agent", null, null, null, null, null));
+
+            Assert.AreEqual("procdump_off", failure.Code);
+            Assert.AreEqual(0, _asked);
+        }
+
+        [Test]
+        public void Status_WhenProcDumpIsSwitchedOff_StillAnswers()
+        {
+            _activated = false;
+
+            Assert.DoesNotThrow(() => _api.Status());
         }
 
         [Test]
@@ -245,11 +282,41 @@ namespace RubberduckTests.Api
 
         [TestCase(@"C:\Users\x\SARO Dropbox\Debug", "dropbox")]
         [TestCase(@"C:\Users\x\OneDrive - Contoso\Debug", "onedrive")]
-        public void Status_WarnsWhenTheFolderIsSynced(string folder, string service)
+        public void Status_UsesTheLocalFolderInsteadOfASyncedOne_AndSaysSo(string folder, string service)
         {
+            _files.Add(Tool);
             _environment["RUBBERDUCK_DUMP_FOLDER"] = folder;
 
-            StringAssert.Contains(service, _api.Status().Warning);
+            var report = _api.Status();
+
+            Assert.AreEqual(Folder, report.Folder);
+            Assert.IsNull(report.Warning);
+            StringAssert.Contains(folder, report.Note);
+        }
+
+        [Test]
+        public void Capture_WithASyncedFolderNamed_WritesToTheLocalOne()
+        {
+            _files.Add(Tool);
+            _environment["RUBBERDUCK_DUMP_FOLDER"] = @"C:\Users\x\SARO Dropbox\Debug";
+            _runner.Effect = () => Dump("EXCEL_new.dmp");
+
+            var report = _api.Capture("agent", null, null);
+
+            Assert.AreEqual(Folder + @"\EXCEL_new.dmp", report.File);
+            StringAssert.Contains($"\"{Folder}\"", _runner.Arguments);
+        }
+
+        [Test]
+        public void Status_WarnsWhenNoLocalFolderIsAvailable()
+        {
+            _environment["LOCALAPPDATA"] = @"C:\Users\x\Dropbox\AppData";
+            _environment["RUBBERDUCK_DUMP_FOLDER"] = @"C:\Users\x\SARO Dropbox\Debug";
+
+            var report = _api.Status();
+
+            Assert.AreEqual(@"C:\Users\x\SARO Dropbox\Debug", report.Folder);
+            StringAssert.Contains("dropbox", report.Warning);
         }
 
         [Test]

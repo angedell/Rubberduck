@@ -23,6 +23,9 @@ namespace Rubberduck.Api
 
         /// <summary>The user allows agents to read the Immediate window (running code includes it), and the server is running.</summary>
         public volatile bool ImmediateRead;
+
+        /// <summary>The user allows agents to take memory dumps with ProcDump, and the server is running.</summary>
+        public volatile bool ProcDump;
     }
 
     public enum ApiStartProblem
@@ -116,12 +119,13 @@ namespace Rubberduck.Api
         /// so does taking away the Immediate window.
         /// </summary>
         /// <exception cref="ApiStartException">The server could not listen; the message says what to do about it.</exception>
-        public void Apply(bool enabled, bool network, int port, bool allowImmediate, bool allowImmediateRead = false)
+        public void Apply(bool enabled, bool network, int port, bool allowImmediate, bool allowImmediateRead = false, bool allowProcDump = false)
         {
             lock (_lock)
             {
                 _state.Immediate = enabled && allowImmediate;
                 _state.ImmediateRead = enabled && (allowImmediate || allowImmediateRead);
+                _state.ProcDump = enabled && allowProcDump;
                 if (!_state.Immediate)
                 {
                     _executeApproval.Reset();

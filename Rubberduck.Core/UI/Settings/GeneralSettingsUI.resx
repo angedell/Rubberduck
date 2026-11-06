@@ -226,6 +226,24 @@ Allow writes?</value>
   <data name="ApiAllowImmediateRead_Tooltip" xml:space="preserve">
     <value>Agents can read what the Immediate window shows, including what your code prints with Debug.Print, but cannot type into it. What the window shows can include values from your data. Implied by the next option.</value>
   </data>
+  <data name="ApiAllowProcDump" xml:space="preserve">
+    <value>Also let agents take memory dumps of the editor with ProcDump, and have it watched for hangs</value>
+  </data>
+  <data name="ApiAllowProcDump_Tooltip" xml:space="preserve">
+    <value>A memory dump holds everything the editor has in memory, including the open workbooks. Dumps stay on this computer, in a folder outside any cloud-synced one. Rubberduck asks before it downloads ProcDump.</value>
+  </data>
+  <data name="ApiAllowProcDump_Download" xml:space="preserve">
+    <value>ProcDump (Sysinternals) is needed to take memory dumps, and was not found on this computer.
+
+Download it from Microsoft now?
+
+{0}
+
+It is saved in {1}.</value>
+  </data>
+  <data name="ApiAllowProcDump_DownloadCaption" xml:space="preserve">
+    <value>Rubberduck API: download ProcDump?</value>
+  </data>
   <data name="ApiAllowImmediate" xml:space="preserve">
     <value>Also let agents run code: the Immediate window and the unit tests</value>
   </data>

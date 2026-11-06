@@ -248,9 +248,12 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
         private static int? DetermineResumeStmtExecutionBranchLine(VBAParser.ResumeStmtContext resumeStmt, IdentifierReference resultCandidate, Dictionary<string, int> labelIdLineNumberPairs)
         {
+            //The same handler label is commonly the target of several On Error GoTo statements in a procedure;
+            //the earliest of them is the one the Resume goes back to.
             var onErrorGotoLabelToLineNumber = resultCandidate.ParentScoping.Context.GetDescendents<VBAParser.OnErrorStmtContext>()
                     .Where(errorStmtCtxt => IsBranchingOnErrorGoToLabel(errorStmtCtxt))
-                    .ToDictionary(k => k.expression()?.GetText() ?? "No Label", v => v.Start.Line);
+                    .GroupBy(errorStmtCtxt => errorStmtCtxt.expression()?.GetText() ?? "No Label")
+                    .ToDictionary(group => group.Key, group => group.Min(errorStmtCtxt => errorStmtCtxt.Start.Line));
 
             var errorHandlerLabelsAndLines = labelIdLineNumberPairs
                                                     .Where(pair => onErrorGotoLabelToLineNumber.ContainsKey(pair.Key));

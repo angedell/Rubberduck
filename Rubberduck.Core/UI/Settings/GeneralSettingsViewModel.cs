@@ -28,6 +28,7 @@ namespace Rubberduck.UI.Settings
         private readonly IOperatingSystem _operatingSystem;
         private readonly IMessageBox _messageBox;
         private readonly IVbeSettings _vbeSettings;
+        private readonly IProcDumpInstaller _procDumpInstaller;
         private readonly IConfigurationService<HotkeySettings> _hotkeyService;
 
         private bool _indenterPrompted;
@@ -54,10 +55,12 @@ namespace Rubberduck.UI.Settings
             IConfigurationService<Rubberduck.Settings.GeneralSettings> service,
             IConfigurationService<HotkeySettings> hotkeyService,
             ApiConnection apiConnection,
-            IFirewallCheck firewallCheck = null)
+            IFirewallCheck firewallCheck = null,
+            IProcDumpInstaller procDumpInstaller = null)
             : base(service)
         {
             _firewallCheck = firewallCheck;
+            _procDumpInstaller = procDumpInstaller;
             _apiConnection = apiConnection;
             _operatingSystem = operatingSystem;
             _messageBox = messageBox;
@@ -284,6 +287,51 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private bool _apiAllowProcDump;
+        public bool ApiAllowProcDump
+        {
+            get => _apiAllowProcDump;
+            set
+            {
+                if (_apiAllowProcDump != value)
+                {
+                    _apiAllowProcDump = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private CommandBase _ensureProcDumpCommand;
+        /// <summary>Run when the user ticks the ProcDump option: if ProcDump is not there, offers to download it, and takes the tick back if it is not to be had.</summary>
+        public CommandBase EnsureProcDumpCommand => _ensureProcDumpCommand ?? (_ensureProcDumpCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(), _ => EnsureProcDump(), _ => _procDumpInstaller != null));
+
+        private void EnsureProcDump()
+        {
+            if (!ApiAllowProcDump || _procDumpInstaller.Find() != null)
+            {
+                return;
+            }
+
+            if (!_messageBox.ConfirmYesNo(string.Format(GeneralSettingsUI.ApiAllowProcDump_Download, ProcDumpInstaller.DownloadUrl, _procDumpInstaller.TargetFolder),
+                GeneralSettingsUI.ApiAllowProcDump_DownloadCaption, true))
+            {
+                ApiAllowProcDump = false;
+                return;
+            }
+
+            try
+            {
+                _procDumpInstaller.Install();
+            }
+            catch (System.IO.IOException exception)
+            {
+                LogManager.GetCurrentClassLogger().Warn(exception, "ProcDump could not be installed.");
+                _messageBox.NotifyWarn(exception.Message, GeneralSettingsUI.ApiAllowProcDump_DownloadCaption);
+                ApiAllowProcDump = false;
+            }
+        }
+
         private int _apiPort;
         public int ApiPort
         {
@@ -493,6 +541,7 @@ namespace Rubberduck.UI.Settings
                 ApiAllowNetwork = ApiAllowNetwork,
                 ApiAllowImmediate = ApiAllowImmediate,
                 ApiAllowImmediateRead = ApiAllowImmediateRead,
+                ApiAllowProcDump = ApiAllowProcDump,
                 ApiPort = ApiPort,
                 IsSmartIndenterPrompted = _indenterPrompted,
                 IsAutoSaveEnabled = AutoSaveEnabled,
@@ -525,6 +574,7 @@ namespace Rubberduck.UI.Settings
             ApiAllowNetwork = general.ApiAllowNetwork;
             ApiAllowImmediate = general.ApiAllowImmediate;
             ApiAllowImmediateRead = general.ApiAllowImmediateRead;
+            ApiAllowProcDump = general.ApiAllowProcDump;
             ApiPort = general.ApiPort;
             _indenterPrompted = general.IsSmartIndenterPrompted;
             AutoSaveEnabled = general.IsAutoSaveEnabled;

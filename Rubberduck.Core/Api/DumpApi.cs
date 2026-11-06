@@ -212,13 +212,15 @@ namespace Rubberduck.Api
 
         private readonly object _monitorLock = new object();
         private IBackgroundProcess _monitor;
+        private readonly Func<bool> _activated;
         private string _monitorTriggers;
         private DateTime? _monitorStarted;
         private HashSet<string> _monitorBaseline = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public DumpApi(ApiWriteApproval approval, IFileSystem fileSystem, IProcessRunner runner = null, Func<int> processId = null, Func<string, string> environment = null,
-            IDumpAnalyzer analyzer = null, IProcessLauncher launcher = null, Func<DateTime> now = null)
+            IDumpAnalyzer analyzer = null, IProcessLauncher launcher = null, Func<DateTime> now = null, Func<bool> activated = null)
         {
+            _activated = activated ?? (() => true);
             _approval = approval;
             _fileSystem = fileSystem;
             _runner = runner ?? new ProcessRunner();
@@ -229,16 +231,36 @@ namespace Rubberduck.Api
             _now = now ?? (() => DateTime.UtcNow);
         }
 
-        /// <summary>RUBBERDUCK_DUMP_FOLDER if set (a shared folder, say, so the dump can be read from another machine), otherwise Rubberduck's Dumps folder under LOCALAPPDATA.</summary>
-        private string Folder
+        /// <summary>
+        /// Where dumps go: RUBBERDUCK_DUMP_FOLDER if set (a shared folder, say, so the dump can be read from another machine), otherwise Rubberduck's Dumps folder
+        /// under LOCALAPPDATA. A folder a cloud service syncs is never used while a local one is available: the dump would leave the machine.
+        /// </summary>
+        private string Folder => ChooseFolder(out _);
+
+        private string ChooseFolder(out string replaced)
         {
-            get
+            replaced = null;
+            var local = _fileSystem.Path.Combine(_environment("LOCALAPPDATA") ?? string.Empty, "Rubberduck", "Dumps");
+            var chosen = _environment("RUBBERDUCK_DUMP_FOLDER");
+            if (string.IsNullOrWhiteSpace(chosen))
             {
-                var chosen = _environment("RUBBERDUCK_DUMP_FOLDER");
-                return string.IsNullOrWhiteSpace(chosen)
-                    ? _fileSystem.Path.Combine(_environment("LOCALAPPDATA") ?? string.Empty, "Rubberduck", "Dumps")
-                    : chosen.Trim();
+                return local;
             }
+
+            chosen = chosen.Trim();
+            if (SyncService(chosen) == null || SyncService(local) != null)
+            {
+                return chosen;
+            }
+
+            replaced = chosen;
+            return local;
+        }
+
+        private static string SyncService(string folder)
+        {
+            var lowered = (folder ?? string.Empty).ToLowerInvariant();
+            return CloudFolders.FirstOrDefault(lowered.Contains);
         }
 
         /// <summary>ProcDump, looked for in RUBBERDUCK_PROCDUMP, in Rubberduck's own Tools folder and on the PATH.</summary>
@@ -254,13 +276,23 @@ namespace Rubberduck.Api
             return candidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && _fileSystem.File.Exists(c));
         }
 
+        /// <summary>Taking dumps is the user's to switch on (Settings, General); until then the routes that take one are refused.</summary>
+        private void RequireActivated()
+        {
+            if (!_activated())
+            {
+                throw ApiException.Forbidden("procdump_off",
+                    "Memory dumps are switched off. In Rubberduck's settings (General), tick 'Also let agents take memory dumps of the editor with ProcDump'; Rubberduck offers to download ProcDump if it is missing.");
+            }
+        }
+
         /// <summary>Whether a dump can be taken, and what is already in the folder. Takes nothing.</summary>
         public DumpReport Status()
         {
-            var report = new DumpReport { Tool = FindTool(), Folder = Folder, Existing = Existing(), Warning = SyncWarning(Folder) };
+            var report = new DumpReport { Tool = FindTool(), Folder = Folder, Existing = Existing(), Warning = SyncWarning(Folder), Note = ReplacedNote() };
             if (report.Tool == null)
             {
-                report.Note = NotFoundMessage();
+                report.Note = string.Join(" ", new[] { NotFoundMessage(), report.Note }.Where(n => n != null));
             }
 
             var monitor = MonitorReport(false);
@@ -271,12 +303,20 @@ namespace Rubberduck.Api
         /// <summary>A dump holds everything the process had in memory; in a folder a cloud service syncs it leaves the machine.</summary>
         private string SyncWarning(string folder)
         {
-            var lowered = (folder ?? string.Empty).ToLowerInvariant();
-            var service = CloudFolders.FirstOrDefault(lowered.Contains);
+            var service = SyncService(folder);
             return service == null
                 ? null
                 : $"The dump folder looks like one that {service} syncs. A dump holds everything in memory, the open documents included, and would be uploaded. "
                   + "Pause the sync first, or point the RUBBERDUCK_DUMP_FOLDER environment variable at a folder outside it and restart the editor.";
+        }
+
+        /// <summary>Said when RUBBERDUCK_DUMP_FOLDER named a synced folder and Rubberduck used its own local one instead.</summary>
+        private string ReplacedNote()
+        {
+            ChooseFolder(out var replaced);
+            return replaced == null
+                ? null
+                : $"RUBBERDUCK_DUMP_FOLDER names {replaced}, which a cloud service syncs; dumps go to {Folder} instead so they stay on this machine.";
         }
 
         /// <param name="kind">"full" (default: all memory, which is what reading managed stacks needs) or "mini" (small, threads and stacks only).</param>
@@ -284,6 +324,7 @@ namespace Rubberduck.Api
         /// <param name="analyze">Read the dump as soon as it is written, so the answer says what is wrong.</param>
         public DumpReport Capture(string client, string kind, int? waitSeconds, bool analyze = false)
         {
+            RequireActivated();
             var mode = string.IsNullOrWhiteSpace(kind) ? "full" : kind.Trim().ToLowerInvariant();
             if (mode != "full" && mode != "mini")
             {
@@ -450,6 +491,7 @@ namespace Rubberduck.Api
         /// <param name="maxDumps">How many dumps to write before ProcDump stops; default 2, at most 10.</param>
         public DumpMonitorReport StartMonitor(string client, string kind, bool? hang, bool? exceptions, int? cpuPercent, int? maxDumps)
         {
+            RequireActivated();
             var mode = string.IsNullOrWhiteSpace(kind) ? "full" : kind.Trim().ToLowerInvariant();
             if (mode != "full" && mode != "mini")
             {
@@ -519,8 +561,7 @@ namespace Rubberduck.Api
             }
 
             var report = MonitorReport(false);
-            var warning = SyncWarning(Folder);
-            report.Note = warning;
+            report.Note = SyncWarning(Folder) ?? ReplacedNote();
             return report;
         }
 

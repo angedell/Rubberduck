@@ -121,7 +121,7 @@ namespace Rubberduck
             {
                 try
                 {
-                    _api.Apply(general.ApiEnabled, network, general.ApiPort, general.ApiAllowImmediate, general.ApiAllowImmediateRead);
+                    _api.Apply(general.ApiEnabled, network, general.ApiPort, general.ApiAllowImmediate, general.ApiAllowImmediateRead, general.ApiAllowProcDump);
                     return;
                 }
                 catch (ApiStartException exception) when (exception.Problem == ApiStartProblem.NeedsUrlAcl)

@@ -149,6 +149,30 @@ namespace Rubberduck.UI.Settings {
             }
         }
 
+        public static string ApiAllowProcDump {
+            get {
+                return ResourceManager.GetString("ApiAllowProcDump", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowProcDump_Tooltip {
+            get {
+                return ResourceManager.GetString("ApiAllowProcDump_Tooltip", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowProcDump_Download {
+            get {
+                return ResourceManager.GetString("ApiAllowProcDump_Download", resourceCulture);
+            }
+        }
+
+        public static string ApiAllowProcDump_DownloadCaption {
+            get {
+                return ResourceManager.GetString("ApiAllowProcDump_DownloadCaption", resourceCulture);
+            }
+        }
+
         public static string ApiAllowImmediate {
             get {
                 return ResourceManager.GetString("ApiAllowImmediate", resourceCulture);

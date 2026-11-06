@@ -28,6 +28,7 @@ namespace Rubberduck.Settings
         bool ApiAllowNetwork { get; set; }
         bool ApiAllowImmediate { get; set; }
         bool ApiAllowImmediateRead { get; set; }
+        bool ApiAllowProcDump { get; set; }
         int ApiPort { get; set; }
     }
 
@@ -98,6 +99,9 @@ namespace Rubberduck.Settings
         /// <summary>Lets agents read what the Immediate window shows (<c>Debug.Print</c> output) without being able to run anything. Implied by <see cref="ApiAllowImmediate"/>. Off until the user switches it on.</summary>
         public bool ApiAllowImmediateRead { get; set; }
 
+        /// <summary>Lets agents take memory dumps of the editor with ProcDump, and have it watched for hangs. Off until the user switches it on; switching it on offers to download ProcDump.</summary>
+        public bool ApiAllowProcDump { get; set; }
+
         public int ApiPort { get; set; }
 
         public GeneralSettings()
@@ -130,6 +134,7 @@ namespace Rubberduck.Settings
                    ApiAllowNetwork == other.ApiAllowNetwork &&
                    ApiAllowImmediate == other.ApiAllowImmediate &&
                    ApiAllowImmediateRead == other.ApiAllowImmediateRead &&
+                   ApiAllowProcDump == other.ApiAllowProcDump &&
                    ApiPort == other.ApiPort &&
                    ApiBaseUrl == other.ApiBaseUrl;
         }
