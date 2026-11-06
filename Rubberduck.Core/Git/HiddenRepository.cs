@@ -297,7 +297,7 @@ namespace Rubberduck.Git
 
         public string CurrentBranch() => Run("symbolic-ref", "--short", "HEAD").Output.Trim();
 
-        public void Fetch() => Run("fetch", "--quiet", RemoteName);
+        public void Fetch() => Run("fetch", "--quiet", "--prune", RemoteName);
 
         /// <summary>Sends the current branch to <c>origin</c> and makes it the branch's upstream. Never forces: a remote that has moved on is refused.</summary>
         public void Push() => Run("push", "--quiet", "--set-upstream", RemoteName, CurrentBranch());

@@ -204,6 +204,22 @@ namespace RubberduckTests.Git
         }
 
         [Test]
+        public void Fetch_ForgetsABranchThatIsNoLongerOnTheRemote()
+        {
+            Mine("a.bas", "one\r\n");
+            MineCommit();
+            _repository.Push();
+            _repository.Fetch();
+            Assert.IsNotNull(_repository.AheadBehind());
+
+            //The repository was deleted and made again, empty, at the same address.
+            _git.RunOrThrow(new[] { "--git-dir=" + _remote, "update-ref", "-d", "refs/heads/main" });
+            _repository.Fetch();
+
+            Assert.IsNull(_repository.AheadBehind());
+        }
+
+        [Test]
         public void SetRemote_AddsThenChangesTheUrl()
         {
             Assert.AreEqual(_remote, _repository.RemoteUrl());
