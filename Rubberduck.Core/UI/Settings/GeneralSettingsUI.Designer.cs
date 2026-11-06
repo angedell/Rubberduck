@@ -173,6 +173,42 @@ namespace Rubberduck.UI.Settings {
             }
         }
 
+        public static string GitClientEnable {
+            get {
+                return ResourceManager.GetString("GitClientEnable", resourceCulture);
+            }
+        }
+
+        public static string GitClientEnable_Tooltip {
+            get {
+                return ResourceManager.GetString("GitClientEnable_Tooltip", resourceCulture);
+            }
+        }
+
+        public static string GitPath {
+            get {
+                return ResourceManager.GetString("GitPath", resourceCulture);
+            }
+        }
+
+        public static string GitClient_Download {
+            get {
+                return ResourceManager.GetString("GitClient_Download", resourceCulture);
+            }
+        }
+
+        public static string GitClient_DownloadCaption {
+            get {
+                return ResourceManager.GetString("GitClient_DownloadCaption", resourceCulture);
+            }
+        }
+
+        public static string GitClient_DownloadFailed {
+            get {
+                return ResourceManager.GetString("GitClient_DownloadFailed", resourceCulture);
+            }
+        }
+
         public static string ApiAllowImmediate {
             get {
                 return ResourceManager.GetString("ApiAllowImmediate", resourceCulture);

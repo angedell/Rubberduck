@@ -135,6 +135,19 @@
                                 Command="{Binding RegenerateApiTokenCommand}"/>
                     </StackPanel>
 
+                    <CheckBox Margin="5,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitClientEnable}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitClientEnable_Tooltip}"
+                              IsChecked="{Binding GitClientEnabled}"
+                              Command="{Binding EnsureGitCommand}"
+                              x:Name="IsGitClientEnabled"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0,0,5"
+                                IsEnabled="{Binding IsChecked, ElementName=IsGitClientEnabled}">
+                        <Label Target="{Binding ElementName=GitPathBox}"
+                               Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitPath}" />
+                        <TextBox x:Name="GitPathBox" Width="280" VerticalContentAlignment="Center"
+                                 Text="{Binding GitPath, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+
                     <Label Target="{Binding ElementName=minimumLogLevel}"
                            Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=MinimumLogLevelLabel}" FontWeight="SemiBold" Margin="1,0,-1,0" />
                     <ComboBox x:Name="minimumLogLevel"

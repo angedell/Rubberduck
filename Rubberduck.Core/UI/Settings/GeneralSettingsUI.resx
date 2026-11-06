@@ -244,6 +244,31 @@ It is saved in {1}.</value>
   <data name="ApiAllowProcDump_DownloadCaption" xml:space="preserve">
     <value>Rubberduck API: download ProcDump?</value>
   </data>
+  <data name="GitClientEnable" xml:space="preserve">
+    <value>Use the built-in git client (experimental)</value>
+  </data>
+  <data name="GitClientEnable_Tooltip" xml:space="preserve">
+    <value>Keeps a version history of your projects without a folder or .git of your own. Needs git; Rubberduck asks before it downloads one.</value>
+  </data>
+  <data name="GitPath" xml:space="preserve">
+    <value>Path to git.exe (leave empty to look for it):</value>
+  </data>
+  <data name="GitClient_Download" xml:space="preserve">
+    <value>The git client needs git, and no usable git (version 2.31 or newer) was found on this computer.
+
+Download MinGit, the portable build of Git for Windows, now?
+
+{0}
+About {1} MB.
+
+It is saved in {2}. Nothing else on this computer is changed, and no administrator rights are needed.</value>
+  </data>
+  <data name="GitClient_DownloadCaption" xml:space="preserve">
+    <value>Rubberduck git client: download git?</value>
+  </data>
+  <data name="GitClient_DownloadFailed" xml:space="preserve">
+    <value>You can also type the path of an existing git.exe in the box below the option.</value>
+  </data>
   <data name="ApiAllowImmediate" xml:space="preserve">
     <value>Also let agents run code: the Immediate window and the unit tests</value>
   </data>

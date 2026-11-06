@@ -7,6 +7,7 @@ using Rubberduck.Common;
 using Rubberduck.Interaction;
 using NLog;
 using Rubberduck.Api;
+using Rubberduck.Git;
 using Rubberduck.SettingsProvider;
 using Rubberduck.UI.Command;
 using Rubberduck.VBEditor.VbeRuntime.Settings;
@@ -29,6 +30,7 @@ namespace Rubberduck.UI.Settings
         private readonly IMessageBox _messageBox;
         private readonly IVbeSettings _vbeSettings;
         private readonly IProcDumpInstaller _procDumpInstaller;
+        private readonly IGitProvisioner _gitProvisioner;
         private readonly IConfigurationService<HotkeySettings> _hotkeyService;
 
         private bool _indenterPrompted;
@@ -56,9 +58,11 @@ namespace Rubberduck.UI.Settings
             IConfigurationService<HotkeySettings> hotkeyService,
             ApiConnection apiConnection,
             IFirewallCheck firewallCheck = null,
-            IProcDumpInstaller procDumpInstaller = null)
+            IProcDumpInstaller procDumpInstaller = null,
+            IGitProvisioner gitProvisioner = null)
             : base(service)
         {
+            _gitProvisioner = gitProvisioner;
             _firewallCheck = firewallCheck;
             _procDumpInstaller = procDumpInstaller;
             _apiConnection = apiConnection;
@@ -332,6 +336,66 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private bool _gitClientEnabled;
+        public bool GitClientEnabled
+        {
+            get => _gitClientEnabled;
+            set
+            {
+                if (_gitClientEnabled != value)
+                {
+                    _gitClientEnabled = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _gitPath;
+        public string GitPath
+        {
+            get => _gitPath;
+            set
+            {
+                if (_gitPath != value)
+                {
+                    _gitPath = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private CommandBase _ensureGitCommand;
+        /// <summary>Run when the user ticks the git client option: if there is no usable git, offers to download one, and takes the tick back if none is to be had.</summary>
+        public CommandBase EnsureGitCommand => _ensureGitCommand ?? (_ensureGitCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(), _ => EnsureGit(), _ => _gitProvisioner != null));
+
+        private void EnsureGit()
+        {
+            if (!GitClientEnabled || _gitProvisioner.Find(GitPath) != null)
+            {
+                return;
+            }
+
+            var megabytes = Math.Round(_gitProvisioner.DownloadSize / 1048576d);
+            if (!_messageBox.ConfirmYesNo(string.Format(GeneralSettingsUI.GitClient_Download, _gitProvisioner.DownloadUrl, megabytes, _gitProvisioner.TargetFolder),
+                GeneralSettingsUI.GitClient_DownloadCaption, true))
+            {
+                GitClientEnabled = false;
+                return;
+            }
+
+            try
+            {
+                _gitProvisioner.Install();
+            }
+            catch (System.IO.IOException exception)
+            {
+                LogManager.GetCurrentClassLogger().Warn(exception, "Git could not be installed.");
+                _messageBox.NotifyWarn(exception.Message + Environment.NewLine + Environment.NewLine + GeneralSettingsUI.GitClient_DownloadFailed, GeneralSettingsUI.GitClient_DownloadCaption);
+                GitClientEnabled = false;
+            }
+        }
+
         private int _apiPort;
         public int ApiPort
         {
@@ -542,6 +606,8 @@ namespace Rubberduck.UI.Settings
                 ApiAllowImmediate = ApiAllowImmediate,
                 ApiAllowImmediateRead = ApiAllowImmediateRead,
                 ApiAllowProcDump = ApiAllowProcDump,
+                GitClientEnabled = GitClientEnabled,
+                GitPath = GitPath,
                 ApiPort = ApiPort,
                 IsSmartIndenterPrompted = _indenterPrompted,
                 IsAutoSaveEnabled = AutoSaveEnabled,
@@ -575,6 +641,8 @@ namespace Rubberduck.UI.Settings
             ApiAllowImmediate = general.ApiAllowImmediate;
             ApiAllowImmediateRead = general.ApiAllowImmediateRead;
             ApiAllowProcDump = general.ApiAllowProcDump;
+            GitClientEnabled = general.GitClientEnabled;
+            GitPath = general.GitPath;
             ApiPort = general.ApiPort;
             _indenterPrompted = general.IsSmartIndenterPrompted;
             AutoSaveEnabled = general.IsAutoSaveEnabled;

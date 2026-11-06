@@ -29,6 +29,8 @@ namespace Rubberduck.Settings
         bool ApiAllowImmediate { get; set; }
         bool ApiAllowImmediateRead { get; set; }
         bool ApiAllowProcDump { get; set; }
+        bool GitClientEnabled { get; set; }
+        string GitPath { get; set; }
         int ApiPort { get; set; }
     }
 
@@ -102,6 +104,12 @@ namespace Rubberduck.Settings
         /// <summary>Lets agents take memory dumps of the editor with ProcDump, and have it watched for hangs. Off until the user switches it on; switching it on offers to download ProcDump.</summary>
         public bool ApiAllowProcDump { get; set; }
 
+        /// <summary>Switches on the built-in git client. Off until the user switches it on; switching it on offers to download git if there is none.</summary>
+        public bool GitClientEnabled { get; set; }
+
+        /// <summary>The git.exe to use instead of looking for one. Empty to look.</summary>
+        public string GitPath { get; set; }
+
         public int ApiPort { get; set; }
 
         public GeneralSettings()
@@ -135,6 +143,8 @@ namespace Rubberduck.Settings
                    ApiAllowImmediate == other.ApiAllowImmediate &&
                    ApiAllowImmediateRead == other.ApiAllowImmediateRead &&
                    ApiAllowProcDump == other.ApiAllowProcDump &&
+                   GitClientEnabled == other.GitClientEnabled &&
+                   (GitPath ?? string.Empty) == (other.GitPath ?? string.Empty) &&
                    ApiPort == other.ApiPort &&
                    ApiBaseUrl == other.ApiBaseUrl;
         }

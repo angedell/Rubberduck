@@ -1362,6 +1362,9 @@ namespace Rubberduck.Root
             container.Register(Component.For<IProcDumpInstaller>()
                 .ImplementedBy<ProcDumpInstaller>()
                 .LifestyleSingleton());
+            container.Register(Component.For<Rubberduck.Git.IGitProvisioner>()
+                .ImplementedBy<Rubberduck.Git.GitProvisioner>()
+                .LifestyleSingleton());
             container.Register(Component.For<IFirewallCheck>()
                 .ImplementedBy<FirewallCheck>()
                 .LifestyleSingleton());

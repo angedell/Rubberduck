@@ -200,5 +200,71 @@ namespace RubberduckTests.Git
                 Assert.AreEqual(64, release.Sha256.Length);
             }
         }
+
+        private static (Rubberduck.UI.Settings.GeneralSettingsViewModel viewModel, Moq.Mock<IGitProvisioner> git, Moq.Mock<Rubberduck.Interaction.IMessageBox> box) ViewModel(bool installed, bool agrees)
+        {
+            var git = new Moq.Mock<IGitProvisioner>();
+            git.Setup(g => g.Find(Moq.It.IsAny<string>())).Returns(installed ? new GitInstallation(@"C:\Git\cmd\git.exe", new Version(2, 56, 0)) : null);
+            git.SetupGet(g => g.TargetFolder).Returns(@"C:\Rubberduck\git");
+            git.SetupGet(g => g.DownloadUrl).Returns("https://example.test/MinGit.zip");
+            git.SetupGet(g => g.DownloadSize).Returns(40000000);
+            var box = new Moq.Mock<Rubberduck.Interaction.IMessageBox>();
+            box.Setup(b => b.ConfirmYesNo(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<bool>())).Returns(agrees);
+            var types = new Moq.Mock<Rubberduck.Settings.IExperimentalTypesProvider>();
+            types.SetupGet(t => t.ExperimentalTypes).Returns(new Type[0]);
+            var config = new Rubberduck.Settings.Configuration(new Rubberduck.Settings.UserSettings(new Rubberduck.Settings.GeneralSettings(), new Rubberduck.Settings.HotkeySettings(), null, null, null, null, null, null));
+            var viewModel = new Rubberduck.UI.Settings.GeneralSettingsViewModel(config, new Moq.Mock<Rubberduck.Common.IOperatingSystem>().Object, box.Object,
+                new Moq.Mock<Rubberduck.VBEditor.VbeRuntime.Settings.IVbeSettings>().Object, types.Object, null, null, null, null, null, git.Object);
+            viewModel.GitClientEnabled = true;
+            return (viewModel, git, box);
+        }
+
+        [Test]
+        public void Ticking_WhenGitIsThere_AsksNothing()
+        {
+            var (viewModel, git, box) = ViewModel(installed: true, agrees: true);
+
+            viewModel.EnsureGitCommand.Execute(null);
+
+            Assert.IsTrue(viewModel.GitClientEnabled);
+            box.Verify(b => b.ConfirmYesNo(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<bool>()), Moq.Times.Never);
+            git.Verify(g => g.Install(), Moq.Times.Never);
+        }
+
+        [Test]
+        public void Ticking_WhenGitIsMissing_NamesTheDownloadAndInstallsOnYes()
+        {
+            var (viewModel, git, box) = ViewModel(installed: false, agrees: true);
+
+            viewModel.EnsureGitCommand.Execute(null);
+
+            Assert.IsTrue(viewModel.GitClientEnabled);
+            git.Verify(g => g.Install(), Moq.Times.Once);
+            box.Verify(b => b.ConfirmYesNo(Moq.It.Is<string>(text => text.Contains("https://example.test/MinGit.zip") && text.Contains(@"C:\Rubberduck\git") && text.Contains("About 38 MB")),
+                Moq.It.IsAny<string>(), Moq.It.IsAny<bool>()), Moq.Times.Once);
+        }
+
+        [Test]
+        public void Ticking_WhenGitIsMissing_AndTheUserSaysNo_DownloadsNothingAndTakesTheTickBack()
+        {
+            var (viewModel, git, _) = ViewModel(installed: false, agrees: false);
+
+            viewModel.EnsureGitCommand.Execute(null);
+
+            Assert.IsFalse(viewModel.GitClientEnabled);
+            git.Verify(g => g.Install(), Moq.Times.Never);
+        }
+
+        [Test]
+        public void Ticking_WhenTheInstallFails_TellsTheUserAndTakesTheTickBack()
+        {
+            var (viewModel, git, box) = ViewModel(installed: false, agrees: true);
+            git.Setup(g => g.Install()).Throws(new IOException("hash mismatch"));
+
+            viewModel.EnsureGitCommand.Execute(null);
+
+            Assert.IsFalse(viewModel.GitClientEnabled);
+            box.Verify(b => b.NotifyWarn(Moq.It.Is<string>(text => text.StartsWith("hash mismatch")), Moq.It.IsAny<string>()), Moq.Times.Once);
+        }
     }
 }
