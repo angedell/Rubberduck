@@ -185,6 +185,48 @@ namespace Rubberduck.UI.Settings {
             }
         }
 
+        public static string GitAiEnable {
+            get {
+                return ResourceManager.GetString("GitAiEnable", resourceCulture);
+            }
+        }
+
+        public static string GitAiEnable_Tooltip {
+            get {
+                return ResourceManager.GetString("GitAiEnable_Tooltip", resourceCulture);
+            }
+        }
+
+        public static string GitAiModel {
+            get {
+                return ResourceManager.GetString("GitAiModel", resourceCulture);
+            }
+        }
+
+        public static string GitAiSetKey {
+            get {
+                return ResourceManager.GetString("GitAiSetKey", resourceCulture);
+            }
+        }
+
+        public static string GitAiRemoveKey {
+            get {
+                return ResourceManager.GetString("GitAiRemoveKey", resourceCulture);
+            }
+        }
+
+        public static string GitAi_KeySaved {
+            get {
+                return ResourceManager.GetString("GitAi_KeySaved", resourceCulture);
+            }
+        }
+
+        public static string GitAi_KeyMissing {
+            get {
+                return ResourceManager.GetString("GitAi_KeyMissing", resourceCulture);
+            }
+        }
+
         public static string GitPath {
             get {
                 return ResourceManager.GetString("GitPath", resourceCulture);

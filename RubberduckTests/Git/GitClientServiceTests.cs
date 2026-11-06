@@ -160,7 +160,7 @@ namespace RubberduckTests.Git
             return project.Object;
         }
 
-        private (GitClientService service, FakeSnapshot snapshot) Service(bool enabled = true, bool gitInstalled = true)
+        private (GitClientService service, FakeSnapshot snapshot) Service(bool enabled = true, bool gitInstalled = true, FakeAi ai = null, bool withKey = true)
         {
             var installation = new GitLocator(new FileSystem(), GitLocator.RunVersion, null, Environment.GetEnvironmentVariable("PATH"), GitLocator.DefaultOwnFolder,
                 Environment.GetEnvironmentVariable("ProgramFiles")).Find();
@@ -172,8 +172,109 @@ namespace RubberduckTests.Git
             var provisioner = new Mock<IGitProvisioner>();
             provisioner.Setup(p => p.Find(It.IsAny<string>())).Returns(gitInstalled ? installation : null);
             var snapshot = new FakeSnapshot();
-            var service = new GitClientService(provisioner.Object, new FileSystem(), snapshot, _repositories, () => new GeneralSettings { GitClientEnabled = enabled }, new MemoryCredentials());
+            var credentials = new MemoryCredentials();
+            if (withKey)
+            {
+                credentials.Write(CredentialTargets.Ai("anthropic"), null, "sk-test");
+            }
+
+            var service = new GitClientService(provisioner.Object, new FileSystem(), snapshot, _repositories, () => new GeneralSettings { GitClientEnabled = enabled, GitAiEnabled = ai != null }, credentials, ai == null ? (Func<string, string, IAiClient>)null : (key, model) => ai);
             return (service, snapshot);
+        }
+
+        private class FakeAi : IAiClient
+        {
+            public string Answer = "Add a constant";
+            public string System;
+            public string Prompt;
+            public string Endpoint => "https://ai.example.test";
+
+            public string Complete(string system, string prompt, int maxTokens = 600)
+            {
+                System = system;
+                Prompt = prompt;
+                return Answer;
+            }
+        }
+
+        [Test]
+        public void SuggestCommitMessage_SendsTheDiffOfTheChangesAndReturnsTheAnswer()
+        {
+            var ai = new FakeAi { Answer = "```\n\"Add the X constant\"\n```" };
+            var (service, snapshot) = Service(ai: ai);
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "Start the project");
+            snapshot.Module = "Option Explicit\r\nPublic Const X = 1\r\n";
+            service.Changes(project);
+
+            var preview = service.PrepareCommitSuggestion(project);
+            var message = service.SuggestCommitMessage(preview);
+
+            CollectionAssert.AreEqual(new[] { "Module1.bas" }, preview.Files);
+            StringAssert.Contains("+Public Const X = 1", ai.Prompt);
+            StringAssert.Contains("- Start the project", ai.Prompt);
+            StringAssert.DoesNotContain("rubberduck.sync.json", ai.Prompt);
+            Assert.AreEqual("Add the X constant", message);
+            Assert.IsEmpty(preview.Warnings);
+        }
+
+        [Test]
+        public void PrepareCommitSuggestion_WarnsAboutALineThatLooksLikeASecret()
+        {
+            var (service, snapshot) = Service(ai: new FakeAi());
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "Start the project");
+            snapshot.Module = "Option Explicit\r\nConst Password = \"hunter2hunter2\"\r\n";
+            service.Changes(project);
+
+            var preview = service.PrepareCommitSuggestion(project);
+
+            Assert.AreEqual(1, preview.Warnings.Count);
+            StringAssert.Contains("Module1.bas", preview.Warnings[0]);
+            StringAssert.DoesNotContain("hunter2", preview.Warnings[0]);
+        }
+
+        [Test]
+        public void PrepareCommitSuggestion_WithoutTheSettingOrAKey_Refuses()
+        {
+            var (off, _) = Service();
+            var (keyless, _) = Service(ai: new FakeAi(), withKey: false);
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+
+            Assert.Throws<GitClientException>(() => off.PrepareCommitSuggestion(project));
+            Assert.Throws<GitClientException>(() => keyless.PrepareCommitSuggestion(project));
+            Assert.IsFalse(keyless.AiAvailable);
+        }
+
+        [Test]
+        public void PrepareCommitSuggestion_LeavesOutWhatDoesNotFit()
+        {
+            var ai = new FakeAi();
+            var (service, snapshot) = Service(ai: ai);
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "Start the project");
+            snapshot.Module = "Option Explicit\r\n" + string.Concat(Enumerable.Range(0, 5000).Select(i => "Public Const C" + i + " = " + i + "\r\n"));
+            service.Changes(project);
+
+            var preview = service.PrepareCommitSuggestion(project);
+
+            Assert.Less(preview.Bytes, GitClientService.AiBudget + 5000);
+            StringAssert.Contains("left out", preview.Prompt);
+        }
+
+        [Test]
+        public void CleanMessage_StripsFencesAndQuotes()
+        {
+            Assert.AreEqual("Fix it", GitClientService.CleanMessage("\"Fix it\""));
+            Assert.AreEqual("Fix it" + Environment.NewLine + Environment.NewLine + "Why.", GitClientService.CleanMessage("```text\nFix it\n\nWhy.\n```"));
+        }
+
+        [Test]
+        public void AnthropicReply_JoinsTheTextPartsAndRefusesAnEmptyOrBrokenAnswer()
+        {
+            Assert.AreEqual("ab", AnthropicClient.Reply("{\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"type\":\"tool_use\"},{\"type\":\"text\",\"text\":\"b\"}]}"));
+            Assert.Throws<AiException>(() => AnthropicClient.Reply("{\"content\":[]}"));
+            Assert.Throws<AiException>(() => AnthropicClient.Reply("not json"));
         }
 
         private class MemoryCredentials : ICredentialStore

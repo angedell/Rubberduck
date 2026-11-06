@@ -1627,6 +1627,33 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GitClient_AiConfirm.
+        /// </summary>
+        public static string GitClient_AiConfirm {
+            get {
+                return ResourceManager.GetString("GitClient_AiConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_AiOmitted.
+        /// </summary>
+        public static string GitClient_AiOmitted {
+            get {
+                return ResourceManager.GetString("GitClient_AiOmitted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_AiWarning.
+        /// </summary>
+        public static string GitClient_AiWarning {
+            get {
+                return ResourceManager.GetString("GitClient_AiWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to GitSync_Failed.
         /// </summary>
         public static string GitSync_Failed {

@@ -55,10 +55,12 @@ namespace Rubberduck.Git
         private readonly ProjectRepositories _repositories;
         private readonly Func<GeneralSettings> _settings;
         private readonly ICredentialStore _credentials;
+        private readonly Func<string, string, IAiClient> _aiClient;
 
         public GitClientService(IGitProvisioner git, IFileSystem fileSystem, IProjectSnapshot snapshot, ProjectRepositories repositories, Func<GeneralSettings> settings,
-            ICredentialStore credentials = null)
+            ICredentialStore credentials = null, Func<string, string, IAiClient> aiClient = null)
         {
+            _aiClient = aiClient;
             _credentials = credentials ?? new WindowsCredentialStore();
             _git = git;
             _fileSystem = fileSystem;

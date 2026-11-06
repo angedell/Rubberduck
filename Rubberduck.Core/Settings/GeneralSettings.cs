@@ -31,6 +31,8 @@ namespace Rubberduck.Settings
         bool ApiAllowProcDump { get; set; }
         bool GitClientEnabled { get; set; }
         string GitPath { get; set; }
+        bool GitAiEnabled { get; set; }
+        string GitAiModel { get; set; }
         int ApiPort { get; set; }
     }
 
@@ -110,6 +112,12 @@ namespace Rubberduck.Settings
         /// <summary>The git.exe to use instead of looking for one. Empty to look.</summary>
         public string GitPath { get; set; }
 
+        /// <summary>Lets the git client send the changes of a commit to an AI service to suggest a message. Off until the user switches it on; the API key is in the Credential Manager, never here.</summary>
+        public bool GitAiEnabled { get; set; }
+
+        /// <summary>The model that suggests commit messages. Empty for the default.</summary>
+        public string GitAiModel { get; set; }
+
         public int ApiPort { get; set; }
 
         public GeneralSettings()
@@ -145,6 +153,8 @@ namespace Rubberduck.Settings
                    ApiAllowProcDump == other.ApiAllowProcDump &&
                    GitClientEnabled == other.GitClientEnabled &&
                    (GitPath ?? string.Empty) == (other.GitPath ?? string.Empty) &&
+                   GitAiEnabled == other.GitAiEnabled &&
+                   (GitAiModel ?? string.Empty) == (other.GitAiModel ?? string.Empty) &&
                    ApiPort == other.ApiPort &&
                    ApiBaseUrl == other.ApiBaseUrl;
         }

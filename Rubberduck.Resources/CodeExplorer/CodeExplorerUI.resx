@@ -593,6 +593,15 @@ Nothing was changed. Restore or edit those modules by hand, commit, and pull aga
 
 This side has {1} commit(s) the remote lacks; the remote has {2} commit(s) this side lacks.</value>
   </data>
+  <data name="GitClient_AiConfirm" xml:space="preserve">
+    <value>Send the changes of this commit to {0} to get a suggested message? {1} file(s), about {2} KB. Nothing else leaves your computer; the API key is sent only as the sign-in.</value>
+  </data>
+  <data name="GitClient_AiOmitted" xml:space="preserve">
+    <value>{0} more file(s) are too big to fit; only their names are sent.</value>
+  </data>
+  <data name="GitClient_AiWarning" xml:space="preserve">
+    <value>Careful:</value>
+  </data>
   <data name="GitSync" xml:space="preserve">
     <value>Git Sync...</value>
   </data>

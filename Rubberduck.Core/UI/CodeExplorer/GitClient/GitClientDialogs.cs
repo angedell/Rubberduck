@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
     {
         private readonly TextBox _message;
 
-        private GitCommitDialog(string projectName, IReadOnlyList<GitChange> changes)
+        private GitCommitDialog(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest)
         {
             Text = "Git: commit '" + projectName + "'";
             Font = new Font("Segoe UI", 9f);
@@ -42,15 +43,30 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
             var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Location = new Point(ClientSize.Width - 12 - 90, ClientSize.Height - 40) };
             Controls.Add(commit);
             Controls.Add(cancel);
+            if (suggest != null)
+            {
+                var ask = new Button { Text = "Suggest message (AI)", Size = new Size(150, 28), Location = new Point(12, ClientSize.Height - 40) };
+                ask.Click += (sender, args) =>
+                {
+                    var suggestion = suggest(this);
+                    if (!string.IsNullOrWhiteSpace(suggestion))
+                    {
+                        _message.Text = suggestion;
+                    }
+                };
+                Controls.Add(ask);
+            }
+
             AcceptButton = commit;
             CancelButton = cancel;
             Shown += (sender, args) => _message.Focus();
         }
 
         /// <returns>The message, or null if the user cancelled. An empty message is not accepted.</returns>
-        public static string Ask(string projectName, IReadOnlyList<GitChange> changes)
+        /// <param name="suggest">Asked for a message when the user presses the AI button, which is only there if this is given. Returns null for none.</param>
+        public static string Ask(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest = null)
         {
-            using (var dialog = new GitCommitDialog(projectName, changes))
+            using (var dialog = new GitCommitDialog(projectName, changes, suggest))
             {
                 while (dialog.ShowDialog() == DialogResult.OK)
                 {

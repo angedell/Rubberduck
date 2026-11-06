@@ -370,6 +370,14 @@ namespace Rubberduck.Git
             return changes;
         }
 
+        /// <summary>Everything that differs from the last commit as one patch (the commit would hold exactly this). The bookkeeping file is left out.</summary>
+        public string StagedDiff()
+        {
+            Run("add", "--all");
+            var excluded = LocalOnlyFiles.Select(file => ":(exclude)" + file);
+            return Run(new[] { "diff", "--cached", "--no-color", "--no-ext-diff", "--no-renames", "--unified=3", "--", "." }.Concat(excluded).ToArray()).Output;
+        }
+
         private GitResult Run(params string[] args) => _git.RunOrThrow(Prefix().Concat(args), WorkTree);
 
         private IEnumerable<string> Prefix() => new[]

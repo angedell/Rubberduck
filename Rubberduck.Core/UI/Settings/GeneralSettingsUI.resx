@@ -250,6 +250,27 @@ It is saved in {1}.</value>
   <data name="GitClientEnable_Tooltip" xml:space="preserve">
     <value>Keeps a version history of your projects without a folder or .git of your own. Needs git; Rubberduck asks before it downloads one.</value>
   </data>
+  <data name="GitAiEnable" xml:space="preserve">
+    <value>Let the git client suggest commit messages with AI</value>
+  </data>
+  <data name="GitAiEnable_Tooltip" xml:space="preserve">
+    <value>When you ask for a suggestion in the commit window, the changes of that commit are sent to api.anthropic.com, after you have seen which files and how much. Needs an API key from console.anthropic.com. Nothing is sent otherwise.</value>
+  </data>
+  <data name="GitAiModel" xml:space="preserve">
+    <value>Model (empty for the default):</value>
+  </data>
+  <data name="GitAiSetKey" xml:space="preserve">
+    <value>Set API key...</value>
+  </data>
+  <data name="GitAiRemoveKey" xml:space="preserve">
+    <value>Remove key</value>
+  </data>
+  <data name="GitAi_KeySaved" xml:space="preserve">
+    <value>A key is saved in the Windows Credential Manager.</value>
+  </data>
+  <data name="GitAi_KeyMissing" xml:space="preserve">
+    <value>No key saved.</value>
+  </data>
   <data name="GitPath" xml:space="preserve">
     <value>Path to git.exe (leave empty to look for it):</value>
   </data>

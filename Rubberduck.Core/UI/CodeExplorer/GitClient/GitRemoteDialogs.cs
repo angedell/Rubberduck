@@ -43,6 +43,39 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
         }
     }
 
+    /// <summary>Asks for the API key of the AI service. It goes to the Credential Manager; nothing else keeps it.</summary>
+    public static class GitAiKeyDialog
+    {
+        /// <returns>The key, or null if the user cancelled or left it empty.</returns>
+        public static string Ask()
+        {
+            using (var dialog = new Form())
+            {
+                dialog.Text = "Git: AI API key";
+                dialog.Font = new Font("Segoe UI", 9f);
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.MaximizeBox = false;
+                dialog.MinimizeBox = false;
+                dialog.ShowInTaskbar = false;
+                dialog.StartPosition = FormStartPosition.CenterScreen;
+                dialog.ClientSize = new Size(520, 130);
+
+                dialog.Controls.Add(new Label { Text = "API key from console.anthropic.com. It is kept in the Windows Credential Manager, not in the settings.", Location = new Point(12, 10), Size = new Size(496, 36) });
+                var key = new TextBox { Location = new Point(12, 50), Size = new Size(496, 24), UseSystemPasswordChar = true };
+                dialog.Controls.Add(key);
+
+                var ok = new Button { Text = "Save", DialogResult = DialogResult.OK, Size = new Size(90, 28), Location = new Point(dialog.ClientSize.Width - 12 - 90 - 8 - 90, dialog.ClientSize.Height - 40) };
+                var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Location = new Point(dialog.ClientSize.Width - 12 - 90, dialog.ClientSize.Height - 40) };
+                dialog.Controls.Add(ok);
+                dialog.Controls.Add(cancel);
+                dialog.AcceptButton = ok;
+                dialog.CancelButton = cancel;
+
+                return dialog.ShowDialog() == DialogResult.OK && key.Text.Trim().Length > 0 ? key.Text.Trim() : null;
+            }
+        }
+    }
+
     /// <summary>Asks for the personal access token a host wants. It goes to the Credential Manager; nothing else keeps it.</summary>
     public sealed class GitTokenDialog : Form
     {

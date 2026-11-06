@@ -364,6 +364,61 @@ namespace Rubberduck.UI.Settings
             }
         }
 
+        private bool _gitAiEnabled;
+        public bool GitAiEnabled
+        {
+            get => _gitAiEnabled;
+            set
+            {
+                if (_gitAiEnabled != value)
+                {
+                    _gitAiEnabled = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _gitAiModel;
+        public string GitAiModel
+        {
+            get => _gitAiModel;
+            set
+            {
+                if (_gitAiModel != value)
+                {
+                    _gitAiModel = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>Where the API key is kept. Not the settings file: the key is a secret.</summary>
+        public Rubberduck.Git.ICredentialStore Credentials { get; set; } = new Rubberduck.Git.WindowsCredentialStore();
+
+        private static readonly string AiTarget = Rubberduck.Git.CredentialTargets.Ai("anthropic");
+
+        public string GitAiKeyStatus => Credentials.Read(AiTarget) != null ? GeneralSettingsUI.GitAi_KeySaved : GeneralSettingsUI.GitAi_KeyMissing;
+
+        private CommandBase _setGitAiKeyCommand;
+        public CommandBase SetGitAiKeyCommand => _setGitAiKeyCommand ?? (_setGitAiKeyCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(), _ =>
+            {
+                var key = Rubberduck.UI.CodeExplorer.GitClient.GitAiKeyDialog.Ask();
+                if (key != null)
+                {
+                    Credentials.Write(AiTarget, null, key);
+                    OnPropertyChanged(nameof(GitAiKeyStatus));
+                }
+            }));
+
+        private CommandBase _removeGitAiKeyCommand;
+        public CommandBase RemoveGitAiKeyCommand => _removeGitAiKeyCommand ?? (_removeGitAiKeyCommand = new DelegateCommand(
+            LogManager.GetCurrentClassLogger(), _ =>
+            {
+                Credentials.Delete(AiTarget);
+                OnPropertyChanged(nameof(GitAiKeyStatus));
+            }));
+
         private CommandBase _ensureGitCommand;
         /// <summary>Run when the user ticks the git client option: if there is no usable git, offers to download one, and takes the tick back if none is to be had.</summary>
         public CommandBase EnsureGitCommand => _ensureGitCommand ?? (_ensureGitCommand = new DelegateCommand(
@@ -608,6 +663,8 @@ namespace Rubberduck.UI.Settings
                 ApiAllowProcDump = ApiAllowProcDump,
                 GitClientEnabled = GitClientEnabled,
                 GitPath = GitPath,
+                GitAiEnabled = GitAiEnabled,
+                GitAiModel = GitAiModel,
                 ApiPort = ApiPort,
                 IsSmartIndenterPrompted = _indenterPrompted,
                 IsAutoSaveEnabled = AutoSaveEnabled,
@@ -643,6 +700,8 @@ namespace Rubberduck.UI.Settings
             ApiAllowProcDump = general.ApiAllowProcDump;
             GitClientEnabled = general.GitClientEnabled;
             GitPath = general.GitPath;
+            GitAiEnabled = general.GitAiEnabled;
+            GitAiModel = general.GitAiModel;
             ApiPort = general.ApiPort;
             _indenterPrompted = general.IsSmartIndenterPrompted;
             AutoSaveEnabled = general.IsAutoSaveEnabled;

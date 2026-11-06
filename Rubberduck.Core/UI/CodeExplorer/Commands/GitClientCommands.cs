@@ -93,6 +93,40 @@ namespace Rubberduck.UI.CodeExplorer.Commands
         {
         }
 
+        //Shows what would leave the computer and sends it only if the user agrees.
+        private string SuggestMessage(IVBProject project)
+        {
+            string suggestion = null;
+            Guarded(() =>
+            {
+                try
+                {
+                    var preview = Git.PrepareCommitSuggestion(project);
+                    var lines = new List<string>
+                    {
+                        string.Format(CodeExplorerUI.GitClient_AiConfirm, preview.Endpoint, preview.Files.Count, Math.Max(1, preview.Bytes / 1024)),
+                        string.Join(Environment.NewLine, preview.Files.Take(15).Concat(preview.Files.Count > 15 ? new[] { "..." } : new string[0]))
+                    };
+                    if (preview.Omitted.Count > 0)
+                    {
+                        lines.Add(string.Format(CodeExplorerUI.GitClient_AiOmitted, preview.Omitted.Count));
+                    }
+
+                    lines.AddRange(preview.Warnings.Select(warning => CodeExplorerUI.GitClient_AiWarning + " " + warning));
+                    if (MessageBox.ConfirmYesNo(string.Join(Environment.NewLine + Environment.NewLine, lines), CodeExplorerUI.GitClient_DialogTitle, preview.Warnings.Count == 0))
+                    {
+                        suggestion = Git.SuggestCommitMessage(preview);
+                    }
+                }
+                catch (AiException exception)
+                {
+                    Logger.Warn(exception, "Git client: the AI service did not help.");
+                    MessageBox.NotifyWarn(exception.Message, CodeExplorerUI.GitClient_DialogTitle);
+                }
+            });
+            return suggestion;
+        }
+
         protected override void OnExecute(object parameter)
         {
             var project = TargetProject(parameter);
@@ -127,7 +161,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                     return;
                 }
 
-                var message = GitCommitDialog.Ask(project.Name, changes);
+                var message = GitCommitDialog.Ask(project.Name, changes, Git.AiAvailable ? (Func<System.Windows.Forms.IWin32Window, string>)(owner => SuggestMessage(project)) : null);
                 if (message == null)
                 {
                     return;

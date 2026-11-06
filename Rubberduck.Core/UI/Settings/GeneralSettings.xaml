@@ -148,6 +148,25 @@
                                  Text="{Binding GitPath, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
 
+                    <CheckBox Margin="5,0,0,5" Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitAiEnable}"
+                              ToolTip="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitAiEnable_Tooltip}"
+                              IsChecked="{Binding GitAiEnabled}"
+                              x:Name="IsGitAiEnabled"/>
+                    <StackPanel Orientation="Horizontal" Margin="15,0,0,5"
+                                IsEnabled="{Binding IsChecked, ElementName=IsGitAiEnabled}">
+                        <Label Target="{Binding ElementName=GitAiModelBox}"
+                               Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitAiModel}" />
+                        <TextBox x:Name="GitAiModelBox" Width="160" VerticalContentAlignment="Center"
+                                 Text="{Binding GitAiModel, UpdateSourceTrigger=LostFocus}" />
+                        <Button Margin="10,0,0,0" Padding="5,2"
+                                Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitAiSetKey}"
+                                Command="{Binding SetGitAiKeyCommand}"/>
+                        <Button Margin="5,0,0,0" Padding="5,2"
+                                Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=GitAiRemoveKey}"
+                                Command="{Binding RemoveGitAiKeyCommand}"/>
+                        <Label Content="{Binding GitAiKeyStatus}" />
+                    </StackPanel>
+
                     <Label Target="{Binding ElementName=minimumLogLevel}"
                            Content="{Resx ResxName=Rubberduck.UI.Settings.GeneralSettingsUI, Key=MinimumLogLevelLabel}" FontWeight="SemiBold" Margin="1,0,-1,0" />
                     <ComboBox x:Name="minimumLogLevel"
