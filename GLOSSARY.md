@@ -2,6 +2,8 @@
 
 **Git sync** — Compares a VBA project with a folder, once, when the user asks, and syncs what they pick. See `docs/GitSyncCompare.md`.
 
+**Hidden repository** — The git directory and work tree Rubberduck keeps for a project under `%LOCALAPPDATA%\Rubberduck\repos\<project-id>\`, so no `.git` appears next to the user's files. Proposed; see `docs/adr/0006-built-in-git-client-with-a-hidden-repository.md`.
+
 **API** — The HTTP server inside the add-in that lets AI agents read and edit modules and forms. Off by default. See `docs/RestApi.md` and `docs/adr/0001-local-api-for-ai-agents.md`.
 
 **Agent** — A program, usually driven by an AI model, that talks to the API or the MCP server.
