@@ -128,6 +128,14 @@ namespace RubberduckTests.Git
                 return new GitSyncResult();
             }
 
+            public GitSyncResult ImportFiles(IVBProject project, string tree, System.Collections.Generic.IReadOnlyCollection<string> relativePaths, ISyncProgress progress = null)
+            {
+                ImportedFiles = relativePaths.ToArray();
+                return new GitSyncResult();
+            }
+
+            public string[] ImportedFiles;
+
             public GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null)
             {
                 Taken++;
@@ -164,8 +172,77 @@ namespace RubberduckTests.Git
             var provisioner = new Mock<IGitProvisioner>();
             provisioner.Setup(p => p.Find(It.IsAny<string>())).Returns(gitInstalled ? installation : null);
             var snapshot = new FakeSnapshot();
-            var service = new GitClientService(provisioner.Object, new FileSystem(), snapshot, _repositories, () => new GeneralSettings { GitClientEnabled = enabled });
+            var service = new GitClientService(provisioner.Object, new FileSystem(), snapshot, _repositories, () => new GeneralSettings { GitClientEnabled = enabled }, new MemoryCredentials());
             return (service, snapshot);
+        }
+
+        private class MemoryCredentials : ICredentialStore
+        {
+            private readonly System.Collections.Generic.Dictionary<string, StoredCredential> _saved = new System.Collections.Generic.Dictionary<string, StoredCredential>();
+
+            public StoredCredential Read(string target) => _saved.TryGetValue(target, out var credential) ? credential : null;
+            public void Write(string target, string user, string secret) => _saved[target] = new StoredCredential(user, secret);
+            public bool Delete(string target) => _saved.Remove(target);
+            public System.Collections.Generic.IReadOnlyList<string> List(string prefix) => _saved.Keys.Where(key => key.StartsWith(prefix)).ToList();
+        }
+
+        [TestCase("git@github.com:o/r.git")]
+        [TestCase("http://github.com/o/r.git")]
+        [TestCase(@"C:\repos\r.git")]
+        [TestCase("https://user:pw@github.com/o/r.git")]
+        public void SetRemote_RefusesAnythingButAPlainHttpsAddress(string url)
+        {
+            var (service, _) = Service();
+
+            Assert.Throws<GitClientException>(() => service.SetRemote(Project(Workbook("a.xlsm"), "Alpha"), url));
+        }
+
+        [Test]
+        public void SetRemote_KeepsTheAddressWithTheProject()
+        {
+            var (service, _) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+
+            service.SetRemote(project, " https://github.com/o/r.git ");
+
+            Assert.AreEqual("https://github.com/o/r.git", service.RemoteUrl(project));
+            Assert.AreEqual("github.com", service.RemoteHost(project));
+        }
+
+        [Test]
+        public void Push_WithoutARemote_SaysSo()
+        {
+            var (service, _) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "first");
+
+            StringAssert.Contains("no remote", Assert.Throws<GitClientException>(() => service.Push(project)).Message);
+        }
+
+        [Test]
+        public void Pull_RefusesWhileTheProjectHasChangesThatAreNotCommitted()
+        {
+            var (service, snapshot) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "first");
+            service.SetRemote(project, "https://github.com/o/r.git");
+            snapshot.Module = "Option Explicit\r\n'edited\r\n";
+
+            StringAssert.Contains("not committed", Assert.Throws<GitClientException>(() => service.Pull(project)).Message);
+        }
+
+        [Test]
+        public void Tokens_AreSavedPerHostAndCanBeForgotten()
+        {
+            var (service, _) = Service();
+
+            Assert.IsFalse(service.HasToken("github.com"));
+            service.SaveToken("github.com", "angelo", "ghp_x");
+            Assert.IsTrue(service.HasToken("github.com"));
+            Assert.IsFalse(service.HasToken("gitlab.com"));
+            Assert.IsTrue(service.ForgetToken("github.com"));
+            Assert.IsFalse(service.HasToken("github.com"));
+            Assert.Throws<GitClientException>(() => service.SaveToken("github.com", "angelo", "  "));
         }
 
         [Test]

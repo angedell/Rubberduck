@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.IO.Abstractions;
 using Rubberduck.UI.CodeExplorer.GitSync;
@@ -14,6 +15,9 @@ namespace Rubberduck.Git
 
         /// <summary>The other way round for one module: its file in the tree replaces the module in the project. The module it replaces is backed up first.</summary>
         GitSyncResult Import(IVBProject project, string tree, string moduleName, ISyncProgress progress = null);
+
+        /// <summary>Imports several files of the tree (relative paths, forward slashes) in one batch, so the parser is held still once. Files the project has no module for become modules.</summary>
+        GitSyncResult ImportFiles(IVBProject project, string tree, IReadOnlyCollection<string> relativePaths, ISyncProgress progress = null);
     }
 
     /// <summary>
@@ -78,6 +82,27 @@ namespace Rubberduck.Git
 
             item.Chosen = SyncAction.Import;
             return _sync.Apply(project, scan, new[] { item }, progress);
+        }
+
+        public GitSyncResult ImportFiles(IVBProject project, string tree, IReadOnlyCollection<string> relativePaths, ISyncProgress progress = null)
+        {
+            var wanted = new HashSet<string>(relativePaths.Select(path => path.Replace('\\', '/')), StringComparer.OrdinalIgnoreCase);
+            var scan = _sync.Scan(project, tree, progress);
+
+            //Modules and notes; a ribbon, a picture or the config stored in the document is not something a pull changes in the project.
+            var items = scan.Plan.Items.Where(item => !item.IsResource && item.FileExists && wanted.Contains(item.RelativePath.Replace('\\', '/'))).ToList();
+            foreach (var item in items)
+            {
+                item.Chosen = SyncAction.Import;
+            }
+
+            var result = _sync.Apply(project, scan, items, progress);
+            foreach (var skipped in wanted.Where(path => items.All(item => !string.Equals(item.RelativePath.Replace('\\', '/'), path, StringComparison.OrdinalIgnoreCase))))
+            {
+                result.Notes.Add($"'{skipped}' came with the pull but was not imported: it is not a module or note, or the project already holds the same text.");
+            }
+
+            return result;
         }
 
         private void DeleteFile(string path)

@@ -49,6 +49,9 @@ namespace Rubberduck.Git
         private readonly IReadOnlyDictionary<string, string> _environment;
         private readonly IReadOnlyList<string> _secrets;
 
+        /// <summary>The git.exe this runner starts.</summary>
+        public string Executable => _git;
+
         public GitRunner(string gitPath, TimeSpan? timeout = null, IReadOnlyDictionary<string, string> environment = null, IEnumerable<string> secrets = null)
         {
             _git = gitPath;

@@ -45,7 +45,7 @@ namespace Rubberduck.Git
     /// The built-in git client for a project: finds its hidden repository, brings the repository's work tree up to date with the project through Git sync,
     /// and runs git on it. Everything that touches the VBE is Git sync's; git never sees it.
     /// </summary>
-    public class GitClientService
+    public partial class GitClientService
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -54,9 +54,12 @@ namespace Rubberduck.Git
         private readonly IProjectSnapshot _snapshot;
         private readonly ProjectRepositories _repositories;
         private readonly Func<GeneralSettings> _settings;
+        private readonly ICredentialStore _credentials;
 
-        public GitClientService(IGitProvisioner git, IFileSystem fileSystem, IProjectSnapshot snapshot, ProjectRepositories repositories, Func<GeneralSettings> settings)
+        public GitClientService(IGitProvisioner git, IFileSystem fileSystem, IProjectSnapshot snapshot, ProjectRepositories repositories, Func<GeneralSettings> settings,
+            ICredentialStore credentials = null)
         {
+            _credentials = credentials ?? new WindowsCredentialStore();
             _git = git;
             _fileSystem = fileSystem;
             _snapshot = snapshot;
