@@ -50,18 +50,16 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
         protected override bool IsResultDeclaration(Declaration declaration, DeclarationFinder finder)
         {
-            var hasOptionBase1 = declaration.Context
+            //The cheap test first: looking for 'Option Base' walks the whole module's parse tree, which is not worth doing for every declaration of the project.
+            if (!(declaration is ParameterDeclaration parameter) || !parameter.IsParamArray)
+            {
+                return false;
+            }
+
+            return declaration.Context
                 .GetAncestor<VBAParser.ModuleContext>()
                 .GetDescendent<VBAParser.OptionBaseStmtContext>()?
                 .numberLiteral()?.GetText() == "1";
-
-
-            if (hasOptionBase1 && declaration is ParameterDeclaration parameter)
-            {
-                return parameter.IsParamArray;
-            }
-
-            return false;
         }
 
         protected override string ResultDescription(Declaration declaration)

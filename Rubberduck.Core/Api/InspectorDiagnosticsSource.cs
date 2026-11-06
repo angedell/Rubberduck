@@ -98,7 +98,8 @@ namespace Rubberduck.Api
 
             lock (_gate)
             {
-                if (generation > _cachedGeneration)
+                //A generation is a hash of the parser state, not a counter, so "newer" cannot be told by its size: the latest job asked for wins, an older one finishing late does not.
+                if (generation == _jobGeneration)
                 {
                     _cachedGeneration = generation;
                     _cached = results;

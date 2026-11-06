@@ -58,20 +58,17 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
         protected override bool IsResultReference(IdentifierReference reference, DeclarationFinder finder)
         {
-            var hasOptionBase1 = reference.Context
+            //The cheap tests first: looking for 'Option Base' walks the whole module's parse tree, which is not worth doing for every reference of the project.
+            if (reference.Declaration.ProjectName != "VBA" || reference.Declaration.IdentifierName != "Array"
+                || reference.QualifyingReference?.Declaration.IdentifierName != "VBA")
+            {
+                return false;
+            }
+
+            return reference.Context
                 .GetAncestor<VBAParser.ModuleContext>()
                 .GetDescendent<VBAParser.OptionBaseStmtContext>()?
                 .numberLiteral()?.GetText() == "1";
-
-            if (hasOptionBase1 && reference.Declaration.ProjectName == "VBA" && reference.Declaration.IdentifierName == "Array")
-            {
-                if (reference.QualifyingReference?.Declaration.IdentifierName == "VBA")
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         protected override string ResultDescription(IdentifierReference reference)
