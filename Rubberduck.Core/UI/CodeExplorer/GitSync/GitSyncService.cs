@@ -298,7 +298,8 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
         }
 
         /// <summary>Carries out the chosen action of each item. The state is saved even if some items fail or the user cancels.</summary>
-        public GitSyncResult Apply(IVBProject project, GitSyncScan scan, IEnumerable<SyncItem> items, ISyncProgress progress = null)
+        /// <param name="backupFolder">Where the versions that are overwritten are kept; null for a folder of its own under Rubberduck's local data.</param>
+        public GitSyncResult Apply(IVBProject project, GitSyncScan scan, IEnumerable<SyncItem> items, ISyncProgress progress = null, string backupFolder = null)
         {
             progress = progress ?? NoProgress.Instance;
             var timer = Stopwatch.StartNew();
@@ -320,7 +321,7 @@ namespace Rubberduck.UI.CodeExplorer.GitSync
             chosen.RemoveAll(item => item.IsNote);
 
             var temp = NewTempFolder();
-            var backup = _fileSystem.Path.Combine(
+            var backup = backupFolder ?? _fileSystem.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Rubberduck", "GitSyncBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             var applied = new List<Applied>();
             long prepared = 0, vbe = 0;

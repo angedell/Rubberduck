@@ -1365,6 +1365,23 @@ namespace Rubberduck.Root
             container.Register(Component.For<Rubberduck.Git.IGitProvisioner>()
                 .ImplementedBy<Rubberduck.Git.GitProvisioner>()
                 .LifestyleSingleton());
+            container.Register(Component.For<Rubberduck.Git.IProjectSnapshot>()
+                .ImplementedBy<Rubberduck.Git.GitProjectSnapshot>()
+                .LifestyleSingleton());
+            container.Register(Component.For<Rubberduck.Git.ProjectRepositories>()
+                .LifestyleSingleton());
+            container.Register(Component.For<Rubberduck.Git.GitClientService>()
+                .UsingFactoryMethod(kernel =>
+                {
+                    var configuration = kernel.Resolve<IConfigurationService<Configuration>>();
+                    return new Rubberduck.Git.GitClientService(
+                        kernel.Resolve<Rubberduck.Git.IGitProvisioner>(),
+                        kernel.Resolve<IFileSystem>(),
+                        kernel.Resolve<Rubberduck.Git.IProjectSnapshot>(),
+                        kernel.Resolve<Rubberduck.Git.ProjectRepositories>(),
+                        () => configuration.Read().UserSettings.GeneralSettings);
+                })
+                .LifestyleSingleton());
             container.Register(Component.For<IFirewallCheck>()
                 .ImplementedBy<FirewallCheck>()
                 .LifestyleSingleton());
