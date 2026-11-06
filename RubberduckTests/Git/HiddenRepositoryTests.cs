@@ -69,6 +69,48 @@ namespace RubberduckTests.Git
             Assert.AreEqual(new[] { "Module1.bas" }, Directory.GetFileSystemEntries(_repository.WorkTree).Select(Path.GetFileName).ToArray());
         }
 
+        private string[] Tracked() => _git.RunOrThrow(new[] { "--git-dir=" + _repository.GitDirectory, "ls-tree", "-r", "--name-only", "HEAD" }).Output
+            .Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim()).ToArray();
+
+        [Test]
+        public void GitSyncsBookkeeping_IsNeverCommittedNorListedAsAChange()
+        {
+            _repository.EnsureCreated();
+            Write("M.bas", new byte[] { 65 });
+            Write("rubberduck.json", new byte[] { 123, 125 });
+            Write("rubberduck.sync.json", new byte[] { 1 });
+            Commit("first");
+
+            Write("rubberduck.sync.json", new byte[] { 2 });
+            Write("M.bas", new byte[] { 66 });
+
+            Assert.AreEqual(new[] { "M.bas" }, _repository.Status().Select(change => change.Path).ToArray());
+            Commit("second");
+            CollectionAssert.AreEquivalent(new[] { "M.bas", "rubberduck.json" }, Tracked());
+            Assert.IsTrue(File.Exists(Path.Combine(_repository.WorkTree, "rubberduck.sync.json")));
+        }
+
+        [Test]
+        public void EnsureCreated_TakesBookkeepingOutOfARepositoryThatAlreadyHoldsIt()
+        {
+            _repository.EnsureCreated();
+            Write("M.bas", new byte[] { 65 });
+            Commit("first");
+            Write("rubberduck.sync.json", new byte[] { 1 });
+            _git.RunOrThrow(new[] { "--git-dir=" + _repository.GitDirectory, "--work-tree=" + _repository.WorkTree, "add", "--force", "rubberduck.sync.json" });
+            _git.RunOrThrow(new[] { "--git-dir=" + _repository.GitDirectory, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "--quiet", "--message", "old" });
+            CollectionAssert.Contains(Tracked(), "rubberduck.sync.json");
+
+            _repository.EnsureCreated();
+            Write("rubberduck.sync.json", new byte[] { 2 });
+            Write("M.bas", new byte[] { 66 });
+
+            Assert.AreEqual(new[] { "M.bas" }, _repository.Status().Select(change => change.Path).ToArray());
+            Commit("after");
+            CollectionAssert.DoesNotContain(Tracked(), "rubberduck.sync.json");
+            Assert.IsTrue(File.Exists(Path.Combine(_repository.WorkTree, "rubberduck.sync.json")));
+        }
+
         [Test]
         public void Status_ListsNewModifiedAndDeletedFiles()
         {

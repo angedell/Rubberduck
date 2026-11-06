@@ -45,6 +45,12 @@ namespace Rubberduck.Git
     {
         private static readonly Regex CommitId = new Regex("^[0-9a-f]{7,64}$", RegexOptions.CultureInvariant);
 
+        /// <summary>
+        /// Files the work tree needs but the history does not: Git sync's bookkeeping, which changes with every export and means nothing in an old commit.
+        /// They are kept out of the repository (the git directory's own <c>info/exclude</c>, so nothing is written to the work tree).
+        /// </summary>
+        public static readonly string[] LocalOnlyFiles = { "rubberduck.sync.json" };
+
         private readonly GitRunner _git;
         private readonly IFileSystem _fileSystem;
 
@@ -72,6 +78,31 @@ namespace Rubberduck.Git
             if (!Exists)
             {
                 _git.RunOrThrow(Prefix().Concat(new[] { "init", "--initial-branch=main", "--quiet" }), WorkTree);
+            }
+
+            KeepLocalOnlyFilesOut();
+        }
+
+        //Also repairs a repository that already holds them: they are dropped from the index (the file stays where it is) and leave the history with the next commit.
+        private void KeepLocalOnlyFilesOut()
+        {
+            var exclude = _fileSystem.Path.Combine(GitDirectory, "info", "exclude");
+            var current = _fileSystem.File.Exists(exclude) ? _fileSystem.File.ReadAllText(exclude) : string.Empty;
+            var lines = current.Split(new[] { '\n' }).Select(line => line.Trim()).ToList();
+            var missing = LocalOnlyFiles.Where(file => !lines.Contains("/" + file)).ToList();
+            if (missing.Count > 0)
+            {
+                _fileSystem.Directory.CreateDirectory(_fileSystem.Path.GetDirectoryName(exclude));
+                var separator = current.Length == 0 || current.EndsWith("\n") ? string.Empty : "\n";
+                _fileSystem.File.WriteAllText(exclude, current + separator + string.Concat(missing.Select(file => "/" + file + "\n")));
+            }
+
+            foreach (var file in LocalOnlyFiles)
+            {
+                if (_git.Run(Prefix().Concat(new[] { "ls-files", "--error-unmatch", "--", file }), WorkTree).Ok)
+                {
+                    Run("rm", "--cached", "--quiet", "--", file);
+                }
             }
         }
 
@@ -101,7 +132,11 @@ namespace Rubberduck.Git
                     continue;
                 }
 
-                changes.Add(new GitChange(path, KindOf(index, tree)));
+                //Still in the index from before it was kept out: it goes with the next commit, but is not news.
+                if (!LocalOnlyFiles.Contains(path))
+                {
+                    changes.Add(new GitChange(path, KindOf(index, tree)));
+                }
             }
 
             return changes;
