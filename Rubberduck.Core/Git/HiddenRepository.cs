@@ -28,6 +28,35 @@ namespace Rubberduck.Git
         public GitChangeKind Kind { get; }
     }
 
+    public enum GitMergeKind
+    {
+        /// <summary>The remote had nothing this side lacks.</summary>
+        UpToDate,
+        FastForwarded,
+        Merged,
+
+        /// <summary>The two sides changed the same lines. The merge was undone.</summary>
+        Conflicts
+    }
+
+    public class GitMergeOutcome
+    {
+        public GitMergeOutcome(GitMergeKind kind, IReadOnlyList<GitChange> changes, IReadOnlyList<string> conflicts)
+        {
+            Kind = kind;
+            Changes = changes;
+            Conflicts = conflicts;
+        }
+
+        public GitMergeKind Kind { get; }
+
+        /// <summary>What the merge changed in the work tree.</summary>
+        public IReadOnlyList<GitChange> Changes { get; }
+
+        /// <summary>The files that conflicted, for <see cref="GitMergeKind.Conflicts"/>.</summary>
+        public IReadOnlyList<string> Conflicts { get; }
+    }
+
     public class GitCommit
     {
         public string Id { get; set; }
@@ -238,6 +267,108 @@ namespace Rubberduck.Git
         /// <summary>Puts a file back as it was in a commit. Only the work tree changes; nothing is committed.</summary>
         public void RestoreFile(string commit, string relativePath)
             => Run("checkout", CommitOf(commit), "--", PathOf(relativePath));
+
+        /// <summary>The same repository, run with another runner: the one that carries a remote's credentials for the call.</summary>
+        public HiddenRepository WithRunner(GitRunner runner) => new HiddenRepository(runner, _fileSystem, Root);
+
+        // ---- Remote ----
+
+        public const string RemoteName = "origin";
+
+        /// <summary>The URL of <c>origin</c>, or null if the repository has none.</summary>
+        public string RemoteUrl()
+        {
+            var result = _git.Run(Prefix().Concat(new[] { "remote", "get-url", RemoteName }), WorkTree);
+            return result.Ok ? result.Output.Trim() : null;
+        }
+
+        /// <summary>Points <c>origin</c> at the URL, adding it if there is none. The URL is not checked here; what may be used is the caller's decision.</summary>
+        public void SetRemote(string url)
+        {
+            if (RemoteUrl() == null)
+            {
+                Run("remote", "add", RemoteName, url);
+            }
+            else
+            {
+                Run("remote", "set-url", RemoteName, url);
+            }
+        }
+
+        public string CurrentBranch() => Run("symbolic-ref", "--short", "HEAD").Output.Trim();
+
+        public void Fetch() => Run("fetch", "--quiet", RemoteName);
+
+        /// <summary>Sends the current branch to <c>origin</c> and makes it the branch's upstream. Never forces: a remote that has moved on is refused.</summary>
+        public void Push() => Run("push", "--quiet", "--set-upstream", RemoteName, CurrentBranch());
+
+        /// <summary>
+        /// How far the branch is from its copy on the remote as last fetched: commits only here, and commits only there.
+        /// Null if the remote has no such branch (an empty remote, or nothing fetched yet).
+        /// </summary>
+        public (int ahead, int behind)? AheadBehind()
+        {
+            var remote = "refs/remotes/" + RemoteName + "/" + CurrentBranch();
+            if (!_git.Run(Prefix().Concat(new[] { "rev-parse", "--verify", "--quiet", remote }), WorkTree).Ok)
+            {
+                return null;
+            }
+
+            var counts = Run("rev-list", "--left-right", "--count", "HEAD..." + remote).Output.Trim().Split('\t', ' ');
+            return (int.Parse(counts[0]), int.Parse(counts[1]));
+        }
+
+        /// <summary>
+        /// Brings what the remote has into the branch: nothing if it has nothing new, a fast-forward if this side has nothing of its own, otherwise a merge.
+        /// A merge that would conflict is undone and reported, so the repository is left as it was.
+        /// </summary>
+        public GitMergeOutcome MergeRemote(string authorName, string authorEmail)
+        {
+            var counts = AheadBehind();
+            if (counts == null || counts.Value.behind == 0)
+            {
+                return new GitMergeOutcome(GitMergeKind.UpToDate, new GitChange[0], new string[0]);
+            }
+
+            var before = Run("rev-parse", "HEAD").Output.Trim();
+            var remote = RemoteName + "/" + CurrentBranch();
+            var fastForward = counts.Value.ahead == 0;
+            var merge = _git.Run(Prefix().Concat(new[]
+            {
+                "-c", "user.name=" + authorName, "-c", "user.email=" + authorEmail, "-c", "commit.gpgsign=false",
+                "merge", "--no-edit", "--quiet", fastForward ? "--ff-only" : "--no-ff", remote
+            }), WorkTree);
+
+            if (!merge.Ok)
+            {
+                var conflicts = _git.Run(Prefix().Concat(new[] { "diff", "--name-only", "--diff-filter=U", "-z" }), WorkTree).Output
+                    .Split(new[] { '\0' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                _git.Run(Prefix().Concat(new[] { "merge", "--abort" }), WorkTree);
+                if (conflicts.Count == 0)
+                {
+                    throw new GitException("git merge failed: " + merge.Error, merge.ExitCode);
+                }
+
+                return new GitMergeOutcome(GitMergeKind.Conflicts, new GitChange[0], conflicts);
+            }
+
+            return new GitMergeOutcome(fastForward ? GitMergeKind.FastForwarded : GitMergeKind.Merged, ChangesSince(before), new string[0]);
+        }
+
+        //What a merge changed in the work tree, as paths and kinds.
+        private IReadOnlyList<GitChange> ChangesSince(string commit)
+        {
+            var fields = Run("diff", "--name-status", "-z", "--no-renames", CommitOf(commit), "HEAD").Output
+                .Split(new[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
+            var changes = new List<GitChange>();
+            for (var i = 0; i + 1 < fields.Length; i += 2)
+            {
+                var kind = fields[i] == "A" ? GitChangeKind.Added : fields[i] == "D" ? GitChangeKind.Deleted : GitChangeKind.Modified;
+                changes.Add(new GitChange(fields[i + 1], kind));
+            }
+
+            return changes;
+        }
 
         private GitResult Run(params string[] args) => _git.RunOrThrow(Prefix().Concat(args), WorkTree);
 

@@ -27,12 +27,17 @@ What is different now: Git sync already solves the hard part, moving modules bet
 10. **Staging is hidden at first.** A commit takes everything that changed; leaving a module out is `.rdsyncignore`. A staging UI waits for someone to ask.
 11. **The installer works behind a proxy and offline.** It uses the system proxy with default credentials and TLS 1.2 or later. **Install from a file** takes a MinGit zip the user points at, held to the same pinned hash. **Choose git.exe** remains the last fallback.
 
+12. **Remotes are HTTPS only, GitHub first.** The hidden repository can be given one remote, `origin`. Only `https://` URLs are accepted at first: no SSH, no local paths, no `ext::`. Authentication is decision 9: a token kept in the Windows Credential Manager under `Rubberduck/git/<host>` and passed for one call. **Push** sends the current branch and sets its upstream; it never forces. **Pull** is fetch, then a fast-forward or a clean merge; if the merge would conflict it is aborted and nothing changes (resolving conflicts in the compare window comes later). A pull needs the work tree to equal the project and the project to have nothing uncommitted, so it starts with the same snapshot a commit does and refuses if that shows changes ("commit first"). What the pull brought in is imported into the project through Git sync in **one batch**, so the parser is suspended once. A module deleted upstream stays in the project (Git sync never deletes) and is listed.
+13. **AI help is opt-in, on demand, and its key is a credential.** Settings has *Use AI to help with commits*, the provider (the Anthropic Messages API first; its base URL and model are settings, so a compatible endpoint works) and the API key. The key is saved in the Windows Credential Manager under `Rubberduck/ai/<provider>`, never in the settings file, the repository or the log. Nothing is sent unless the user presses a button (*Suggest message*, *Split by functionality*). Before the first send the dialog says that the changed code leaves the computer, and each send shows what goes: the files and the size. Files on the sync ignore list are never sent, a size limit applies, and a change that contains something that looks like a secret (a password, a connection string, a key) stops and asks. What the model answers is a suggestion: it is shown, can be edited, and nothing is committed without the user.
+14. **Splitting a big change is choosing hunks.** The change is read as a diff of the work tree against the last commit and cut into hunks (a new file or a binary is one piece). The AI proposes groups, one per piece of functionality, each with a message, as structured data. An answer in which any hunk is missing or appears twice is rejected and the change stays one group. The user can move hunks between groups and edit messages. Each group is then committed in order: its hunks are staged with `git apply --cached` (the patch goes in through the process's standard input, never a file path) and committed. "Cherry picking" here means picking hunks. Git's own `cherry-pick` of commits between branches belongs to the branches phase.
+
 ## Phases
 
 1. Hidden repository, commit, status, history, diff of one module, restore a module from a commit. (Needs the installer, since nothing works without git.)
 2. Branches, checkout, revert.
-3. Remotes, push, pull, credentials, merge with the existing compare window for conflicts.
-4. Forms (`.frx`) and document modules edge cases, API routes.
+3. Remotes: credential store, `origin`, push, pull (decision 12). Then conflicts in the compare window.
+4. AI help: settings and key (decision 13), commit message suggestion, then splitting by functionality (decision 14).
+5. Forms (`.frx`) and document modules edge cases, API routes.
 
 ## Consequences
 
