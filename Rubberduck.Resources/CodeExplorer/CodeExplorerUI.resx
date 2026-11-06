@@ -602,6 +602,12 @@ This side has {1} commit(s) the remote lacks; the remote has {2} commit(s) this 
   <data name="GitClient_AiWarning" xml:space="preserve">
     <value>Careful:</value>
   </data>
+  <data name="GitClient_CommitInParts" xml:space="preserve">
+    <value>Git: Commit in parts...</value>
+  </data>
+  <data name="GitClient_CommittedInParts" xml:space="preserve">
+    <value>Made {0} commits, together holding the {1} changed file(s).</value>
+  </data>
   <data name="GitSync" xml:space="preserve">
     <value>Git Sync...</value>
   </data>

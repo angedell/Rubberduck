@@ -1654,6 +1654,24 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GitClient_CommitInParts.
+        /// </summary>
+        public static string GitClient_CommitInParts {
+            get {
+                return ResourceManager.GetString("GitClient_CommitInParts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_CommittedInParts.
+        /// </summary>
+        public static string GitClient_CommittedInParts {
+            get {
+                return ResourceManager.GetString("GitClient_CommittedInParts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to GitSync_Failed.
         /// </summary>
         public static string GitSync_Failed {

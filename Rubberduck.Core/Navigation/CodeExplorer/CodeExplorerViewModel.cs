@@ -517,6 +517,7 @@ namespace Rubberduck.Navigation.CodeExplorer
         public ReplaceProjectContentsFromFilesCommand ReplaceProjectContentsFromFilesCommand { get; set; }
         public GitSyncCommand GitSyncCommand { get; set; }
         public GitCommitCommand GitCommitCommand { get; set; }
+        public GitSplitCommitCommand GitSplitCommitCommand { get; set; }
         public GitHistoryCommand GitHistoryCommand { get; set; }
         public GitRestoreCommand GitRestoreCommand { get; set; }
         public GitSetRemoteCommand GitSetRemoteCommand { get; set; }

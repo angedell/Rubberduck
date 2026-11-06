@@ -56,6 +56,45 @@ namespace Rubberduck.UI.CodeExplorer.Commands
             }
         }
 
+        /// <summary>What the project changed since the last commit, asking whether a copied workbook continues its original's history.</summary>
+        protected IReadOnlyList<GitChange> ReadChanges(IVBProject project, out bool? continueCopiedHistory)
+        {
+            bool? chosen = null;
+            while (true)
+            {
+                try
+                {
+                    var choice = chosen;
+                    var changes = WithProgress(progress => Git.Changes(project, choice, progress));
+                    continueCopiedHistory = chosen;
+                    return changes;
+                }
+                catch (ProjectCopiedException copied)
+                {
+                    chosen = MessageBox.ConfirmYesNo(
+                        string.Format(CodeExplorerUI.GitClient_CopyQuestion, project.Name, copied.CopyOfPath),
+                        CodeExplorerUI.GitClient_DialogTitle, true);
+                }
+            }
+        }
+
+        /// <summary>Shows what would leave the computer and returns whether the user agrees to send it. A warning makes No the default.</summary>
+        protected bool ConfirmSending(GitAiPreview preview)
+        {
+            var lines = new List<string>
+            {
+                string.Format(CodeExplorerUI.GitClient_AiConfirm, preview.Endpoint, preview.Files.Count, Math.Max(1, preview.Bytes / 1024)),
+                string.Join(Environment.NewLine, preview.Files.Take(15).Concat(preview.Files.Count > 15 ? new[] { "..." } : new string[0]))
+            };
+            if (preview.Omitted.Count > 0)
+            {
+                lines.Add(string.Format(CodeExplorerUI.GitClient_AiOmitted, preview.Omitted.Count));
+            }
+
+            lines.AddRange(preview.Warnings.Select(warning => CodeExplorerUI.GitClient_AiWarning + " " + warning));
+            return MessageBox.ConfirmYesNo(string.Join(Environment.NewLine + Environment.NewLine, lines), CodeExplorerUI.GitClient_DialogTitle, preview.Warnings.Count == 0);
+        }
+
         /// <summary>Runs the command's work, turning what can go wrong into something the user can read.</summary>
         protected void Guarded(Action work)
         {
@@ -102,18 +141,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                 try
                 {
                     var preview = Git.PrepareCommitSuggestion(project);
-                    var lines = new List<string>
-                    {
-                        string.Format(CodeExplorerUI.GitClient_AiConfirm, preview.Endpoint, preview.Files.Count, Math.Max(1, preview.Bytes / 1024)),
-                        string.Join(Environment.NewLine, preview.Files.Take(15).Concat(preview.Files.Count > 15 ? new[] { "..." } : new string[0]))
-                    };
-                    if (preview.Omitted.Count > 0)
-                    {
-                        lines.Add(string.Format(CodeExplorerUI.GitClient_AiOmitted, preview.Omitted.Count));
-                    }
-
-                    lines.AddRange(preview.Warnings.Select(warning => CodeExplorerUI.GitClient_AiWarning + " " + warning));
-                    if (MessageBox.ConfirmYesNo(string.Join(Environment.NewLine + Environment.NewLine, lines), CodeExplorerUI.GitClient_DialogTitle, preview.Warnings.Count == 0))
+                    if (ConfirmSending(preview))
                     {
                         suggestion = Git.SuggestCommitMessage(preview);
                     }
@@ -137,23 +165,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
 
             Guarded(() =>
             {
-                bool? continueCopiedHistory = null;
-                IReadOnlyList<GitChange> changes;
-                while (true)
-                {
-                    try
-                    {
-                        var choice = continueCopiedHistory;
-                        changes = WithProgress(progress => Git.Changes(project, choice, progress));
-                        break;
-                    }
-                    catch (ProjectCopiedException copied)
-                    {
-                        continueCopiedHistory = MessageBox.ConfirmYesNo(
-                            string.Format(CodeExplorerUI.GitClient_CopyQuestion, project.Name, copied.CopyOfPath),
-                            CodeExplorerUI.GitClient_DialogTitle, true);
-                    }
-                }
+                var changes = ReadChanges(project, out var continueCopiedHistory);
 
                 if (changes.Count == 0)
                 {

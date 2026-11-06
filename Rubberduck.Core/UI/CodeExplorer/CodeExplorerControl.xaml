@@ -590,6 +590,10 @@
                                   Command="{Binding GitCommitCommand}"
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}"
                                   Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_CommitInParts}"
+                                  Command="{Binding GitSplitCommitCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
                         <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_History}"
                                   Command="{Binding GitHistoryCommand}"
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}"
