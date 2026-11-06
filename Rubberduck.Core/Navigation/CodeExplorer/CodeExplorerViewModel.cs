@@ -519,6 +519,10 @@ namespace Rubberduck.Navigation.CodeExplorer
         public GitCommitCommand GitCommitCommand { get; set; }
         public GitHistoryCommand GitHistoryCommand { get; set; }
         public GitRestoreCommand GitRestoreCommand { get; set; }
+        public GitSetRemoteCommand GitSetRemoteCommand { get; set; }
+        public GitPushCommand GitPushCommand { get; set; }
+        public GitPullCommand GitPullCommand { get; set; }
+        public GitRemoteStatusCommand GitRemoteStatusCommand { get; set; }
         public ShipCommand ShipCommand { get; set; }
         public AddResourceImagesCommand AddResourceImagesCommand { get; set; }
         public AddRibbonXmlCommand AddRibbonXmlCommand { get; set; }

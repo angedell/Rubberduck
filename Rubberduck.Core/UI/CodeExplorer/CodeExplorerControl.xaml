@@ -598,6 +598,22 @@
                                   Command="{Binding GitRestoreCommand}"
                                   CommandParameter="{Binding SelectedItem, Mode=OneWay}"
                                   Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_SetRemote}"
+                                  Command="{Binding GitSetRemoteCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_Push}"
+                                  Command="{Binding GitPushCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_Pull}"
+                                  Command="{Binding GitPullCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
+                        <MenuItem Header="{Resx ResxName=Rubberduck.Resources.CodeExplorer.CodeExplorerUI, Key=GitClient_RemoteStatus}"
+                                  Command="{Binding GitRemoteStatusCommand}"
+                                  CommandParameter="{Binding SelectedItem, Mode=OneWay}"
+                                  Visibility="{Binding VBAVisibility}" />
                     </MenuItem>
                     <MenuItem Header="{Resx ResxName=Rubberduck.Resources.Ship.ShipUI, Key=Ship_Menu}"
                               Command="{Binding ShipCommand}"

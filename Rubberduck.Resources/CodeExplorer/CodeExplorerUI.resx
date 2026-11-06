@@ -554,6 +554,45 @@ The module as it is now is backed up first. Nothing is committed: the restored m
   <data name="GitClient_Restored" xml:space="preserve">
     <value>Module '{0}' was restored from commit {1}.</value>
   </data>
+  <data name="GitClient_SetRemote" xml:space="preserve">
+    <value>Git: Set remote...</value>
+  </data>
+  <data name="GitClient_Push" xml:space="preserve">
+    <value>Git: Push</value>
+  </data>
+  <data name="GitClient_Pull" xml:space="preserve">
+    <value>Git: Pull</value>
+  </data>
+  <data name="GitClient_RemoteStatus" xml:space="preserve">
+    <value>Git: Remote status</value>
+  </data>
+  <data name="GitClient_RemoteSet" xml:space="preserve">
+    <value>The remote of '{0}' is now {1}.</value>
+  </data>
+  <data name="GitClient_Pushed" xml:space="preserve">
+    <value>Pushed the commits of '{0}' to {1}.</value>
+  </data>
+  <data name="GitClient_PullUpToDate" xml:space="preserve">
+    <value>'{0}' is already up to date with the remote.</value>
+  </data>
+  <data name="GitClient_Pulled" xml:space="preserve">
+    <value>Pulled the remote's commits into '{0}'.</value>
+  </data>
+  <data name="GitClient_PullConflicts" xml:space="preserve">
+    <value>The remote and this project changed the same lines of:
+
+{0}
+
+Nothing was changed. Restore or edit those modules by hand, commit, and pull again.</value>
+  </data>
+  <data name="GitClient_RemoteEmpty" xml:space="preserve">
+    <value>{0} has no branch for this history yet. Push to create it.</value>
+  </data>
+  <data name="GitClient_RemoteDistance" xml:space="preserve">
+    <value>Remote: {0}
+
+This side has {1} commit(s) the remote lacks; the remote has {2} commit(s) this side lacks.</value>
+  </data>
   <data name="GitSync" xml:space="preserve">
     <value>Git Sync...</value>
   </data>

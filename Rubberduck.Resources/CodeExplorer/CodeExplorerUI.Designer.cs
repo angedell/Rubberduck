@@ -1528,6 +1528,105 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GitClient_SetRemote.
+        /// </summary>
+        public static string GitClient_SetRemote {
+            get {
+                return ResourceManager.GetString("GitClient_SetRemote", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Push.
+        /// </summary>
+        public static string GitClient_Push {
+            get {
+                return ResourceManager.GetString("GitClient_Push", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Pull.
+        /// </summary>
+        public static string GitClient_Pull {
+            get {
+                return ResourceManager.GetString("GitClient_Pull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_RemoteStatus.
+        /// </summary>
+        public static string GitClient_RemoteStatus {
+            get {
+                return ResourceManager.GetString("GitClient_RemoteStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_RemoteSet.
+        /// </summary>
+        public static string GitClient_RemoteSet {
+            get {
+                return ResourceManager.GetString("GitClient_RemoteSet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Pushed.
+        /// </summary>
+        public static string GitClient_Pushed {
+            get {
+                return ResourceManager.GetString("GitClient_Pushed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_PullUpToDate.
+        /// </summary>
+        public static string GitClient_PullUpToDate {
+            get {
+                return ResourceManager.GetString("GitClient_PullUpToDate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Pulled.
+        /// </summary>
+        public static string GitClient_Pulled {
+            get {
+                return ResourceManager.GetString("GitClient_Pulled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_PullConflicts.
+        /// </summary>
+        public static string GitClient_PullConflicts {
+            get {
+                return ResourceManager.GetString("GitClient_PullConflicts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_RemoteEmpty.
+        /// </summary>
+        public static string GitClient_RemoteEmpty {
+            get {
+                return ResourceManager.GetString("GitClient_RemoteEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_RemoteDistance.
+        /// </summary>
+        public static string GitClient_RemoteDistance {
+            get {
+                return ResourceManager.GetString("GitClient_RemoteDistance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to GitSync_Failed.
         /// </summary>
         public static string GitSync_Failed {
