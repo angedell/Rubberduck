@@ -53,6 +53,35 @@ namespace RubberduckTests.SmartIndenter
 
         [Test]
         [Category("Indenter")]
+        public void LeadingCommaSignatureKeepsFixedLayout()
+        {
+            var code = new[]
+            {
+                "Public Function Create( _",
+                "ByVal appKey As String _",
+                ", ByVal appSecret As String _",
+                "      , Optional ByVal timeoutMs As Long = 30000 _",
+                ") As DropboxApiStore",
+                "End Function"
+            };
+
+            var expected = new[]
+            {
+                "Public Function Create( _",
+                "       ByVal appKey As String _",
+                "     , ByVal appSecret As String _",
+                "     , Optional ByVal timeoutMs As Long = 30000 _",
+                "       ) As DropboxApiStore",
+                "End Function"
+            };
+
+            var indenter = new Indenter(null, () => IndenterSettingsTests.GetMockIndenterSettings());
+            var actual = indenter.Indent(code);
+            Assert.IsTrue(expected.SequenceEqual(actual), string.Join("|", actual));
+        }
+
+        [Test]
+        [Category("Indenter")]
         public void FunctionParametersAlignCorrectly()
         {
             var code = new[]

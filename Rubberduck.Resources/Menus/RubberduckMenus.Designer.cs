@@ -322,6 +322,24 @@ namespace Rubberduck.Resources.Menus {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Split Parameters in &amp;Project.
+        /// </summary>
+        public static string RefactorMenu_SplitParametersInProject {
+            get {
+                return ResourceManager.GetString("RefactorMenu_SplitParametersInProject", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &amp;Split Parameters.
+        /// </summary>
+        public static string RefactorMenu_SplitParameters {
+            get {
+                return ResourceManager.GetString("RefactorMenu_SplitParameters", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Re&amp;order Parameters.
         /// </summary>
         public static string RefactorMenu_ReorderParameters {

@@ -231,6 +231,14 @@
   <data name="RefactorMenu_Rename" xml:space="preserve">
     <value>&amp;Rename</value>
   </data>
+  <data name="RefactorMenu_SplitParameters" xml:space="preserve">
+    <value>&amp;Split Parameters</value>
+    <comment>TC: different hotkey</comment>
+  </data>
+  <data name="RefactorMenu_SplitParametersInProject" xml:space="preserve">
+    <value>Split Parameters in &amp;Project</value>
+    <comment>TC: different hotkey</comment>
+  </data>
   <data name="RefactorMenu_ReorderParameters" xml:space="preserve">
     <value>Re&amp;order Parameters</value>
     <comment>TC: different hotkey</comment>

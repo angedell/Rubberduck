@@ -21,6 +21,8 @@ namespace Rubberduck.UI.Command.MenuItems.ParentMenus
         ImplementInterface,
         RemoveParameters,
         ReorderParameters,
+        SplitParameters,
+        SplitParametersInProject,
         MoveCloserToUsage,
         EncapsulateField,
         PromoteToParameter,

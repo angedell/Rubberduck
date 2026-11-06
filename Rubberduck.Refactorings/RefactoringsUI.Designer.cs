@@ -1273,6 +1273,15 @@ namespace Rubberduck.Refactorings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Rubberduck - Split Parameters.
+        /// </summary>
+        public static string SplitParameters_Caption {
+            get {
+                return ResourceManager.GetString("SplitParameters_Caption", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Rubberduck - Remove Parameters.
         /// </summary>
         public static string RemoveParamsDialog_Caption {

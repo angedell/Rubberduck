@@ -17,7 +17,7 @@ Settings > General > **Let AI agents read and edit modules and forms**. Then **C
 
 ## MCP
 
-Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `reset_vbe`, `capture_dump`, `list_dumps`, `analyze_dump`, `delete_dump`, `dump_monitor`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `sync_attributes`, `preview_rename`, `rename_symbol`, `preview_encapsulate_field`, `encapsulate_field`, `preview_move_to_folder`, `move_to_folder`, `list_quick_fixes`, `apply_quick_fix`, `list_controls`, `add_control`, `set_control_properties`, `delete_control`, `list_notes`, `read_note`, `write_note`, `delete_note`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, `get_ship_settings`, `set_ship_settings`, `preview_ship`, `ship_project`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
+Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `reset_vbe`, `capture_dump`, `list_dumps`, `analyze_dump`, `delete_dump`, `dump_monitor`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `sync_attributes`, `preview_rename`, `rename_symbol`, `preview_encapsulate_field`, `encapsulate_field`, `preview_move_to_folder`, `move_to_folder`, `preview_split_parameters`, `split_parameters`, `list_quick_fixes`, `apply_quick_fix`, `list_controls`, `add_control`, `set_control_properties`, `delete_control`, `list_notes`, `read_note`, `write_note`, `delete_note`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, `get_ship_settings`, `set_ship_settings`, `preview_ship`, `ship_project`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
 
 The server also offers MCP *resources* (`resources/list`, `resources/read`): `rubberduck://{project}/modules/{module}` (the code), `rubberduck://{project}/diagnostics` and `rubberduck://{project}/parser-errors`, for clients that let the user attach them to a conversation.
 
@@ -152,6 +152,23 @@ A folder is the `'@Folder` annotation that the Code Explorer groups modules by, 
 The preview answers with `moves` (per module: `fromFolder`, and `changes`, false if it is there already) and `valid` and `problems` for the folder name. Applying refuses a bad folder with 422 `refactoring_refused`; if no module would change it answers at once, without approval, with them in `unchanged`. Otherwise the answer is `{ "folder", "moved", "unchanged", "note" }`. A module that was edited and not parsed yet is refused with 409: ask for a reparse (`POST /api/v1/reparse`) and retry.
 
 MCP tools: `preview_move_to_folder` and `move_to_folder`, with the same fields plus `project`.
+
+#### Split parameters
+
+`POST /api/v1/projects/{p}/refactor/split-parameters/preview` and `POST /api/v1/projects/{p}/refactor/split-parameters`. The body is optional; `{ "module": "Module1" }` limits it to one module, without it the whole project is done in one operation.
+
+Every procedure, function, property and event with two or more parameters gets one parameter per line, with leading commas and the closing parenthesis on its own line, so that adding, removing or reordering a parameter changes one line of a diff:
+
+```
+Public Function Create( _
+       ByVal appKey As String _
+     , ByVal appSecret As String _
+       ) As DropboxApiStore
+```
+
+The indenter keeps this layout (fixed offsets, not aligned to the opening parenthesis). The preview answers with `members` (`module`, `member`, `parameters`); members that are laid out that way already are left out. If there are none, applying answers at once, without approval. Otherwise the answer is `{ "split", "note" }`, all in one rewrite. Unparsed edits are refused with 409, as for the other refactorings.
+
+MCP tools: `preview_split_parameters` and `split_parameters`, with `project` and the optional `module`.
 
 ### Quick fixes
 

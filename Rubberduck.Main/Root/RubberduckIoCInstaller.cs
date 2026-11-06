@@ -792,6 +792,8 @@ namespace Rubberduck.Root
                 typeof(CodePaneRefactorRenameCommandMenuItem),
                 typeof(RefactorExtractMethodCommandMenuItem),
                 typeof(RefactorReorderParametersCommandMenuItem),
+                typeof(RefactorSplitParametersCommandMenuItem),
+                typeof(RefactorSplitParametersInProjectCommandMenuItem),
                 typeof(RefactorRemoveParametersCommandMenuItem),
                 typeof(RefactorPromoteToParameterCommandMenuItem),
                 typeof(RefactorIntroduceFieldCommandMenuItem),
@@ -1403,6 +1405,9 @@ namespace Rubberduck.Root
                 .LifestyleSingleton());
             container.Register(Component.For<RefactorMoveToFolderApi>()
                 .UsingFactoryMethod(kernel => RubberduckMoveToFolderSource.CreateApi(type => kernel.Resolve(type)))
+                .LifestyleSingleton());
+            container.Register(Component.For<RefactorSplitParametersApi>()
+                .UsingFactoryMethod(kernel => RubberduckSplitParametersSource.CreateApi(type => kernel.Resolve(type)))
                 .LifestyleSingleton());
             container.Register(Component.For<ReadyWait>()
                 .UsingFactoryMethod(kernel => ReadyWait.For(kernel.Resolve<ParserSync>()))

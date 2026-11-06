@@ -486,6 +486,9 @@ Do you want to proceed?</value>
   <data name="RemoveParamsDialog_RemoveIllegalSetterLetterParameter" xml:space="preserve">
     <value>Cannot remove last parameter from setter or letter.</value>
   </data>
+  <data name="SplitParameters_Caption" xml:space="preserve">
+    <value>Rubberduck - Split Parameters</value>
+  </data>
   <data name="RemoveParamsDialog_Caption" xml:space="preserve">
     <value>Rubberduck - Remove Parameters</value>
   </data>

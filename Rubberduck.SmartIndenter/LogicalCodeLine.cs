@@ -161,6 +161,11 @@ namespace Rubberduck.SmartIndenter
                 return _lines.First().Indent(IndentationLevel, AtProcedureStart);
             }
 
+            if (IsLeadingCommaSignature)
+            {
+                return IndentedLeadingCommaSignature();
+            }
+
             if (!_settings.AlignContinuations || _lines.First().ContainsOnlyComment || IsEnumOrTypeMember)
             {
                 return string.Join(Environment.NewLine, _lines.Select(line => line.Indent(IndentationLevel, AtProcedureStart)));
@@ -195,6 +200,52 @@ namespace Rubberduck.SmartIndenter
                 output.Add(current);
                 alignment = FunctionAlign(current, i + 1 < _lines.Count && _lines[i + 1].Escaped.Trim().StartsWith(":="));
                 commentPos = string.IsNullOrEmpty(line.EndOfLineComment) ? 0 : current.Length - line.EndOfLineComment.Length;
+            }
+
+            return string.Join(Environment.NewLine, output);
+        }
+
+        private const int LeadingCommaIndent = 5;
+        private const int LeadingCommaParameterIndent = 7;
+
+        /// <summary>
+        /// A procedure signature with one parameter per line, the commas leading and the closing parenthesis on its own line:
+        /// <code>
+        /// Public Function Foo( _
+        ///        ByVal a As Long _
+        ///      , ByVal b As Long _
+        ///        ) As Long
+        /// </code>
+        /// </summary>
+        private bool IsLeadingCommaSignature
+        {
+            get
+            {
+                if (_lines.Count < 3
+                    || !_lines[0].IsProcedureStart
+                    || !_lines[0].Original.TrimEnd().EndsWith("( _")
+                    || _lines.Any(line => line.ContainsOnlyComment || !string.IsNullOrEmpty(line.EndOfLineComment)))
+                {
+                    return false;
+                }
+
+                var texts = _lines.Select(line => line.Original.Trim()).ToList();
+                return !texts[1].StartsWith(",") && !texts[1].StartsWith(")")
+                    && texts.Skip(2).Take(texts.Count - 3).All(text => text.StartsWith(","))
+                    && texts.Last().StartsWith(")");
+            }
+        }
+
+        // The indentation is fixed rather than aligned to the opening parenthesis, so renaming the procedure doesn't touch the parameter lines.
+        private string IndentedLeadingCommaSignature()
+        {
+            var baseIndent = IndentationLevel * _settings.IndentSpaces;
+            var output = new List<string> { _lines[0].Indent(IndentationLevel, AtProcedureStart) };
+            for (var i = 1; i < _lines.Count; i++)
+            {
+                var isComma = _lines[i].Original.TrimStart().StartsWith(",");
+                var indent = baseIndent + (isComma ? LeadingCommaIndent : LeadingCommaParameterIndent);
+                output.Add(_lines[i].Indent(indent, AtProcedureStart, true));
             }
 
             return string.Join(Environment.NewLine, output);

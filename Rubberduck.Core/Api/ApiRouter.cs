@@ -55,6 +55,7 @@ namespace Rubberduck.Api
         private readonly RefactorRenameApi _renameRefactor;
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
         private readonly RefactorMoveToFolderApi _moveRefactor;
+        private readonly RefactorSplitParametersApi _splitRefactor;
         private readonly QuickFixApi _quickFix;
         private readonly McpEndpoint _mcp;
         private readonly ReadyWait _ready;
@@ -68,7 +69,8 @@ namespace Rubberduck.Api
             QuickFixApi quickFix = null,
             NotesApi notes = null,
             ShipApi ship = null,
-            FormApi forms = null)
+            FormApi forms = null,
+            RefactorSplitParametersApi splitRefactor = null)
         {
             _forms = forms;
             _notes = notes;
@@ -82,6 +84,7 @@ namespace Rubberduck.Api
             _renameRefactor = renameRefactor;
             _encapsulateRefactor = encapsulateRefactor;
             _moveRefactor = moveRefactor;
+            _splitRefactor = splitRefactor;
             _quickFix = quickFix;
             _parser = parser;
             _api = api;
@@ -91,7 +94,7 @@ namespace Rubberduck.Api
             _insight = insight;
             _tests = tests;
             _check = check;
-            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes, ship, forms);
+            _mcp = new McpEndpoint(api, diagnostics, immediate, resources, insight, tests, check, log, parser, dump, firewall, vbeReset, _ready, syncAttributes, renameRefactor, encapsulateRefactor, moveRefactor, quickFix, notes, ship, forms, splitRefactor);
         }
 
         public ApiResponse Handle(ApiRequest request)
@@ -468,6 +471,7 @@ namespace Rubberduck.Api
             Add(_renameRefactor != null, "* /projects/{p}/refactor/rename");
             Add(_encapsulateRefactor != null, "* /projects/{p}/refactor/encapsulate-field");
             Add(_moveRefactor != null, "* /projects/{p}/refactor/move-to-folder");
+            Add(_splitRefactor != null, "* /projects/{p}/refactor/split-parameters");
             return routes.Select(r => r.Replace(" /", " " + Base + "/"));
         }
 
@@ -546,6 +550,9 @@ namespace Rubberduck.Api
 
                 case "refactor" when rest == "move-to-folder" && _moveRefactor != null:
                     return _moveRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "split-parameters" && _splitRefactor != null:
+                    return _splitRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");
