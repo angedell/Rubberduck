@@ -277,6 +277,73 @@ namespace RubberduckTests.Git
             Assert.Throws<AiException>(() => AnthropicClient.Reply("not json"));
         }
 
+        private static string FortyLines(string third = "line 3", string thirtyFifth = "line 35")
+            => string.Concat(Enumerable.Range(1, 40).Select(i => (i == 3 ? third : i == 35 ? thirtyFifth : "line " + i) + "\r\n"));
+
+        private const string TwoCommits = "{\"commits\":[{\"message\":\"Change the start\",\"hunks\":[\"h1\"]},{\"message\":\"Change the end\",\"hunks\":[\"h2\"]}]}";
+
+        private (GitClientService service, IVBProject project, System.Collections.Generic.IReadOnlyList<GitHunk> hunks, FakeAi ai) TwoChanges(string answer)
+        {
+            var ai = new FakeAi { Answer = answer };
+            var (service, snapshot) = Service(ai: ai);
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            snapshot.Module = FortyLines();
+            service.Commit(project, "Start");
+            snapshot.Module = FortyLines("changed 3", "changed 35");
+            service.Changes(project);
+            return (service, project, service.SplitHunks(project), ai);
+        }
+
+        [Test]
+        public void Split_CommitsEachGroupOfHunksSeparately()
+        {
+            var (service, project, hunks, ai) = TwoChanges(TwoCommits);
+
+            var suggestion = service.SuggestGroups(hunks, service.PrepareGrouping(hunks));
+            var ids = service.CommitSplit(project, hunks, suggestion.Parts);
+
+            Assert.IsNull(suggestion.Note);
+            StringAssert.Contains("### h1 Module1.bas", ai.Prompt);
+            StringAssert.Contains("### h2 Module1.bas", ai.Prompt);
+            Assert.AreEqual(2, ids.Count);
+            Assert.AreEqual(new[] { "Change the end", "Change the start", "Start" }, service.History(project).Select(commit => commit.Subject).ToArray());
+            Assert.AreEqual(0, service.Changes(project).Count);
+        }
+
+        [TestCase("no thanks")]
+        [TestCase("{\"commits\":[{\"message\":\"All\",\"hunks\":[\"h1\"]}]}")]
+        [TestCase("{\"commits\":[{\"message\":\"A\",\"hunks\":[\"h1\",\"h2\"]},{\"message\":\"B\",\"hunks\":[\"h2\"]}]}")]
+        [TestCase("{\"commits\":[{\"message\":\"A\",\"hunks\":[\"h1\",\"h9\"]}]}")]
+        [TestCase("{\"commits\":[{\"message\":\"\",\"hunks\":[\"h1\",\"h2\"]}]}")]
+        public void SuggestGroups_WhenTheAnswerDoesNotCoverEveryHunkOnce_FallsBackToOneGroup(string answer)
+        {
+            var (service, _, hunks, _) = TwoChanges(answer);
+
+            var suggestion = service.SuggestGroups(hunks, service.PrepareGrouping(hunks));
+
+            Assert.IsNotNull(suggestion.Note);
+            Assert.AreEqual(1, suggestion.Parts.Count);
+            Assert.AreEqual(2, suggestion.Parts[0].Hunks.Count);
+            Assert.AreEqual(string.Empty, suggestion.Parts[0].Message);
+        }
+
+        [Test]
+        public void SuggestGroups_ReadsJsonInsideAFence()
+        {
+            var (service, _, hunks, _) = TwoChanges("```json\n" + TwoCommits + "\n```");
+
+            Assert.AreEqual(2, service.SuggestGroups(hunks, service.PrepareGrouping(hunks)).Parts.Count);
+        }
+
+        [Test]
+        public void CommitSplit_RefusesGroupsThatLeaveAHunkOut()
+        {
+            var (service, project, hunks, _) = TwoChanges(TwoCommits);
+
+            Assert.Throws<GitClientException>(() => service.CommitSplit(project, hunks, new[] { new GitCommitPart("Half", new[] { hunks[0] }) }));
+            Assert.AreEqual(new[] { "Start" }, service.History(project).Select(commit => commit.Subject).ToArray());
+        }
+
         private class MemoryCredentials : ICredentialStore
         {
             private readonly System.Collections.Generic.Dictionary<string, StoredCredential> _saved = new System.Collections.Generic.Dictionary<string, StoredCredential>();
