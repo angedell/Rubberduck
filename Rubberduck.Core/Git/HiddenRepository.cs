@@ -378,6 +378,86 @@ namespace Rubberduck.Git
             return Run(new[] { "diff", "--cached", "--no-color", "--no-ext-diff", "--no-renames", "--unified=3", "--", "." }.Concat(excluded).ToArray()).Output;
         }
 
+        /// <summary>Everything that differs from the last commit as one patch that <c>git apply</c> can take, binary files included, read byte for byte (see <see cref="GitHunkParser.Bytes"/>).</summary>
+        public string StagedPatch()
+        {
+            Run("add", "--all");
+            var excluded = LocalOnlyFiles.Select(file => ":(exclude)" + file);
+            var result = Run(new[] { "diff", "--cached", "--binary", "--no-color", "--no-ext-diff", "--no-renames", "--unified=3", "--", "." }.Concat(excluded).ToArray());
+            return GitHunkParser.Bytes.GetString(result.OutputBytes);
+        }
+
+        /// <summary>
+        /// Commits the changes as several commits, each holding the hunks of its part. All of them or none: if a part cannot be applied,
+        /// or the parts do not add up to every change, the history is put back as it was and nothing of the work tree is touched.
+        /// </summary>
+        /// <returns>The new commits' ids, in order.</returns>
+        public IReadOnlyList<string> CommitParts(IReadOnlyList<GitCommitPart> parts, string authorName, string authorEmail)
+        {
+            if (parts.Any(part => string.IsNullOrWhiteSpace(part.Message) || part.Hunks.Count == 0))
+            {
+                throw new ArgumentException("Every commit needs a message and at least one change.", nameof(parts));
+            }
+
+            var before = _git.Run(Prefix().Concat(new[] { "rev-parse", "--verify", "--quiet", "HEAD" }), WorkTree);
+            var original = before.Ok ? before.Output.Trim() : null;
+            var patchFile = _fileSystem.Path.Combine(Root, "part.patch");
+            var ids = new List<string>();
+            try
+            {
+                foreach (var part in parts)
+                {
+                    //The index is what the next commit holds: start each part from the last commit.
+                    if (original != null || ids.Count > 0)
+                    {
+                        Run("reset", "--quiet");
+                    }
+                    else
+                    {
+                        Run("read-tree", "--empty");
+                    }
+
+                    _fileSystem.File.WriteAllBytes(patchFile, GitHunkParser.Bytes.GetBytes(GitHunkParser.BuildPatch(part.Hunks)));
+                    Run("apply", "--cached", "--recount", "--whitespace=nowarn", "--", patchFile);
+                    _git.RunOrThrow(Prefix().Concat(new[]
+                    {
+                        "-c", "user.name=" + authorName, "-c", "user.email=" + authorEmail, "-c", "commit.gpgsign=false",
+                        "commit", "--quiet", "--no-verify", "--message", part.Message
+                    }), WorkTree);
+                    ids.Add(Run("rev-parse", "HEAD").Output.Trim());
+                }
+
+                Run("add", "--all");
+                if (Status().Count > 0)
+                {
+                    throw new GitException("The commits do not add up to every change: " + string.Join(", ", Status().Select(change => change.Path)) + " would be left out.", -1);
+                }
+
+                return ids;
+            }
+            catch
+            {
+                if (original != null)
+                {
+                    _git.Run(Prefix().Concat(new[] { "reset", "--quiet", original }), WorkTree);
+                }
+                else if (ids.Count > 0)
+                {
+                    _git.Run(Prefix().Concat(new[] { "update-ref", "-d", "HEAD" }), WorkTree);
+                    _git.Run(Prefix().Concat(new[] { "read-tree", "--empty" }), WorkTree);
+                }
+
+                throw;
+            }
+            finally
+            {
+                if (_fileSystem.File.Exists(patchFile))
+                {
+                    _fileSystem.File.Delete(patchFile);
+                }
+            }
+        }
+
         private GitResult Run(params string[] args) => _git.RunOrThrow(Prefix().Concat(args), WorkTree);
 
         private IEnumerable<string> Prefix() => new[]
