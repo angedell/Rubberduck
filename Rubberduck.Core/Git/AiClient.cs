@@ -51,6 +51,8 @@ namespace Rubberduck.Git
                 ["messages"] = new JArray(new JObject { ["role"] = "user", ["content"] = prompt })
             };
 
+            //.NET Framework inside Office does not offer TLS 1.2 by default, which api.anthropic.com requires.
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             var handler = new HttpClientHandler { Proxy = WebRequest.GetSystemWebProxy(), UseProxy = true };
             handler.Proxy.Credentials = CredentialCache.DefaultCredentials;
             using (var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) })
@@ -69,7 +71,9 @@ namespace Rubberduck.Git
                 }
                 catch (Exception exception) when (exception is HttpRequestException || exception is System.Threading.Tasks.TaskCanceledException)
                 {
-                    throw new AiException("The AI service could not be reached: " + exception.Message);
+                    //The outer message alone is only "An error occurred while sending the request."
+                    var reason = string.Join(" ", new[] { exception.Message, exception.InnerException?.Message, exception.InnerException?.InnerException?.Message }.Where(m => !string.IsNullOrEmpty(m)));
+                    throw new AiException("The AI service could not be reached: " + reason);
                 }
 
                 if (!response.IsSuccessStatusCode)
