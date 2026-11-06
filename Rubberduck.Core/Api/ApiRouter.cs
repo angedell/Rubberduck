@@ -191,18 +191,57 @@ namespace Rubberduck.Api
                 return ApiResponse.Json(_vbeReset.Reset(request.Client));
             }
 
-            // /dump: a memory dump of the editor's process, for when it hangs
-            if (segments.Length == 1 && segments[0] == "dump" && _dump != null)
+            // /dump: a memory dump of the editor's process, for when it hangs; /dump/monitor has ProcDump catch one by itself;
+            // /dump/{name}[/analysis]: one dump of the dump folder, read or deleted
+            if (segments.Length >= 1 && segments[0] == "dump" && _dump != null)
             {
-                switch (method)
+                if (segments.Length == 1)
                 {
-                    case "GET":
-                        return ApiResponse.Json(_dump.Status());
-                    case "POST":
-                        var options = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
-                        return ApiResponse.Json(_dump.Capture(request.Client, options.Value<string>("kind"), options.Value<int?>("waitSeconds")));
-                    default:
-                        throw MethodNotAllowed("GET, POST");
+                    switch (method)
+                    {
+                        case "GET":
+                            return ApiResponse.Json(_dump.Status());
+                        case "POST":
+                            var options = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
+                            return ApiResponse.Json(_dump.Capture(request.Client, options.Value<string>("kind"), options.Value<int?>("waitSeconds"), options.Value<bool?>("analyze") ?? false));
+                        case "DELETE":
+                            return ApiResponse.Json(_dump.DeleteAll(request.Client, (int?)QueryLong(request, "keep")));
+                        default:
+                            throw MethodNotAllowed("GET, POST, DELETE");
+                    }
+                }
+
+                if (segments.Length == 2 && segments[1] == "monitor")
+                {
+                    switch (method)
+                    {
+                        case "GET":
+                            return ApiResponse.Json(_dump.MonitorStatus(Flag(request, "analyze")));
+                        case "POST":
+                            var watch = string.IsNullOrWhiteSpace(request.Body) ? new JObject() : Body(request);
+                            return ApiResponse.Json(_dump.StartMonitor(request.Client, watch.Value<string>("kind"), watch.Value<bool?>("hang"), watch.Value<bool?>("exceptions"), watch.Value<int?>("cpuPercent"), watch.Value<int?>("maxDumps")));
+                        case "DELETE":
+                            return ApiResponse.Json(_dump.StopMonitor());
+                        default:
+                            throw MethodNotAllowed("GET, POST, DELETE");
+                    }
+                }
+
+                if (segments.Length == 2)
+                {
+                    switch (method)
+                    {
+                        case "DELETE":
+                            return ApiResponse.Json(_dump.Delete(request.Client, segments[1]));
+                        default:
+                            throw MethodNotAllowed("DELETE");
+                    }
+                }
+
+                if (segments.Length == 3 && segments[2] == "analysis")
+                {
+                    Allow(method, "GET");
+                    return ApiResponse.Json(_dump.Analyze(request.Client, segments[1], Flag(request, "delete")));
                 }
             }
 
@@ -400,7 +439,10 @@ namespace Rubberduck.Api
 
             Add(_parser != null, "POST /reparse");
             Add(_vbeReset != null, "POST /vbe/reset");
-            Add(_dump != null, "GET,POST /dump");
+            Add(_dump != null, "GET,POST,DELETE /dump");
+            Add(_dump != null, "GET,POST,DELETE /dump/monitor");
+            Add(_dump != null, "DELETE /dump/{name}");
+            Add(_dump != null, "GET /dump/{name}/analysis");
             Add(_log != null, "GET,PUT /log");
             Add(_resources != null, "GET,DELETE /projects/{p}/resources");
             Add(_resources != null, "GET,PUT,DELETE /projects/{p}/resources/{name}");

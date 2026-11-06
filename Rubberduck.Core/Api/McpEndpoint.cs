@@ -374,14 +374,80 @@ namespace Rubberduck.Api
             new Tool
             {
                 Name = "capture_dump",
-                Description = "Takes a memory dump of the editor's process with Sysinternals ProcDump, for when the editor or the API hangs (calls time out with 503, the parser stays Busy, Excel shows 'waiting for an OLE action'). It works while the editor's UI thread is stuck. The dump contains everything in memory, the open documents included, so the user has to approve it like a write. Answers with the file; ask the user to share it. If ProcDump is not installed the error says where to put it.",
+                Description = "Takes a memory dump of the editor's process with Sysinternals ProcDump, for when the editor or the API hangs (calls time out with 503, the parser stays Busy, Excel shows 'waiting for an OLE action'). It works while the editor's UI thread is stuck. The dump contains everything in memory, the open documents included, so the user has to approve it like a write. With 'analyze' it is read at once and the answer says what is wrong (see analyze_dump). The dump is written on the machine the editor runs on, in the dump folder, which may be one a cloud service syncs ('warning' says so): delete it with delete_dump when it has been read. If ProcDump is not installed the error says where to put it.",
                 Properties = new JObject
                 {
-                    ["kind"] = String("'full' (default, all memory) or 'mini' (small: threads and stacks only)."),
-                    ["waitSeconds"] = Integer("How long to wait for ProcDump. Default 120, at most 300.")
+                    ["kind"] = String("'full' (default, all memory, needed to read managed stacks) or 'mini' (small: threads and stacks only)."),
+                    ["waitSeconds"] = Integer("How long to wait for ProcDump. Default 120, at most 300."),
+                    ["analyze"] = Boolean("Read the dump as soon as it is written and answer with what is wrong. Default false.")
                 },
                 Required = new string[0],
-                Run = (args, client) => _dump.Capture(client, args.Value<string>("kind"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null)
+                Run = (args, client) => _dump.Capture(client, args.Value<string>("kind"), args["waitSeconds"] != null ? Int(args, "waitSeconds") : (int?)null, args.Value<bool?>("analyze") ?? false)
+            },
+            new Tool
+            {
+                Name = "list_dumps",
+                Description = "Whether a dump can be taken (where ProcDump is), the dumps in the dump folder (newest first, full paths), a 'warning' when that folder is one a cloud service syncs, and what the dump monitor is doing. Takes nothing and needs no approval.",
+                Properties = new JObject(),
+                Required = new string[0],
+                Run = (args, client) => _dump.Status()
+            },
+            new Tool
+            {
+                Name = "analyze_dump",
+                Description = "Reads a dump and says what is wrong: 'summary' (one sentence), 'findings' (each 'problem', 'warning' or 'info': a blocked main thread and what it waits for, a probable deadlock, inspections that are still running, exceptions) and 'threads' (the main thread and those inside Rubberduck, with their stacks, top frame first). Only managed (.NET) threads can be read, so a hang inside Excel itself (a dialog, a native OLE call) shows as a blocked main thread without a cause. Needs a full dump taken by the runtime installed on the machine the editor runs on; it can take a minute for a large one. Taking nothing from the editor, it needs no approval, unless 'deleteAfter' is set. Take two dumps a minute apart and compare them: a thread in the same place both times is the stuck one.",
+                Properties = new JObject
+                {
+                    ["file"] = String("A dump's file name as list_dumps shows it (EXCEL.EXE_261106_052301.dmp), or 'latest' (default)."),
+                    ["deleteAfter"] = Boolean("Delete the dump once it has been read. Needs the user's approval. Default false.")
+                },
+                Required = new string[0],
+                Run = (args, client) => _dump.Analyze(client, args.Value<string>("file"), args.Value<bool?>("deleteAfter") ?? false)
+            },
+            new Tool
+            {
+                Name = "delete_dump",
+                Description = "Deletes a dump from the dump folder, or all of them. A dump is the editor's whole memory, the open documents included, so delete it once it has been read, above all when the folder is a synced one. Needs the user's approval as for writes. Only files of the dump folder, named by their file name, can be deleted. A dump ProcDump is still writing cannot be deleted: it is listed under 'failed'.",
+                Properties = new JObject
+                {
+                    ["file"] = String("A dump's file name as list_dumps shows it, 'latest', or 'all' for every dump in the folder."),
+                    ["keep"] = Integer("With 'all': how many of the newest dumps to keep. Default 0.")
+                },
+                Required = new[] { "file" },
+                Run = (args, client) => string.Equals(args.Value<string>("file"), "all", StringComparison.OrdinalIgnoreCase)
+                    ? (object)_dump.DeleteAll(client, args["keep"] != null ? Int(args, "keep") : (int?)null)
+                    : _dump.Delete(client, args.Value<string>("file"))
+            },
+            new Tool
+            {
+                Name = "dump_monitor",
+                Description = "Has ProcDump watch the editor and write a dump by itself when it hangs (a window stops answering for 5 seconds), throws an unhandled exception or keeps the processor busy, so a hang that happens when nobody is looking is caught. 'status' says whether it runs and what it has caught, and with 'analyze' reads the newest dump it wrote, so one call answers what is wrong. 'start' needs the user's approval, as a dump does; it stops by itself after 'maxDumps' dumps; 'stop' ends it. Dumps are in the dump folder: delete them with delete_dump when read.",
+                Properties = new JObject
+                {
+                    ["action"] = String("'status' (default), 'start' or 'stop'."),
+                    ["analyze"] = Boolean("With 'status': read the newest dump the monitor wrote. Default false."),
+                    ["hang"] = Boolean("With 'start': dump when a window stops answering. Default true unless exceptions or cpuPercent is set."),
+                    ["exceptions"] = Boolean("With 'start': dump on an unhandled exception. Default false."),
+                    ["cpuPercent"] = Integer("With 'start': dump when the process keeps this much of one core for 10 seconds."),
+                    ["maxDumps"] = Integer("With 'start': dumps to write before ProcDump stops. Default 2, at most 10."),
+                    ["kind"] = String("With 'start': 'full' (default) or 'mini'.")
+                },
+                Required = new string[0],
+                Run = (args, client) =>
+                {
+                    switch ((args.Value<string>("action") ?? "status").ToLowerInvariant())
+                    {
+                        case "status":
+                            return _dump.MonitorStatus(args.Value<bool?>("analyze") ?? false);
+                        case "start":
+                            return _dump.StartMonitor(client, args.Value<string>("kind"), args.Value<bool?>("hang"), args.Value<bool?>("exceptions"),
+                                args["cpuPercent"] != null ? Int(args, "cpuPercent") : (int?)null, args["maxDumps"] != null ? Int(args, "maxDumps") : (int?)null);
+                        case "stop":
+                            return _dump.StopMonitor();
+                        default:
+                            throw ApiException.BadRequest("action must be 'status', 'start' or 'stop'.");
+                    }
+                }
             }
         }.ToList());
 
