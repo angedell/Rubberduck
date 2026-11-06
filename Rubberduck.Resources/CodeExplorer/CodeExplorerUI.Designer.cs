@@ -1420,6 +1420,78 @@ namespace Rubberduck.Resources.CodeExplorer {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GitClient_Commit.
+        /// </summary>
+        public static string GitClient_Commit {
+            get {
+                return ResourceManager.GetString("GitClient_Commit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_History.
+        /// </summary>
+        public static string GitClient_History {
+            get {
+                return ResourceManager.GetString("GitClient_History", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_DialogTitle.
+        /// </summary>
+        public static string GitClient_DialogTitle {
+            get {
+                return ResourceManager.GetString("GitClient_DialogTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Failed.
+        /// </summary>
+        public static string GitClient_Failed {
+            get {
+                return ResourceManager.GetString("GitClient_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_CopyQuestion.
+        /// </summary>
+        public static string GitClient_CopyQuestion {
+            get {
+                return ResourceManager.GetString("GitClient_CopyQuestion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_NothingToCommit.
+        /// </summary>
+        public static string GitClient_NothingToCommit {
+            get {
+                return ResourceManager.GetString("GitClient_NothingToCommit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_Committed.
+        /// </summary>
+        public static string GitClient_Committed {
+            get {
+                return ResourceManager.GetString("GitClient_Committed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to GitClient_NoHistory.
+        /// </summary>
+        public static string GitClient_NoHistory {
+            get {
+                return ResourceManager.GetString("GitClient_NoHistory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to GitSync_Failed.
         /// </summary>
         public static string GitSync_Failed {

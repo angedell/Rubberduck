@@ -120,7 +120,7 @@ namespace RubberduckTests.Git
             public string Error;
             public int Taken;
 
-            public GitSyncResult Take(IVBProject project, string tree)
+            public GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null)
             {
                 Taken++;
                 File.WriteAllText(Path.Combine(tree, "Module1.bas"), Module, Encoding.ASCII);

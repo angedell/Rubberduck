@@ -10,7 +10,7 @@ namespace Rubberduck.Git
     public interface IProjectSnapshot
     {
         /// <returns>What was done; its <see cref="GitSyncResult.Errors"/> are modules that could not be written, which leaves the tree behind the project.</returns>
-        GitSyncResult Take(IVBProject project, string tree);
+        GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null);
     }
 
     /// <summary>
@@ -29,9 +29,9 @@ namespace Rubberduck.Git
             _fileSystem = fileSystem;
         }
 
-        public GitSyncResult Take(IVBProject project, string tree)
+        public GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null)
         {
-            var scan = _sync.Scan(project, tree);
+            var scan = _sync.Scan(project, tree, progress);
 
             var exports = scan.Plan.Items.Where(item => item.ModuleExists).ToList();
             foreach (var export in exports)
@@ -50,7 +50,7 @@ namespace Rubberduck.Git
             var scratch = _fileSystem.Path.Combine(_fileSystem.Path.GetTempPath(), "rd-snapshot-" + Guid.NewGuid().ToString("N"));
             try
             {
-                return _sync.Apply(project, scan, exports, null, scratch);
+                return _sync.Apply(project, scan, exports, progress, scratch);
             }
             finally
             {

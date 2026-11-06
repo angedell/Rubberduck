@@ -509,6 +509,37 @@ Import aborted.</value>
   <data name="CodeExplorer_NavigateText" xml:space="preserve">
     <value>Navigate</value>
   </data>
+  <data name="GitClient_Commit" xml:space="preserve">
+    <value>Git: Commit...</value>
+  </data>
+  <data name="GitClient_History" xml:space="preserve">
+    <value>Git: History...</value>
+  </data>
+  <data name="GitClient_DialogTitle" xml:space="preserve">
+    <value>Git</value>
+  </data>
+  <data name="GitClient_Failed" xml:space="preserve">
+    <value>The git client could not finish: {0}</value>
+  </data>
+  <data name="GitClient_CopyQuestion" xml:space="preserve">
+    <value>Project '{0}' has the same name as the project saved as
+
+{1}
+
+which already has a history. Is this workbook a copy of it?
+
+Yes: continue that history here.
+No: start a new, empty history for this workbook.</value>
+  </data>
+  <data name="GitClient_NothingToCommit" xml:space="preserve">
+    <value>Nothing changed in '{0}' since the last commit.</value>
+  </data>
+  <data name="GitClient_Committed" xml:space="preserve">
+    <value>Committed {0}: {1} file(s) changed.</value>
+  </data>
+  <data name="GitClient_NoHistory" xml:space="preserve">
+    <value>'{0}' has no commits yet.</value>
+  </data>
   <data name="GitSync" xml:space="preserve">
     <value>Git Sync...</value>
   </data>

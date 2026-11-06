@@ -516,6 +516,8 @@ namespace Rubberduck.Navigation.CodeExplorer
         public UpdateFromFilesCommand UpdateFromFilesCommand { get; set; }
         public ReplaceProjectContentsFromFilesCommand ReplaceProjectContentsFromFilesCommand { get; set; }
         public GitSyncCommand GitSyncCommand { get; set; }
+        public GitCommitCommand GitCommitCommand { get; set; }
+        public GitHistoryCommand GitHistoryCommand { get; set; }
         public ShipCommand ShipCommand { get; set; }
         public AddResourceImagesCommand AddResourceImagesCommand { get; set; }
         public AddRibbonXmlCommand AddRibbonXmlCommand { get; set; }

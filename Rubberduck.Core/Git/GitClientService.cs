@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO.Abstractions;
+using System.Diagnostics;
 using System.Linq;
+using NLog;
 using Rubberduck.Api;
 using Rubberduck.Settings;
+using Rubberduck.UI.CodeExplorer.GitSync;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 
 namespace Rubberduck.Git
@@ -44,6 +47,8 @@ namespace Rubberduck.Git
     /// </summary>
     public class GitClientService
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
         private readonly IGitProvisioner _git;
         private readonly IFileSystem _fileSystem;
         private readonly IProjectSnapshot _snapshot;
@@ -59,17 +64,24 @@ namespace Rubberduck.Git
             _settings = settings;
         }
 
+        /// <summary>Whether the user switched the git client on in the settings.</summary>
+        public bool Enabled => _settings().GitClientEnabled;
+
         /// <summary>Saves the project as a commit.</summary>
         /// <param name="continueCopiedHistory">Settles a copied workbook: true continues the original's history, false starts an empty one, null asks (by throwing <see cref="ProjectCopiedException"/>).</param>
         /// <exception cref="GitClientException">The client is off, git is missing, the workbook was never saved, or some modules could not be written.</exception>
-        public GitCommitOutcome Commit(IVBProject project, string message, bool? continueCopiedHistory = null)
+        /// <param name="refresh">False when <see cref="Changes"/> has just brought the work tree up to date and nothing has changed since: the project is not read again.</param>
+        public GitCommitOutcome Commit(IVBProject project, string message, bool? continueCopiedHistory = null, ISyncProgress progress = null, bool refresh = true)
         {
+            var timer = Stopwatch.StartNew();
             var repository = Open(project, continueCopiedHistory, out var runner);
             repository.EnsureCreated();
 
-            var result = _snapshot.Take(project, repository.WorkTree);
+            var result = refresh ? _snapshot.Take(project, repository.WorkTree, progress) : new GitSyncResult();
+            var snapshotted = timer.ElapsedMilliseconds;
             if (result.Errors.Count > 0)
             {
+                Logger.Warn($"Git client: not committing '{project.Name}', {result.Errors.Count} module(s) could not be written: {string.Join("; ", result.Errors)}");
                 //A commit with a stale module in it would be a lie in the history.
                 throw new GitClientException("Nothing was committed, because these modules could not be written: " + string.Join("; ", result.Errors));
             }
@@ -77,22 +89,26 @@ namespace Rubberduck.Git
             var (name, email) = Identity(runner);
             var outcome = new GitCommitOutcome { CommitId = repository.Commit(message, name, email) };
             outcome.Notes.AddRange(result.Notes);
+            Logger.Info($"Git client: commit of '{project.Name}' in {repository.Root}: {(outcome.CommitId ?? "nothing to commit")}; snapshot {snapshotted}ms (refresh {refresh}), total {timer.ElapsedMilliseconds}ms.");
             return outcome;
         }
 
         /// <summary>What the project has changed since the last commit.</summary>
-        public IReadOnlyList<GitChange> Changes(IVBProject project, bool? continueCopiedHistory = null)
+        public IReadOnlyList<GitChange> Changes(IVBProject project, bool? continueCopiedHistory = null, ISyncProgress progress = null)
         {
+            var timer = Stopwatch.StartNew();
             var repository = Open(project, continueCopiedHistory, out _);
             repository.EnsureCreated();
 
-            var result = _snapshot.Take(project, repository.WorkTree);
+            var result = _snapshot.Take(project, repository.WorkTree, progress);
             if (result.Errors.Count > 0)
             {
                 throw new GitClientException("These modules could not be compared: " + string.Join("; ", result.Errors));
             }
 
-            return repository.Status();
+            var changes = repository.Status();
+            Logger.Info($"Git client: '{project.Name}' has {changes.Count} change(s) since the last commit; {timer.ElapsedMilliseconds}ms.");
+            return changes;
         }
 
         /// <summary>The commits made for the project, newest first. Reads no module, so it is safe to ask at any time.</summary>
