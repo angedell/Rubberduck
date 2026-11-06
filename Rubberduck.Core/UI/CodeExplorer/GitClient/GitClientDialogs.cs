@@ -68,6 +68,60 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
         }
     }
 
+    /// <summary>The commits in which a module changed; the user picks the one to go back to.</summary>
+    public sealed class GitRestoreDialog : Form
+    {
+        private readonly ListView _list;
+        private readonly IReadOnlyList<GitCommit> _commits;
+
+        private GitRestoreDialog(string moduleName, IReadOnlyList<GitCommit> commits)
+        {
+            _commits = commits;
+            Text = "Git: restore '" + moduleName + "'";
+            Font = new Font("Segoe UI", 9f);
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterScreen;
+            ClientSize = new Size(640, 360);
+
+            Controls.Add(new Label { Text = "Choose the version to put back. The module as it is now is backed up first.", Location = new Point(12, 10), Size = new Size(616, 18) });
+
+            _list = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, Location = new Point(12, 32), Size = new Size(616, 270) };
+            _list.Columns.Add("Commit", 70);
+            _list.Columns.Add("Date", 130);
+            _list.Columns.Add("Author", 120);
+            _list.Columns.Add("Message", 270);
+            foreach (var commit in commits)
+            {
+                _list.Items.Add(new ListViewItem(new[] { commit.Id.Substring(0, 7), commit.Date.LocalDateTime.ToString("yyyy-MM-dd HH:mm"), commit.Author, commit.Subject }));
+            }
+
+            _list.Items[0].Selected = true;
+            Controls.Add(_list);
+
+            var restore = new Button { Text = "Restore", DialogResult = DialogResult.OK, Size = new Size(90, 28), Location = new Point(ClientSize.Width - 12 - 90 - 8 - 90, ClientSize.Height - 40) };
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Size = new Size(90, 28), Location = new Point(ClientSize.Width - 12 - 90, ClientSize.Height - 40) };
+            Controls.Add(restore);
+            Controls.Add(cancel);
+            AcceptButton = restore;
+            CancelButton = cancel;
+            _list.DoubleClick += (sender, args) => restore.PerformClick();
+        }
+
+        /// <returns>The chosen commit, or null if the user cancelled.</returns>
+        public static GitCommit Ask(string moduleName, IReadOnlyList<GitCommit> commits)
+        {
+            using (var dialog = new GitRestoreDialog(moduleName, commits))
+            {
+                return dialog.ShowDialog() == DialogResult.OK && dialog._list.SelectedIndices.Count == 1
+                    ? commits[dialog._list.SelectedIndices[0]]
+                    : null;
+            }
+        }
+    }
+
     /// <summary>The commits made for a project, newest first.</summary>
     public sealed class GitHistoryDialog : Form
     {

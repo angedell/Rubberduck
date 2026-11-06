@@ -540,6 +540,20 @@ No: start a new, empty history for this workbook.</value>
   <data name="GitClient_NoHistory" xml:space="preserve">
     <value>'{0}' has no commits yet.</value>
   </data>
+  <data name="GitClient_Restore" xml:space="preserve">
+    <value>Git: Restore module...</value>
+  </data>
+  <data name="GitClient_NoModuleHistory" xml:space="preserve">
+    <value>'{0}' has no earlier versions in the history.</value>
+  </data>
+  <data name="GitClient_RestoreConfirm" xml:space="preserve">
+    <value>Replace module '{0}' in the project with its version from commit {1} ({2}, '{3}')?
+
+The module as it is now is backed up first. Nothing is committed: the restored module shows up as a change.</value>
+  </data>
+  <data name="GitClient_Restored" xml:space="preserve">
+    <value>Module '{0}' was restored from commit {1}.</value>
+  </data>
   <data name="GitSync" xml:space="preserve">
     <value>Git Sync...</value>
   </data>

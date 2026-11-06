@@ -120,10 +120,20 @@ namespace RubberduckTests.Git
             public string Error;
             public int Taken;
 
+            public string Imported;
+
+            public GitSyncResult Import(IVBProject project, string tree, string moduleName, ISyncProgress progress = null)
+            {
+                Imported = moduleName + "=" + File.ReadAllText(Path.Combine(tree, "Module1.bas"));
+                return new GitSyncResult();
+            }
+
             public GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null)
             {
                 Taken++;
                 File.WriteAllText(Path.Combine(tree, "Module1.bas"), Module, Encoding.ASCII);
+                //What Git sync keeps in the tree, and the client reads to find a module's file.
+                File.WriteAllText(Path.Combine(tree, "rubberduck.sync.json"), "{\"Version\":1,\"Modules\":{\"Module1\":{\"Path\":\"Module1.bas\"}}}");
                 var result = new GitSyncResult();
                 if (Error != null)
                 {
@@ -212,6 +222,49 @@ namespace RubberduckTests.Git
 
             Assert.AreEqual(Path.Combine(_folder, "original.xlsm"), asked.CopyOfPath);
             Assert.AreEqual(new[] { "first" }, service.History(copy).Select(commit => commit.Subject).Reverse().ToArray());
+        }
+
+        [Test]
+        public void ModuleHistory_ListsTheCommitsThatChangedTheModule()
+        {
+            var (service, snapshot) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "first");
+            snapshot.Module = "Option Explicit\r\n' v2\r\n";
+            service.Commit(project, "second");
+
+            var history = service.ModuleHistory(project, "Module1");
+
+            CollectionAssert.AreEqual(new[] { "second", "first" }, history.Select(commit => commit.Subject).ToArray());
+            Assert.IsTrue(history.All(commit => commit.Path == "Module1.bas"));
+        }
+
+        [Test]
+        public void ModuleHistory_OfAModuleThatWasNeverCommitted_SaysSo()
+        {
+            var (service, _) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "first");
+
+            var exception = Assert.Throws<GitClientException>(() => service.ModuleHistory(project, "Unknown"));
+
+            StringAssert.Contains("not been committed", exception.Message);
+        }
+
+        [Test]
+        public void RestoreModule_WritesTheOldVersionIntoTheTreeAndImportsIt_WithoutCommitting()
+        {
+            var (service, snapshot) = Service();
+            var project = Project(Workbook("a.xlsm"), "Alpha");
+            service.Commit(project, "first");
+            snapshot.Module = "Option Explicit\r\n' v2\r\n";
+            service.Commit(project, "second");
+            var first = service.ModuleHistory(project, "Module1").Last();
+
+            service.RestoreModule(project, "Module1", first);
+
+            Assert.AreEqual("Module1=Option Explicit\r\n", snapshot.Imported);
+            Assert.AreEqual(2, service.History(project).Count);
         }
 
         [Test]

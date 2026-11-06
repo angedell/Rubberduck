@@ -173,6 +173,45 @@ namespace RubberduckTests.Git
         }
 
         [Test]
+        public void LogOf_ListsOnlyTheCommitsThatChangedTheFile_AndFollowsItAcrossAMove()
+        {
+            _repository.EnsureCreated();
+            Write("a.bas", Encoding.ASCII.GetBytes("Sub A()\r\nEnd Sub\r\n' one\r\n"));
+            Write("other.bas", new byte[] { 1 });
+            var first = Commit("first");
+            Write("other.bas", new byte[] { 2 });
+            Commit("only other");
+            Write("a.bas", Encoding.ASCII.GetBytes("Sub A()\r\nEnd Sub\r\n' two\r\n"));
+            var second = Commit("a changed");
+            File.Move(Path.Combine(_repository.WorkTree, "a.bas"), Path.Combine(_repository.WorkTree, "moved.bas"));
+            var moved = Commit("a moved");
+
+            var log = _repository.LogOf("moved.bas");
+
+            CollectionAssert.AreEqual(new[] { moved, second, first }, log.Select(commit => commit.Id).ToArray());
+            CollectionAssert.AreEqual(new[] { "moved.bas", "a.bas", "a.bas" }, log.Select(commit => commit.Path).ToArray());
+        }
+
+        [Test]
+        public void LogOf_IsEmptyBeforeTheFirstCommit()
+        {
+            _repository.EnsureCreated();
+
+            Assert.AreEqual(0, _repository.LogOf("a.bas").Count);
+        }
+
+        [Test]
+        public void TryReadFileAt_ReturnsNullForAFileTheCommitDoesNotHave()
+        {
+            _repository.EnsureCreated();
+            Write("a.bas", new byte[] { 65 });
+            var id = Commit();
+
+            Assert.IsNull(_repository.TryReadFileAt(id, "none.frx"));
+            Assert.AreEqual(new byte[] { 65 }, _repository.TryReadFileAt(id, "a.bas"));
+        }
+
+        [Test]
         public void RestoreFile_PutsTheOldVersionBack()
         {
             _repository.EnsureCreated();

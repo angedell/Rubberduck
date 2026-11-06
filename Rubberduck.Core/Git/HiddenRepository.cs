@@ -34,6 +34,9 @@ namespace Rubberduck.Git
         public string Author { get; set; }
         public DateTimeOffset Date { get; set; }
         public string Subject { get; set; }
+
+        /// <summary>For the history of one file: where the file was in this commit (it may have been moved or renamed since). Null otherwise.</summary>
+        public string Path { get; set; }
     }
 
     /// <summary>
@@ -188,6 +191,44 @@ namespace Rubberduck.Git
                 .Where(fields => fields.Length == 4)
                 .Select(fields => new GitCommit { Id = fields[0], Author = fields[1], Date = DateTimeOffset.Parse(fields[2]), Subject = fields[3] })
                 .ToList();
+        }
+
+        /// <summary>
+        /// The commits that added or changed one file, newest first, following it across renames and moves; each says where the file was then.
+        /// </summary>
+        public IReadOnlyList<GitCommit> LogOf(string relativePath, int max = 100)
+        {
+            if (!_git.Run(Prefix().Concat(new[] { "rev-parse", "--verify", "--quiet", "HEAD" }), WorkTree).Ok)
+            {
+                return new GitCommit[0];
+            }
+
+            var output = Run("log", "--follow", "--diff-filter=AMR", "-n", max.ToString(), "--format=%x1e%H%x1f%an%x1f%aI%x1f%s", "--name-only", "--", PathOf(relativePath)).Output;
+            var commits = new List<GitCommit>();
+            foreach (var record in output.Split(new[] { '\x1e' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var lines = record.Split('\n').Select(line => line.Trim('\r')).ToList();
+                var fields = lines[0].Split('\x1f');
+                if (fields.Length != 4)
+                {
+                    continue;
+                }
+
+                commits.Add(new GitCommit
+                {
+                    Id = fields[0], Author = fields[1], Date = DateTimeOffset.Parse(fields[2]), Subject = fields[3],
+                    Path = lines.Skip(1).FirstOrDefault(line => line.Length > 0)
+                });
+            }
+
+            return commits;
+        }
+
+        /// <summary>A file as it was in a commit, or null if the commit has no such file.</summary>
+        public byte[] TryReadFileAt(string commit, string relativePath)
+        {
+            var result = _git.Run(Prefix().Concat(new[] { "show", CommitOf(commit) + ":" + PathOf(relativePath) }), WorkTree);
+            return result.Ok ? result.OutputBytes : null;
         }
 
         /// <summary>A file as it was in a commit, byte for byte.</summary>

@@ -118,6 +118,51 @@ namespace Rubberduck.Git
             return repository.Exists ? repository.Log(max) : new GitCommit[0];
         }
 
+        /// <summary>The commits in which the module changed, newest first. Reads no module; the module has to have been committed.</summary>
+        public IReadOnlyList<GitCommit> ModuleHistory(IVBProject project, string moduleName, int max = 100)
+        {
+            var repository = Open(project, null, out _);
+            return repository.Exists ? repository.LogOf(TreePathOf(repository, moduleName), max) : new GitCommit[0];
+        }
+
+        /// <summary>
+        /// Replaces the module in the project with its version in a commit. The version it replaces is backed up first (<see cref="GitSyncResult.BackupFolder"/>),
+        /// and nothing is committed: the restored module shows as a change, to be committed or thrown away like any other.
+        /// </summary>
+        public GitSyncResult RestoreModule(IVBProject project, string moduleName, GitCommit commit, ISyncProgress progress = null)
+        {
+            var timer = Stopwatch.StartNew();
+            var repository = Open(project, null, out _);
+            var treePath = TreePathOf(repository, moduleName);
+            var pathThen = commit.Path ?? treePath;
+            var content = repository.ReadFileAt(commit.Id, pathThen);
+
+            //The module's file in the tree gets the old content, wherever the module is filed now; a form's binary goes with it.
+            var target = _fileSystem.Path.Combine(repository.WorkTree, treePath.Replace('/', '\\'));
+            _fileSystem.File.WriteAllBytes(target, content);
+            var binary = repository.TryReadFileAt(commit.Id, _fileSystem.Path.ChangeExtension(pathThen, ".frx"));
+            if (binary != null)
+            {
+                _fileSystem.File.WriteAllBytes(_fileSystem.Path.ChangeExtension(target, ".frx"), binary);
+            }
+
+            var result = _snapshot.Import(project, repository.WorkTree, moduleName, progress);
+            Logger.Info($"Git client: restored '{moduleName}' of '{project.Name}' from {commit.Id.Substring(0, 7)} ({pathThen}); {result.Errors.Count} error(s); {timer.ElapsedMilliseconds}ms.");
+            return result;
+        }
+
+        //Where Git sync last put the module in the tree: its own bookkeeping knows.
+        private string TreePathOf(HiddenRepository repository, string moduleName)
+        {
+            var state = new GitSyncStateStore(_fileSystem).Load(_fileSystem.Path.Combine(repository.WorkTree, GitSyncState.FileName));
+            if (!state.Modules.TryGetValue(moduleName, out var baseline) || string.IsNullOrEmpty(baseline.Path))
+            {
+                throw new GitClientException($"'{moduleName}' has not been committed yet, so it has no history to restore from.");
+            }
+
+            return baseline.Path;
+        }
+
         private HiddenRepository Open(IVBProject project, bool? continueCopiedHistory, out GitRunner runner)
         {
             var settings = _settings();

@@ -11,6 +11,9 @@ namespace Rubberduck.Git
     {
         /// <returns>What was done; its <see cref="GitSyncResult.Errors"/> are modules that could not be written, which leaves the tree behind the project.</returns>
         GitSyncResult Take(IVBProject project, string tree, ISyncProgress progress = null);
+
+        /// <summary>The other way round for one module: its file in the tree replaces the module in the project. The module it replaces is backed up first.</summary>
+        GitSyncResult Import(IVBProject project, string tree, string moduleName, ISyncProgress progress = null);
     }
 
     /// <summary>
@@ -59,6 +62,22 @@ namespace Rubberduck.Git
                     _fileSystem.Directory.Delete(scratch, true);
                 }
             }
+        }
+
+        public GitSyncResult Import(IVBProject project, string tree, string moduleName, ISyncProgress progress = null)
+        {
+            var scan = _sync.Scan(project, tree, progress);
+            var item = scan.Plan.Items.FirstOrDefault(candidate => !candidate.IsResource && !candidate.IsNote && candidate.FileExists
+                && string.Equals(candidate.Name, moduleName, StringComparison.OrdinalIgnoreCase));
+            if (item == null)
+            {
+                var result = new GitSyncResult();
+                result.Errors.Add($"The restored file of '{moduleName}' is the same as the module; there is nothing to import.");
+                return result;
+            }
+
+            item.Chosen = SyncAction.Import;
+            return _sync.Apply(project, scan, new[] { item }, progress);
         }
 
         private void DeleteFile(string path)

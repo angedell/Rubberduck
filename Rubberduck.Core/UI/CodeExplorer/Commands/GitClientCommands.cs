@@ -142,6 +142,71 @@ namespace Rubberduck.UI.CodeExplorer.Commands
         }
     }
 
+    /// <summary>Puts a module back as it was in an earlier commit.</summary>
+    public class GitRestoreCommand : GitClientCommandBase
+    {
+        private static readonly Type[] ModuleNodes =
+        {
+            typeof(CodeExplorerComponentViewModel),
+            typeof(CodeExplorerMemberViewModel)
+        };
+
+        public GitRestoreCommand(IVbeEvents vbeEvents, IProjectsProvider projectsProvider, GitClientService git, IMessageBox messageBox)
+            : base(vbeEvents, projectsProvider, git, messageBox)
+        {
+        }
+
+        public override IEnumerable<Type> ApplicableNodeTypes => ModuleNodes;
+
+        protected override void OnExecute(object parameter)
+        {
+            var project = TargetProject(parameter);
+            var module = (parameter as CodeExplorerItemViewModel)?.Declaration?.QualifiedName.QualifiedModuleName.ComponentName;
+            if (project == null || module == null)
+            {
+                return;
+            }
+
+            Guarded(() =>
+            {
+                var commits = Git.ModuleHistory(project, module);
+                if (commits.Count == 0)
+                {
+                    MessageBox.Message(string.Format(CodeExplorerUI.GitClient_NoModuleHistory, module));
+                    return;
+                }
+
+                var commit = GitRestoreDialog.Ask(module, commits);
+                if (commit == null)
+                {
+                    return;
+                }
+
+                if (!MessageBox.ConfirmYesNo(
+                    string.Format(CodeExplorerUI.GitClient_RestoreConfirm, module, commit.Id.Substring(0, 7), commit.Date.LocalDateTime.ToString("yyyy-MM-dd HH:mm"), commit.Subject),
+                    CodeExplorerUI.GitClient_DialogTitle, false))
+                {
+                    return;
+                }
+
+                var result = WithProgress(progress => Git.RestoreModule(project, module, commit, progress));
+                var lines = new List<string>
+                {
+                    result.Errors.Count == 0
+                        ? string.Format(CodeExplorerUI.GitClient_Restored, module, commit.Id.Substring(0, 7))
+                        : string.Format(CodeExplorerUI.GitClient_Failed, string.Join(Environment.NewLine, result.Errors))
+                };
+                lines.AddRange(result.Notes);
+                if (result.BackupFolder != null)
+                {
+                    lines.Add(string.Format(CodeExplorerUI.GitSync_Backup, result.BackupFolder));
+                }
+
+                MessageBox.Message(string.Join(Environment.NewLine + Environment.NewLine, lines));
+            });
+        }
+    }
+
     /// <summary>Lists the commits made for the project.</summary>
     public class GitHistoryCommand : GitClientCommandBase
     {
