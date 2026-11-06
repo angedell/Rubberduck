@@ -144,7 +144,9 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete.UnreachableCaseEvaluation
             var valueResults = knownResults;
 
             IParseTreeValue newResult = null;
-            if (TryGetLExprValue(module, context, ref valueResults, finder, out string lExprValue, out string declaredType))
+            //A declaration without a type name or a constant without an expression gives null here; the factory throws on null, which used to end the whole inspection.
+            if (TryGetLExprValue(module, context, ref valueResults, finder, out string lExprValue, out string declaredType)
+                && !(lExprValue is null) && !(declaredType is null))
             {
                 newResult = _valueFactory.CreateDeclaredType(lExprValue, declaredType);
             }
@@ -154,7 +156,10 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete.UnreachableCaseEvaluation
                 if (TryGetIdentifierReferenceForContext(module, simpleName, finder, out var reference))
                 {
                     var declarationTypeName = GetBaseTypeForDeclaration(reference.Declaration);
-                    newResult = _valueFactory.CreateDeclaredType(context.GetText(), declarationTypeName);
+                    if (!(declarationTypeName is null))
+                    {
+                        newResult = _valueFactory.CreateDeclaredType(context.GetText(), declarationTypeName);
+                    }
                 }
             }
 
