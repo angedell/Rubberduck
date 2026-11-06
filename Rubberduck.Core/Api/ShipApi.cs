@@ -102,12 +102,15 @@ namespace Rubberduck.Api
     public class ShipApi
     {
         private static readonly string[] ExistingChoices = { "ask", "replace", "keepBoth" };
-        private static readonly string[] SettingKeys = { "format", "outputFolder", "fileName", "onExisting", "steps" };
+        private static readonly string[] SettingKeys = { "format", "outputFolder", "fileName", "onExisting", "steps", "treeShaking" };
         private static readonly TimeSpan ShipTimeout = TimeSpan.FromMinutes(10);
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>What agents are told about Ship, in the tool descriptions and with the settings.</summary>
         public const string Summary = "Ship produces a clean copy of the workbook as .xlam or .xlsm, without what Rubberduck added: notes, test modules and the test library reference, annotation comments ('@Folder, '@Description...), descriptive attributes and rubberduck.json. The comments, notes and tests are stripped from the artifact, never from the open project, which is not changed. It works on the saved file, so the workbook must be an Excel document that has been saved, and what is unsaved in the editor is not in the artifact. Preview first (preview_ship), then ship_project with confirm: true.";
+
+        /// <summary>What agents are told about tree shaking, in the tool descriptions and in the MCP instructions.</summary>
+        public const string TreeShakingNote = "Tree shaking (step 'treeShaking', OFF by default) also removes the code nothing reaches, by name (procedures, variables, constants, types, enums, declares, whole modules). It CAN REMOVE CODE THE USER NEEDS, for example a procedure that only a button, a menu, a ribbon callback or an Application.Run with a computed name reaches: read the preview first and ask the user before switching it on. 'treeShaking.mode' is \"conservative\" (keeps every public procedure of a standard module) or \"entryPointsOnly\" (keeps only what is marked @EntryPoint or @ExcelHotkey, what is in 'treeShaking.keep', and what Rubberduck detects). The preview lists the removals per step and 'dynamicCalls', the calls whose target is computed: what they reach cannot be followed and may be removed, so add it to 'treeShaking.keep' (\"Member\" or \"Module.Member\").";
 
         private readonly IShipService _service;
         private readonly IShipProjects _projects;
@@ -157,11 +160,12 @@ namespace Rubberduck.Api
 
         public JObject Preview(string project)
         {
-            return Translate(() => _projects.With(project, p =>
+            //The settings are read on the editor thread; the preview is not run there: tree shaking waits for the parser, which is waiting for that thread.
+            return Translate(() =>
             {
-                var report = _service.Preview(p, _service.ReadSettings(p));
-                return Report(report, preview: true);
-            }, ShipTimeout));
+                var settings = _projects.With(project, p => _service.ReadSettings(p), ShipTimeout);
+                return Report(_service.Preview(_projects.Resolve(project), settings), preview: true);
+            });
         }
 
         /// <param name="confirm">Without it, and unless the user switched on unattended ship, this only previews.</param>
@@ -175,12 +179,12 @@ namespace Rubberduck.Api
                 {
                     var settings = _service.ReadSettings(p);
                     var unattended = _service.IsUnattended(p);
-                    return new { settings, unattended, preview = unattended || confirm ? null : _service.Preview(p, settings) };
+                    return new { settings, unattended };
                 }, ShipTimeout);
 
-                if (state.preview != null)
+                if (!state.unattended && !confirm)
                 {
-                    var answer = Report(state.preview, preview: true);
+                    var answer = Report(_service.Preview(_projects.Resolve(project), state.settings), preview: true);
                     answer["shipped"] = false;
                     answer["confirmRequired"] = true;
                     answer["note"] = "Nothing was shipped: this is the preview. To ship, send { \"confirm\": true } (and \"onExisting\": \"replace\" or \"keepBoth\" if the file exists). The first write also has to be approved by the user in Rubberduck.";
@@ -310,6 +314,11 @@ namespace Rubberduck.Api
                 settings.OnExisting = ParseOnExisting(Str(existing, "onExisting"));
             }
 
+            if (body.TryGetValue("treeShaking", out var shaking))
+            {
+                ApplyTreeShaking(shaking, settings.TreeShaking);
+            }
+
             if (body.TryGetValue("steps", out var steps))
             {
                 var map = steps as JObject ?? throw ApiException.BadRequest($"'steps' must be an object of step name to true/false. Steps: {string.Join(", ", ShipSteps.All)}.");
@@ -326,6 +335,51 @@ namespace Rubberduck.Api
                 }
             }
         }
+
+        private static void ApplyTreeShaking(JToken token, ShipTreeShakingSettings target)
+        {
+            var section = token as JObject ?? throw ApiException.BadRequest("'treeShaking' must be an object: { \"mode\": \"conservative\" | \"entryPointsOnly\", \"keep\": [names] }.");
+            var unknown = section.Properties().Select(p => p.Name).Where(n => n != "mode" && n != "keep").ToList();
+            if (unknown.Count > 0)
+            {
+                throw ApiException.BadRequest($"Unknown treeShaking setting(s): {string.Join(", ", unknown)}. They are: mode, keep.");
+            }
+
+            //The same reading as the settings file (ShipKeepList); here the first problem is a 400.
+            ShipTreeShakingMode? mode = null;
+            if (section.TryGetValue("mode", out var modeToken))
+            {
+                var (parsed, modeError) = ShipKeepList.NormalizeMode(modeToken);
+                mode = parsed ?? throw ApiException.BadRequest(modeError);
+            }
+
+            List<string> keep = null;
+            if (section.TryGetValue("keep", out var keepToken))
+            {
+                var (valid, problems) = ShipKeepList.Normalize(keepToken);
+                if (problems.Count > 0)
+                {
+                    throw ApiException.BadRequest(problems[0]);
+                }
+
+                keep = valid;
+            }
+
+            //Nothing is changed before everything is valid.
+            if (mode.HasValue)
+            {
+                target.Mode = mode.Value;
+            }
+
+            if (keep != null)
+            {
+                target.Keep.Clear();
+                target.Keep.AddRange(keep);
+            }
+        }
+
+        private static string ModeName(ShipTreeShakingMode mode)
+            => mode == ShipTreeShakingMode.EntryPointsOnly ? "entryPointsOnly" : "conservative";
 
         private static string Str(JToken token, string name)
         {
@@ -353,12 +407,15 @@ namespace Rubberduck.Api
                 ["fileName"] = settings.FileName,
                 ["onExisting"] = Name(settings.OnExisting),
                 ["steps"] = steps,
+                ["treeShaking"] = new JObject { ["mode"] = ModeName(settings.TreeShaking.Mode), ["keep"] = new JArray(settings.TreeShaking.Keep) },
                 ["unattended"] = _service.IsUnattended(project),
                 ["unattendedReadOnly"] = true,
                 ["canShip"] = _service.CanShip(project),
-                ["note"] = "'unattended' is the user's own switch: it lifts the confirm and the approval for shipping, and cannot be changed here (a PUT that sends it is refused). 'resolvedOutputFolder' is where the settings lead on this machine; null if no folder is set."
+                ["note"] = "'unattended' is the user's own switch: it lifts the confirm and the approval for shipping, and cannot be changed here (a PUT that sends it is refused). 'steps.treeShaking' is off until switched on and can remove code the user needs; 'steps.lineNumbers' is off until switched on and numbers the executable lines with their line in the user's module (as the code pane shows it), so the shipped file's error handlers can report Erl; 'treeShaking' holds its mode (conservative, entryPointsOnly) and the keep list. 'resolvedOutputFolder' is where the settings lead on this machine; null if no folder is set."
             };
         }
+
+        private const int MaxRoots = 500;
 
         private static JObject Report(ShipReport report, bool preview)
         {
@@ -381,7 +438,10 @@ namespace Rubberduck.Api
                 ["outputPath"] = report.OutputPath,
                 ["counts"] = counts,
                 ["steps"] = steps,
+                ["dynamicCalls"] = new JArray(report.DynamicCalls),
                 ["unparsedModules"] = new JArray(report.Unparsed),
+                ["roots"] = new JArray(report.Roots.Take(MaxRoots)),
+                ["rootsTotal"] = report.Roots.Count,
                 ["warnings"] = new JArray(report.Warnings)
             };
         }
@@ -476,14 +536,14 @@ namespace Rubberduck.Api
             new RefactorToolSpec
             {
                 Name = "get_ship_settings",
-                Description = Summary + " Reads the 'ship' settings of the project's rubberduck.json: format (xlsm or xlam), outputFolder as written and resolvedOutputFolder as it leads on this machine, fileName, onExisting (ask, replace, keepBoth) and the strip steps (notes, testModules, comments, descriptiveAttributes, config). 'unattended' is shown but is the user's own switch, which only they can change.",
+                Description = Summary + " Reads the 'ship' settings of the project's rubberduck.json: format (xlsm or xlam), outputFolder as written and resolvedOutputFolder as it leads on this machine, fileName, onExisting (ask, replace, keepBoth) and the strip steps (notes, testModules, lineNumbers, treeShaking, comments, descriptiveAttributes, config) and 'treeShaking' (mode, keep). " + TreeShakingNote + " 'unattended' is shown but is the user's own switch, which only they can change.",
                 Properties = new JObject { ["project"] = Prop("string", "Project id or name.") }, Required = new[] { "project" },
                 Run = (args, client) => Settings(Arg(args, "project"))
             },
             new RefactorToolSpec
             {
                 Name = "set_ship_settings",
-                Description = "Changes the 'ship' settings in the project's rubberduck.json; what you leave out stays. Needs the user's approval like a write. Sending 'unattended' is refused: that switch is the user's alone. " + Summary,
+                Description = "Changes the 'ship' settings in the project's rubberduck.json; what you leave out stays. Needs the user's approval like a write. Sending 'unattended' is refused: that switch is the user's alone. 'treeShaking' is { mode, keep }: keep replaces the whole list (at most 500 names). " + TreeShakingNote + " " + Summary,
                 Properties = new JObject
                 {
                     ["project"] = Prop("string", "Project id or name."),
@@ -491,7 +551,8 @@ namespace Rubberduck.Api
                     ["outputFolder"] = Prop("string", "Where the artifact goes: absolute, relative to the workbook, ../, %ENV%, or a known/OneDrive/Dropbox folder. An empty string clears it."),
                     ["fileName"] = Prop("string", "File name without extension. An empty string means the project's name."),
                     ["onExisting"] = Prop("string", "What to do when the file exists: \"ask\", \"replace\" or \"keepBoth\"."),
-                    ["steps"] = Prop("object", "Strip steps to switch on/off, e.g. { \"comments\": false }. Steps: " + string.Join(", ", ShipSteps.All) + ".")
+                    ["steps"] = Prop("object", "Strip steps to switch on/off, e.g. { \"comments\": false }. Steps: " + string.Join(", ", ShipSteps.All) + ". 'treeShaking' is off by default and can remove code the user needs: read preview_ship first. 'lineNumbers' is off by default: it puts the module's own line number in front of each executable line so VBA error handlers can use Erl."),
+                    ["treeShaking"] = Prop("object", "{ \"mode\": \"conservative\" | \"entryPointsOnly\", \"keep\": [\"Member\" or \"Module.Member\", ...] }; what you leave out stays, 'keep' replaces the whole list.")
                 },
                 Required = new[] { "project" },
                 Run = (args, client) =>
@@ -504,14 +565,14 @@ namespace Rubberduck.Api
             new RefactorToolSpec
             {
                 Name = "preview_ship",
-                Description = "Shows what Ship would remove, step by step, and which modules did not parse and would be shipped unchanged. Writes nothing and needs no approval. Look at it before ship_project. " + Summary,
+                Description = "Shows what Ship would remove, step by step, and which modules did not parse and would be shipped unchanged. Writes nothing and needs no approval. Look at it before ship_project. It lists by name what tree shaking would remove (when that step is on) and 'dynamicCalls', the calls it cannot follow. 'roots' says why code is kept (the first 500; 'rootsTotal' counts them all): use it to decide what to put on the keep list. " + TreeShakingNote + " " + Summary,
                 Properties = new JObject { ["project"] = Prop("string", "Project id or name.") }, Required = new[] { "project" },
                 Run = (args, client) => Preview(Arg(args, "project"))
             },
             new RefactorToolSpec
             {
                 Name = "ship_project",
-                Description = "Writes the clean artifact (.xlam or .xlsm) to the output folder of the settings and returns the report: counts per step, unparsed modules, the output path. It never changes the open project, and the workbook must have been saved. Needs the user's approval and confirm: true; without confirm it only previews and tells you what to send (both are waived when the user switched on unattended ship). If the file exists the answer is the error ship_exists with the path and the choices: send onExisting \"replace\" or \"keepBoth\", or let the user decide. " + Summary,
+                Description = "Writes the clean artifact (.xlam or .xlsm) to the output folder of the settings and returns the report: counts per step, unparsed modules, the output path, the removals by name and 'dynamicCalls'. " + TreeShakingNote + " It never changes the open project, and the workbook must have been saved. Needs the user's approval and confirm: true; without confirm it only previews and tells you what to send (both are waived when the user switched on unattended ship). If the file exists the answer is the error ship_exists with the path and the choices: send onExisting \"replace\" or \"keepBoth\", or let the user decide. " + Summary,
                 Properties = new JObject
                 {
                     ["project"] = Prop("string", "Project id or name."),

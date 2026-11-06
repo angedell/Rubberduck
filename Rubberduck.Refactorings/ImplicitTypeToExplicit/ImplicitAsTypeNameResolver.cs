@@ -164,7 +164,7 @@ namespace Rubberduck.Refactorings.ImplicitTypeToExplicit
                 {
                     var parameterAsTypeName = ZeroBasedParameterPosition >= 0
                         ? moduleBodyElement.Parameters.ElementAt(ZeroBasedParameterPosition.Value).AsTypeName
-                        : moduleBodyElement.Parameters.Single(p => p.IdentifierName == ParameterName).AsTypeName;
+                        : moduleBodyElement.Parameters.Single(p => string.Equals(p.IdentifierName, ParameterName, System.StringComparison.OrdinalIgnoreCase)).AsTypeName;
 
                     parameterAsTypeNames.Add(parameterAsTypeName);
                 }

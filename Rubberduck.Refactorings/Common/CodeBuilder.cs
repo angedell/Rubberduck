@@ -163,7 +163,7 @@ namespace Rubberduck.Refactorings
             if (prototype.IsMutatorProperty())
             {
                 var prototypeAsTypeName = AsTypeNameFromMutatorProperty(prototype);
-                if (!(prototypeAsTypeName == Tokens.Variant
+                if (!(string.Equals(prototypeAsTypeName, Tokens.Variant, System.StringComparison.OrdinalIgnoreCase)
                         || IsMutatorPropertyForObjectType(prototype)))
 
                 {

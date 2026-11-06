@@ -41,7 +41,7 @@ namespace Rubberduck.Refactorings.ExtractMethod
         private Declaration ProcDeclaration(QualifiedSelection qualifiedSelection, int lineOfInterest)
         {
             var selection = qualifiedSelection.Selection;
-            var procedures = _declarations.Where(d => d.ComponentName == qualifiedSelection.QualifiedName.ComponentName && d.IsUserDefined && (ProcedureTypes.Contains(d.DeclarationType)));
+            var procedures = _declarations.Where(d => string.Equals(d.ComponentName, qualifiedSelection.QualifiedName.ComponentName, System.StringComparison.OrdinalIgnoreCase) && d.IsUserDefined && (ProcedureTypes.Contains(d.DeclarationType)));
             var declarations = procedures as IList<Declaration> ?? procedures.ToList();
             Declaration ProcOfLine(int sl) => declarations.FirstOrDefault(d => d.Context.Start.Line < sl && d.Context.Stop.EndLine() > sl);
             return ProcOfLine(lineOfInterest);

@@ -14,11 +14,32 @@ namespace Rubberduck.Ship
     {
         public const string Notes = "notes";
         public const string TestModules = "testModules";
+        public const string LineNumbers = "lineNumbers";
+        public const string TreeShaking = "treeShaking";
         public const string Comments = "comments";
         public const string DescriptiveAttributes = "descriptiveAttributes";
         public const string Config = "config";
 
-        public static readonly string[] All = { Notes, TestModules, Comments, DescriptiveAttributes, Config };
+        public static readonly string[] All = { Notes, TestModules, LineNumbers, TreeShaking, Comments, DescriptiveAttributes, Config };
+
+        /// <summary>Steps that are off until the user switches them on: tree shaking can remove code the user needs, line numbers change every line of the code that ships.</summary>
+        public static bool OffByDefault(string step) => step == TreeShaking || step == LineNumbers;
+    }
+
+    /// <summary>What is a root of tree shaking besides the always-kept code (see ADR 0004).</summary>
+    public enum ShipTreeShakingMode
+    {
+        /// <summary>Every public procedure of a standard module is a root: it may be a macro or a UDF.</summary>
+        Conservative,
+        /// <summary>Only @EntryPoint / @ExcelHotkey members, the keep list and the detected roots.</summary>
+        EntryPointsOnly
+    }
+
+    public class ShipTreeShakingSettings
+    {
+        public ShipTreeShakingMode Mode { get; set; } = ShipTreeShakingMode.Conservative;
+        /// <summary>Names to keep whatever the analysis says: "Member" or "Module.Member" (case-insensitive).</summary>
+        public List<string> Keep { get; } = new List<string>();
     }
 
     /// <summary>The <c>ship</c> section of the project's rubberduck.json. Null members mean "not set in the file".</summary>
@@ -32,7 +53,8 @@ namespace Rubberduck.Ship
         public ShipOnExisting OnExisting { get; set; } = ShipOnExisting.Ask;
         /// <summary>Step name (see <see cref="ShipSteps"/>) to on/off. A step that is not listed is on.</summary>
         public Dictionary<string, bool> Steps { get; } = new Dictionary<string, bool>();
-        public bool IsOn(string step) => !Steps.TryGetValue(step, out var on) || on;
+        public ShipTreeShakingSettings TreeShaking { get; } = new ShipTreeShakingSettings();
+        public bool IsOn(string step) => Steps.TryGetValue(step, out var on) ? on : !ShipSteps.OffByDefault(step);
     }
 
     public class ShipStepReport
@@ -49,6 +71,10 @@ namespace Rubberduck.Ship
         /// <summary>Modules shipped unchanged because they did not parse, with why.</summary>
         public List<string> Unparsed { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
+        /// <summary>Calls whose target is computed (Application.Run, CallByName, OnTime with a non-literal name): the analysis cannot see what they reach. One line each.</summary>
+        public List<string> DynamicCalls { get; } = new List<string>();
+        /// <summary>Tree shaking: why each root is one ("Module1.Go: public procedure of a standard module"). Empty when the step did not run.</summary>
+        public List<string> Roots { get; } = new List<string>();
         public string OutputPath { get; set; }
         /// <summary>True for a preview: nothing was written.</summary>
         public bool DryRun { get; set; }
@@ -62,6 +88,39 @@ namespace Rubberduck.Ship
         public string Reason { get; }
         /// <summary>For <c>exists</c>: the path that is in the way.</summary>
         public string Path { get; set; }
+    }
+
+    /// <summary>One declaration tree shaking takes out of the artifact. Property Get/Let/Set of a name are one removal.</summary>
+    public class ShipRemoval
+    {
+        public string Module { get; set; }
+        public string Name { get; set; }
+        /// <summary>procedure | variable | constant | type | enum | declare | module</summary>
+        public string Kind { get; set; }
+        public override string ToString() => Kind == "module" ? Module : Module + "." + Name;
+    }
+
+    /// <summary>
+    /// The stage before the strip steps (ADR 0003 and 0004): reads what Rubberduck's parser resolved for the open project and says what is unreachable.
+    /// It runs while the annotations are still in the text, and never changes anything.
+    /// </summary>
+    public interface IShipAnalysis
+    {
+        /// <summary>
+        /// Null, with <paramref name="whyNot"/> set, when the parser is not ready or a module does not parse: tree shaking is then skipped as a whole.
+        /// The result also carries the roots with their sources and the dynamic calls.
+        /// </summary>
+        ShipAnalysisResult Analyze(IVBProject project, ShipWorkingSet set, ShipTreeShakingSettings settings, out string whyNot);
+    }
+
+    public class ShipAnalysisResult
+    {
+        public List<ShipRemoval> Removals { get; } = new List<ShipRemoval>();
+        /// <summary>Why each root is one: "Module1.Go: public procedure", "Foo: string literal in Module2", "Bar: ribbon onAction"...</summary>
+        public List<string> Roots { get; } = new List<string>();
+        public List<string> DynamicCalls { get; } = new List<string>();
+        /// <summary>For the report: for example a keep entry that matches nothing.</summary>
+        public List<string> Warnings { get; } = new List<string>();
     }
 
     public interface IShipService

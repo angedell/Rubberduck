@@ -8,9 +8,11 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Moq;
 using NUnit.Framework;
 using Rubberduck.PackageResources;
+using Rubberduck.Parsing.VBA;
 using Rubberduck.Ship;
 using Rubberduck.VBEditor.SafeComWrappers;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
@@ -347,6 +349,72 @@ namespace RubberduckTests.Ship
             var prefix = "'" + Path.GetFileName(artifact) + "'!";
             Assert.AreEqual(42, (int)session.Excel.Run(prefix + "Answer"));
             Assert.AreEqual("it's ' not a comment", (string)session.Excel.Run(prefix + "Quote"));
+            Assert.AreEqual("hello", (string)session.Excel.Run(prefix + "ThingHello"));
+        }
+
+        //The same workbook as a project that Rubberduck's parser has really parsed (code without header and attribute lines, as the code pane holds it); exports still give the Excel-made files.
+        private Mock<IVBProject> ParsedProjectOf(Built built, out RubberduckParserState state)
+        {
+            var text = new ShipModuleText(ShipTestParser.Create());
+            var vbeBuilder = new MockVbeBuilder();
+            var project = vbeBuilder.ProjectBuilder("Book", built.Workbook, ProjectProtection.Unprotected)
+                .AddReference(ReferenceLibrary.VBA)
+                .AddReference(ReferenceLibrary.Excel);
+            foreach (var component in built.Components)
+            {
+                project.AddComponent(component.Name, component.Type, text.CodeOnly(component.Name, "project-1", component.Text).Text.TrimStart('\r', '\n'));
+            }
+
+            var mock = project.Build();
+            mock.SetupGet(p => p.IsSaved).Returns(true);
+            var vbe = vbeBuilder.AddProject(mock).Build();
+            vbe.Object.ActiveVBProject = mock.Object;
+            var host = new Mock<IHostApplication>();
+            host.SetupGet(h => h.ApplicationName).Returns("Excel");
+            vbe.Setup(v => v.HostApplication()).Returns(host.Object);
+            foreach (var component in project.MockComponents)
+            {
+                var source = built.Components.Single(c => c.Name == component.Object.Name).File;
+                component.Setup(c => c.Export(It.IsAny<string>())).Callback<string>(path => File.Copy(source, path, true));
+            }
+
+            var parser = MockParser.Create(vbe.Object);
+            parser.Parse(new CancellationTokenSource());
+            state = parser.State;
+            Assert.AreEqual(ParserState.Ready, state.Status, "The parser should read the workbook's code cleanly.");
+            return mock;
+        }
+
+        [Test]
+        public void TreeShakingTakesOutWhatNothingReachesAndTheShippedWorkbookStillRuns()
+        {
+            var built = BuildWorkbook();
+            var project = ParsedProjectOf(built, out var state);
+            var projectId = project.Object.ProjectId;
+            var analysis = new ParserStateShipAnalysis(state, ShipTestParser.CreateFor(null, projectId), () => state.Status);
+            var service = new ShipService(new FileSystem(), new PackageResourceService(new FileSystem(), Path.Combine(_folder, "journal2"), Path.Combine(_folder, "backup2")),
+                ShipTestParser.CreateFor(null, projectId), new ShipArtifactWriter(new FileSystem(), new ShipModuleText(ShipTestParser.CreateFor(null, projectId))), new ShipEnvironment(),
+                Path.Combine(_folder, "unattended.json"), Path.Combine(_folder, "temp"), analysis);
+            var output = Path.Combine(_folder, "out");
+            Directory.CreateDirectory(output);
+            var settings = new ShipSettings { Format = ShipFormat.Xlsm, OutputFolder = output, FileName = "Tool" };
+            settings.Steps[ShipSteps.TreeShaking] = true;
+
+            var report = service.Ship(project.Object, settings, ShipOnExisting.Ask, null);
+
+            Assert.IsEmpty(report.Warnings, string.Join(" | ", report.Warnings));
+            Assert.IsEmpty(report.Unparsed, string.Join(" | ", report.Unparsed));
+            CollectionAssert.Contains(report.Steps.Single(s => s.Step == ShipSteps.TreeShaking).Details, "modMath.Secret");
+
+            var artifact = Path.Combine(output, "Tool.xlsm");
+            var session = NewExcel(securityLevel: 1);
+            dynamic opened = session.Excel.Workbooks.Open(artifact);
+            dynamic vbProject = opened.VBProject;
+            var math = CodeOf(vbProject.VBComponents.Item("modMath"));
+            StringAssert.DoesNotContain("Secret", math, "The private function nothing calls is gone.");
+            StringAssert.Contains("Function Answer", math);
+            var prefix = "'" + Path.GetFileName(artifact) + "'!";
+            Assert.AreEqual(42, (int)session.Excel.Run(prefix + "Answer"));
             Assert.AreEqual("hello", (string)session.Excel.Run(prefix + "ThingHello"));
         }
 

@@ -75,7 +75,7 @@ namespace RubberduckTests.Ship
         }
 
         [Test]
-        public void ProjectWithNoSavedChoice_PreselectsXlsmAndAllStepsOn()
+        public void ProjectWithNoSavedChoice_PreselectsXlsmAndTheStepsThatAreOnByDefault()
         {
             var model = Make(new FakeShipService());
 
@@ -83,8 +83,108 @@ namespace RubberduckTests.Ship
             Assert.AreEqual(".xlsm", model.Extension);
             foreach (var step in ShipSteps.All)
             {
-                Assert.IsTrue(model.IsStepOn(step), step);
+                Assert.AreEqual(!ShipSteps.OffByDefault(step), model.IsStepOn(step), step);
             }
+
+            Assert.IsFalse(model.IsStepOn(ShipSteps.TreeShaking));
+            Assert.AreEqual(ShipTreeShakingMode.Conservative, model.TreeShakingMode);
+            Assert.AreEqual(0, model.TreeShakingKeep.Count);
+        }
+
+        [Test]
+        public void Load_ShowsTheSavedTreeShakingModeAndKeepList()
+        {
+            var settings = new ShipSettings();
+            settings.Steps[ShipSteps.TreeShaking] = true;
+            settings.TreeShaking.Mode = ShipTreeShakingMode.EntryPointsOnly;
+            settings.TreeShaking.Keep.AddRange(new[] { "Module1.Go", "Helper" });
+            var model = Make(new FakeShipService { Settings = settings });
+
+            Assert.IsTrue(model.IsStepOn(ShipSteps.TreeShaking));
+            Assert.AreEqual(ShipTreeShakingMode.EntryPointsOnly, model.TreeShakingMode);
+            CollectionAssert.AreEqual(new[] { "Module1.Go", "Helper" }, model.TreeShakingKeep);
+        }
+
+        [Test]
+        public void SettingTheKeepListFromText_TakesOneNamePerLine_SkippingBlanksAndDuplicates()
+        {
+            var model = Make(new FakeShipService());
+
+            model.SetTreeShakingKeepText("Module1.Go\r\n\n  Helper  \r\nmodule1.go\r\n");
+
+            CollectionAssert.AreEqual(new[] { "Module1.Go", "Helper" }, model.TreeShakingKeep);
+            var built = model.BuildSettings(ShipOnExisting.Ask);
+            CollectionAssert.AreEqual(new[] { "Module1.Go", "Helper" }, built.TreeShaking.Keep);
+        }
+
+        [Test]
+        public void BuildSettings_CarriesTheTreeShakingModeAndStepState()
+        {
+            var model = Make(new FakeShipService());
+            model.SetStep(ShipSteps.TreeShaking, true);
+            model.SetTreeShakingMode(ShipTreeShakingMode.EntryPointsOnly);
+
+            var built = model.BuildSettings(ShipOnExisting.Ask);
+
+            Assert.IsTrue(built.IsOn(ShipSteps.TreeShaking));
+            Assert.AreEqual(ShipTreeShakingMode.EntryPointsOnly, built.TreeShaking.Mode);
+        }
+
+        [Test]
+        public async Task ChangingTheModeOrTheKeepList_MakesThePreviewStale()
+        {
+            var model = Make(new FakeShipService());
+            await model.RefreshPreviewAsync();
+            model.SetTreeShakingMode(ShipTreeShakingMode.EntryPointsOnly);
+            Assert.AreEqual(ShipPreviewState.Stale, model.PreviewState);
+
+            await model.RefreshPreviewAsync();
+            model.SetTreeShakingKeepText("Foo");
+            Assert.AreEqual(ShipPreviewState.Stale, model.PreviewState);
+        }
+
+        [Test]
+        public async Task Preview_ListsRemovalsByName_ThenTheDynamicCallsWithAnExplanation()
+        {
+            var report = new ShipReport { DryRun = true };
+            var shaking = new ShipStepReport { Step = ShipSteps.TreeShaking, Removed = 2 };
+            shaking.Details.Add("Module1.OldHelper");
+            shaking.Details.Add("Module2.Unused");
+            report.Steps.Add(shaking);
+            report.DynamicCalls.Add("Module1.Go line 12: Application.Run with a computed name");
+            var model = Make(new FakeShipService { OnPreview = s => report });
+            await model.RefreshPreviewAsync();
+
+            var lines = model.PreviewLines().ToList();
+            var text = string.Join("\n", lines);
+
+            StringAssert.Contains("Module1.OldHelper", text);
+            StringAssert.Contains("Module2.Unused", text);
+            StringAssert.Contains("Application.Run with a computed name", text);
+            StringAssert.Contains("names to keep", text);
+            Assert.Less(text.IndexOf("Module2.Unused"), text.IndexOf("Application.Run"));
+        }
+
+        [Test]
+        public async Task Preview_WhenTreeShakingWasSkipped_ShowsTheReasonFromTheWarning()
+        {
+            var report = new ShipReport { DryRun = true };
+            report.Warnings.Add("Tree shaking skipped: Module3 does not parse");
+            var model = Make(new FakeShipService { OnPreview = s => report });
+            await model.RefreshPreviewAsync();
+
+            StringAssert.Contains("Tree shaking skipped: Module3 does not parse", string.Join("\n", model.PreviewLines()));
+        }
+
+        [Test]
+        public void Confirmation_SaysTreeShakingIsOnOnlyWhenItIs()
+        {
+            var model = Make(new FakeShipService());
+            StringAssert.DoesNotContain("tree shaking", string.Join("\n", model.ConfirmationLines()));
+
+            model.SetStep(ShipSteps.TreeShaking, true);
+
+            StringAssert.Contains("tree shaking", string.Join("\n", model.ConfirmationLines()));
         }
 
         [Test]

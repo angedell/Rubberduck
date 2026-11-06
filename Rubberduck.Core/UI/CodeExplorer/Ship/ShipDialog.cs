@@ -36,6 +36,9 @@ namespace Rubberduck.UI.CodeExplorer.Ship
         private Label _willWrite;
         private readonly Dictionary<string, CheckBox> _steps = new Dictionary<string, CheckBox>();
         private readonly Dictionary<ShipOnExisting, RadioButton> _existing = new Dictionary<ShipOnExisting, RadioButton>();
+        private TableLayoutPanel _treeShakingPanel;
+        private readonly Dictionary<ShipTreeShakingMode, RadioButton> _modes = new Dictionary<ShipTreeShakingMode, RadioButton>();
+        private TextBox _keep;
         private CheckBox _remember;
         private Label _previewState;
         private TextBox _previewText;
@@ -188,6 +191,10 @@ namespace Rubberduck.UI.CodeExplorer.Ship
                 box.CheckedChanged += (s, e) => { if (!_updating) _model.SetStep(captured, box.Checked); };
                 _steps[step] = box;
                 flow.Controls.Add(box);
+                if (step == ShipSteps.TreeShaking)
+                {
+                    BuildTreeShakingPanel(flow);
+                }
             }
 
             // existing file
@@ -210,7 +217,7 @@ namespace Rubberduck.UI.CodeExplorer.Ship
             previewHead.Controls.Add(_previewState, 0, 0);
             previewHead.Controls.Add(_refresh, 1, 0);
             flow.Controls.Add(previewHead);
-            _previewText = new TextBox { Dock = DockStyle.Top, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Height = 120, BackColor = SystemColors.Window };
+            _previewText = new TextBox { Dock = DockStyle.Top, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Height = 170, BackColor = SystemColors.Window };
             flow.Controls.Add(_previewText);
 
             // unattended
@@ -221,6 +228,31 @@ namespace Rubberduck.UI.CodeExplorer.Ship
             var warning = Wrap(ShipUI.Ship_UnattendedWarning, 0);
             warning.ForeColor = Color.Firebrick;
             flow.Controls.Add(warning);
+        }
+
+        /// <summary>The choices that belong to tree shaking; shown only while the step is on.</summary>
+        private void BuildTreeShakingPanel(Control parent)
+        {
+            _treeShakingPanel = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, Margin = new Padding(24, 0, 0, 4), Visible = false };
+            _treeShakingPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            AddMode(ShipTreeShakingMode.Conservative, ShipUI.Ship_TreeShaking_Mode_Conservative);
+            AddMode(ShipTreeShakingMode.EntryPointsOnly, ShipUI.Ship_TreeShaking_Mode_EntryPointsOnly);
+            _treeShakingPanel.Controls.Add(new Label { Text = ShipUI.Ship_TreeShaking_ModeHint, AutoSize = true, MaximumSize = new Size(600, 0), Margin = new Padding(3, 2, 0, 6) });
+            _treeShakingPanel.Controls.Add(new Label { Text = ShipUI.Ship_TreeShaking_KeepLabel, AutoSize = true, MaximumSize = new Size(600, 0), Margin = new Padding(3, 2, 0, 2), Font = new Font(Font, FontStyle.Bold) });
+            _keep = new TextBox { Multiline = true, AcceptsReturn = true, ScrollBars = ScrollBars.Vertical, Height = 80, Width = 560, Margin = new Padding(3, 0, 3, 2) };
+            _keep.Leave += (s, e) => { if (!_updating) _model.SetTreeShakingKeepText(_keep.Text); };
+            _keep.TextChanged += (s, e) => { if (!_updating) _model.SetTreeShakingKeepText(_keep.Text); };
+            _treeShakingPanel.Controls.Add(_keep);
+            _treeShakingPanel.Controls.Add(new Label { Text = ShipUI.Ship_TreeShaking_KeepHint, AutoSize = true, MaximumSize = new Size(600, 0), Margin = new Padding(3, 2, 0, 2) });
+            parent.Controls.Add(_treeShakingPanel);
+        }
+
+        private void AddMode(ShipTreeShakingMode mode, string text)
+        {
+            var radio = new RadioButton { AutoSize = true, Text = text, Margin = new Padding(3, 2, 3, 2) };
+            radio.CheckedChanged += (s, e) => { if (!_updating && radio.Checked) _model.SetTreeShakingMode(mode); };
+            _modes[mode] = radio;
+            _treeShakingPanel.Controls.Add(radio);
         }
 
         private void AddExisting(Control parent, ShipOnExisting value, string text)
@@ -345,6 +377,18 @@ namespace Rubberduck.UI.CodeExplorer.Ship
             foreach (var radio in _existing)
             {
                 radio.Value.Checked = _model.OnExisting == radio.Key;
+            }
+
+            _treeShakingPanel.Visible = _model.IsStepOn(ShipSteps.TreeShaking);
+            foreach (var mode in _modes)
+            {
+                mode.Value.Checked = _model.TreeShakingMode == mode.Key;
+            }
+
+            //Do not rewrite the box while the user types: the model's text drops blank lines and would eat the Enter key.
+            if (!_keep.Focused)
+            {
+                SetText(_keep, _model.TreeShakingKeepText);
             }
 
             _remember.Checked = _model.RememberExistingChoice;

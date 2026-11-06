@@ -20,6 +20,10 @@ namespace Rubberduck.Ship
         public string Problem { get; set; }
         /// <summary>How many comments or attribute lines were taken out.</summary>
         public int Removed { get; set; }
+        /// <summary>How many lines got a line number.</summary>
+        public int Numbered { get; set; }
+        /// <summary>Procedures left alone because they have line numbers of their own.</summary>
+        public List<string> Skipped { get; } = new List<string>();
     }
 
     /// <summary>
@@ -87,19 +91,9 @@ namespace Rubberduck.Ship
         private ShipTextResult Edit(string moduleName, string projectId, string text, Func<IParseTree, IList<IToken>, List<Span>> find)
         {
             text = text ?? string.Empty;
-            IParseTree tree;
-            ITokenStream stream;
-            try
+            if (!TryParse(moduleName, projectId, text, out var tree, out var stream, out var problem))
             {
-                (tree, stream) = _parser.Parse(moduleName, projectId, text, CancellationToken.None, CodeKind.AttributesCode);
-            }
-            catch (SyntaxErrorException exception)
-            {
-                return Unparsed(text, $"line {exception.LineNumber}, column {exception.Position}: {Short(exception.Message)} (at '{exception.OffendingSymbol?.Text}')");
-            }
-            catch (Exception exception) when (!(exception is OperationCanceledException))
-            {
-                return Unparsed(text, exception.Message);
+                return Unparsed(text, problem);
             }
 
             var tokens = ((BufferedTokenStream)stream).GetTokens();
@@ -131,6 +125,79 @@ namespace Rubberduck.Ship
             }
 
             return new ShipTextResult { Text = rewriter.GetText(), Removed = merged.Count };
+        }
+
+        /// <summary>
+        /// Puts a line number in front of every executable statement that starts a line inside a procedure, so that <c>Erl</c> can say where an error happened.
+        /// The number is the line the statement has in the code pane of the module (the header, the designer block and the attribute lines are not counted), which is the line of the
+        /// user's own project: it stays true after the steps that follow have taken lines out. Not numbered: declarations (<c>Dim</c>, <c>Static</c>, <c>Const</c>), the lines of
+        /// <c>Sub</c>, <c>Function</c>, <c>Property</c>, <c>End</c>, <c>Else</c>, <c>ElseIf</c> and <c>Case</c>, comments, blank lines, continuation lines, and statements that follow a colon.
+        /// A procedure that has a line number of its own is left alone: mixing the two would give <c>Erl</c> two meanings.
+        /// </summary>
+        public ShipTextResult NumberLines(string moduleName, string projectId, string text)
+        {
+            text = text ?? string.Empty;
+            if (!TryParse(moduleName, projectId, text, out var tree, out var stream, out var problem))
+            {
+                return Unparsed(text, problem);
+            }
+
+            var tokens = ((BufferedTokenStream)stream).GetTokens();
+            var finder = new LineNumberFinder(tokens);
+            ParseTreeWalker.Default.Walk(finder, tree);
+
+            var result = new ShipTextResult { Text = text };
+            result.Skipped.AddRange(finder.Skipped);
+            var rewriter = new TokenStreamRewriter(stream);
+            foreach (var statement in finder.Statements)
+            {
+                var number = statement.Start.Line - finder.OutsideCodePaneBefore(statement.Start.Line);
+                if (number < 1 || number > MaxLineNumber)
+                {
+                    continue;
+                }
+
+                var index = statement.Start.TokenIndex;
+                while (index > 0 && tokens[index - 1].Type == VBALexer.WS)
+                {
+                    index--;
+                }
+
+                rewriter.InsertBefore(index, number + " ");
+                result.Numbered++;
+            }
+
+            if (result.Numbered > 0)
+            {
+                result.Text = rewriter.GetText();
+            }
+
+            return result;
+        }
+
+        //VBA keeps line numbers in 0..65535.
+        private const int MaxLineNumber = 65535;
+
+        private bool TryParse(string moduleName, string projectId, string text, out IParseTree tree, out ITokenStream stream, out string problem)
+        {
+            tree = null;
+            stream = null;
+            problem = null;
+            try
+            {
+                (tree, stream) = _parser.Parse(moduleName, projectId, text, CancellationToken.None, CodeKind.AttributesCode);
+                return true;
+            }
+            catch (SyntaxErrorException exception)
+            {
+                problem = $"line {exception.LineNumber}, column {exception.Position}: {Short(exception.Message)} (at '{exception.OffendingSymbol?.Text}')";
+            }
+            catch (Exception exception) when (!(exception is OperationCanceledException))
+            {
+                problem = exception.Message;
+            }
+
+            return false;
         }
 
         private static ShipTextResult Unparsed(string text, string problem)
@@ -267,6 +334,112 @@ namespace Rubberduck.Ship
             }
 
             public override void EnterAttributeStmt(VBAParser.AttributeStmtContext context) => Spans.Add(Of(context));
+        }
+
+        private class LineNumberFinder : VBAParserBaseListener
+        {
+            private readonly IList<IToken> _tokens;
+            private readonly SortedSet<int> _outsideCodePane = new SortedSet<int>();
+            private List<VBAParser.BlockStmtContext> _candidates;
+            private bool _hasLineNumbers;
+
+            public LineNumberFinder(IList<IToken> tokens)
+            {
+                _tokens = tokens;
+            }
+
+            public List<VBAParser.BlockStmtContext> Statements { get; } = new List<VBAParser.BlockStmtContext>();
+            public List<string> Skipped { get; } = new List<string>();
+
+            /// <summary>How many lines before this one the VBE does not show: the designer's header and every attribute line (also those after a procedure's signature).</summary>
+            public int OutsideCodePaneBefore(int line) => _outsideCodePane.Count(l => l < line);
+
+            public override void EnterModuleHeader(VBAParser.ModuleHeaderContext context) => Hide(context);
+            public override void EnterModuleConfigReferences(VBAParser.ModuleConfigReferencesContext context) => Hide(context);
+            public override void EnterModuleConfig(VBAParser.ModuleConfigContext context)
+            {
+                if (!(context.Parent is VBAParser.ModuleConfigContext))
+                {
+                    Hide(context);
+                }
+            }
+
+            public override void EnterAttributeStmt(VBAParser.AttributeStmtContext context) => Hide(context);
+
+            private void Hide(ParserRuleContext context)
+            {
+                if (context.Start == null || context.Stop == null)
+                {
+                    return;
+                }
+
+                for (var line = context.Start.Line; line <= context.Stop.Line; line++)
+                {
+                    _outsideCodePane.Add(line);
+                }
+            }
+
+            public override void EnterSubStmt(VBAParser.SubStmtContext context) => Begin();
+            public override void ExitSubStmt(VBAParser.SubStmtContext context) => End(context.subroutineName().GetText());
+            public override void EnterFunctionStmt(VBAParser.FunctionStmtContext context) => Begin();
+            public override void ExitFunctionStmt(VBAParser.FunctionStmtContext context) => End(context.functionName().GetText());
+            public override void EnterPropertyGetStmt(VBAParser.PropertyGetStmtContext context) => Begin();
+            public override void ExitPropertyGetStmt(VBAParser.PropertyGetStmtContext context) => End(context.functionName().GetText());
+            public override void EnterPropertyLetStmt(VBAParser.PropertyLetStmtContext context) => Begin();
+            public override void ExitPropertyLetStmt(VBAParser.PropertyLetStmtContext context) => End(context.subroutineName().GetText());
+            public override void EnterPropertySetStmt(VBAParser.PropertySetStmtContext context) => Begin();
+            public override void ExitPropertySetStmt(VBAParser.PropertySetStmtContext context) => End(context.subroutineName().GetText());
+
+            private void Begin()
+            {
+                _candidates = new List<VBAParser.BlockStmtContext>();
+                _hasLineNumbers = false;
+            }
+
+            private void End(string name)
+            {
+                if (_hasLineNumbers)
+                {
+                    Skipped.Add(name);
+                }
+                else
+                {
+                    Statements.AddRange(_candidates);
+                }
+
+                _candidates = null;
+            }
+
+            public override void EnterLineNumberLabel(VBAParser.LineNumberLabelContext context) => _hasLineNumbers = true;
+
+            public override void EnterBlockStmt(VBAParser.BlockStmtContext context)
+            {
+                if (_candidates != null && IsNumberable(context))
+                {
+                    _candidates.Add(context);
+                }
+            }
+
+            private bool IsNumberable(VBAParser.BlockStmtContext context)
+            {
+                var statement = context.mainBlockStmt();
+                if (statement == null || context.statementLabelDefinition() != null
+                    || statement.constStmt() != null || statement.variableStmt() != null || statement.attributeStmt() != null)
+                {
+                    return false;
+                }
+
+                //Only a statement that is the first thing on its physical line can carry a number.
+                for (var i = context.Start.TokenIndex - 1; i >= 0; i--)
+                {
+                    if (_tokens[i].Type != VBALexer.WS)
+                    {
+                        return _tokens[i].Type == VBALexer.NEWLINE;
+                    }
+                }
+
+                return true;
+            }
         }
 
         private class AttributeFinder : VBAParserBaseListener

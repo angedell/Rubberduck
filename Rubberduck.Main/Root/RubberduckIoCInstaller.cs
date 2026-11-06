@@ -190,6 +190,9 @@ namespace Rubberduck.Root
             container.Register(Component.For<GitSyncService>()
                 .LifestyleSingleton());
 
+            container.Register(Component.For<IShipAnalysis>()
+                .ImplementedBy<ParserStateShipAnalysis>()
+                .LifestyleSingleton());
             container.Register(Component.For<IShipService>()
                 .ImplementedBy<ShipService>()
                 .LifestyleSingleton());
@@ -347,6 +350,8 @@ namespace Rubberduck.Root
                             && !type.Name.EndsWith("ConfigProvider")
                             && !type.Name.EndsWith("FakesProvider")
                             && !type.GetInterfaces().Contains(typeof(IInspection))
+                            //The REST API's private presenters answer a refactoring from the request. Registered, they would replace the dialogs (ApiRenamePresenter matches IRenamePresenter).
+                            && !(type.IsNested && type.Namespace == "Rubberduck.Api")
                             && type.NotDisabledOrExperimental(_initialSettings)
                             && type != typeof(InstanceProvider))
                     .WithService.DefaultInterfaces()

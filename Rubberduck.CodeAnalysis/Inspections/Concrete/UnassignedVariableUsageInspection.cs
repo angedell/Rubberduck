@@ -213,7 +213,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
         // This function works under the assumption that there are no assignments to the referenced variable.
         private bool IsRedimedVariantArrayReference(IdentifierReference reference)
         {
-            if (reference.Declaration.AsTypeName != "Variant")
+            if (!string.Equals(reference.Declaration.AsTypeName, "Variant", System.StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

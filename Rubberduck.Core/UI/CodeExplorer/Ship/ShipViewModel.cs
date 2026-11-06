@@ -79,8 +79,9 @@ namespace Rubberduck.UI.CodeExplorer.Ship
         private readonly IVBProject _project;
         private readonly IShipFileProbe _probe;
         private readonly object _gate = new object();
-        private readonly Dictionary<string, bool> _steps = ShipSteps.All.ToDictionary(step => step, step => true);
+        private readonly Dictionary<string, bool> _steps = ShipSteps.All.ToDictionary(step => step, step => !ShipSteps.OffByDefault(step));
         private readonly List<string> _progress = new List<string>();
+        private List<string> _keep = new List<string>();
         private ShipSettings _loaded = new ShipSettings();
         private ShipOnExisting? _answer;
         private int _previewVersion;
@@ -116,7 +117,15 @@ namespace Rubberduck.UI.CodeExplorer.Ship
         /// <summary>The user's switch: ship without asking. Applied when the user ships.</summary>
         public bool Unattended { get; private set; }
 
-        public bool IsStepOn(string step) => !_steps.TryGetValue(step, out var on) || on;
+        public bool IsStepOn(string step) => _steps.TryGetValue(step, out var on) ? on : !ShipSteps.OffByDefault(step);
+
+        public ShipTreeShakingMode TreeShakingMode { get; private set; } = ShipTreeShakingMode.Conservative;
+
+        /// <summary>The names the user wants kept whatever tree shaking finds: "Member" or "Module.Member".</summary>
+        public IReadOnlyList<string> TreeShakingKeep => _keep;
+
+        /// <summary>The keep list as the dialog's box shows it, one name per line.</summary>
+        public string TreeShakingKeepText => string.Join(Environment.NewLine, _keep);
 
         // --- derived
 
@@ -225,6 +234,9 @@ namespace Rubberduck.UI.CodeExplorer.Ship
                 _steps[step] = settings.IsOn(step);
             }
 
+            TreeShakingMode = settings.TreeShaking.Mode;
+            _keep = settings.TreeShaking.Keep.ToList();
+
             Unattended = _service.IsUnattended(_project);
             Revalidate();
         }
@@ -255,6 +267,37 @@ namespace Rubberduck.UI.CodeExplorer.Ship
         public void SetStep(string step, bool on)
         {
             _steps[step] = on;
+            MarkPreviewStale();
+            RaiseChanged();
+        }
+
+        public void SetTreeShakingMode(ShipTreeShakingMode mode)
+        {
+            if (TreeShakingMode == mode)
+            {
+                return;
+            }
+
+            TreeShakingMode = mode;
+            MarkPreviewStale();
+            RaiseChanged();
+        }
+
+        /// <summary>Takes the box's text: one name per line, blank lines and repeats (any case) dropped.</summary>
+        public void SetTreeShakingKeepText(string text)
+        {
+            var names = (text ?? string.Empty)
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (names.SequenceEqual(_keep))
+            {
+                return;
+            }
+
+            _keep = names;
             MarkPreviewStale();
             RaiseChanged();
         }
@@ -456,6 +499,9 @@ namespace Rubberduck.UI.CodeExplorer.Ship
                 settings.Steps[step] = IsStepOn(step);
             }
 
+            settings.TreeShaking.Mode = TreeShakingMode;
+            settings.TreeShaking.Keep.AddRange(_keep);
+
             return settings;
         }
 
@@ -510,6 +556,15 @@ namespace Rubberduck.UI.CodeExplorer.Ship
                 }
             }
 
+            if (report.DynamicCalls.Count > 0)
+            {
+                yield return ShipUI.Ship_Preview_DynamicCalls;
+                foreach (var call in report.DynamicCalls)
+                {
+                    yield return "    " + call;
+                }
+            }
+
             foreach (var unparsed in report.Unparsed)
             {
                 yield return string.Format(ShipUI.Ship_Preview_Unparsed, unparsed);
@@ -529,13 +584,21 @@ namespace Rubberduck.UI.CodeExplorer.Ship
         public IReadOnlyList<string> ConfirmationLines()
         {
             var removed = ShipSteps.All.Where(IsStepOn).Select(StepLabel).ToList();
-            return new[]
+            var lines = new List<string>
             {
                 string.Format(ShipUI.Ship_Confirm_File, TargetPath),
                 string.Format(ShipUI.Ship_Confirm_Type, Extension),
-                string.Format(ShipUI.Ship_Confirm_Removes, removed.Count == 0 ? ShipUI.Ship_Confirm_RemovesNothing : string.Join("; ", removed)),
-                ShipUI.Ship_Confirm_Untouched
+                string.Format(ShipUI.Ship_Confirm_Removes, removed.Count == 0 ? ShipUI.Ship_Confirm_RemovesNothing : string.Join("; ", removed))
             };
+            if (IsStepOn(ShipSteps.TreeShaking))
+            {
+                lines.Add(string.Format(ShipUI.Ship_Confirm_TreeShaking,
+                    TreeShakingMode == ShipTreeShakingMode.EntryPointsOnly ? ShipUI.Ship_TreeShaking_Mode_EntryPointsOnly : ShipUI.Ship_TreeShaking_Mode_Conservative,
+                    _keep.Count));
+            }
+
+            lines.Add(ShipUI.Ship_Confirm_Untouched);
+            return lines;
         }
 
         public string FolderMessage

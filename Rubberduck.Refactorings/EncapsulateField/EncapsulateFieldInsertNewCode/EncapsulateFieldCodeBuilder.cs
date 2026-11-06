@@ -54,7 +54,7 @@ namespace Rubberduck.Refactorings.EncapsulateField
                 ? $"{Tokens.Set} {propertyAttributes.PropertyName} = {propertyAttributes.BackingField}"
                 : $"{propertyAttributes.PropertyName} = {propertyAttributes.BackingField}";
 
-            if (propertyAttributes.AsTypeName.Equals(Tokens.Variant) && !propertyAttributes.Declaration.IsArray)
+            if (propertyAttributes.AsTypeName.Equals(Tokens.Variant, System.StringComparison.OrdinalIgnoreCase) && !propertyAttributes.Declaration.IsArray)
             {
                 propertyGetBody = string.Join(Environment.NewLine,
                     $"{Tokens.If} IsObject({propertyAttributes.BackingField}) {Tokens.Then}",

@@ -135,7 +135,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
                     : DeclarationSite.NotApplicable;
             }
 
-            if (originalDeclaration.QualifiedName.QualifiedModuleName.ComponentName != userDeclaration.QualifiedName.QualifiedModuleName.ComponentName)
+            if (!originalDeclaration.QualifiedName.QualifiedModuleName.ComponentName.Equals(userDeclaration.QualifiedName.QualifiedModuleName.ComponentName, System.StringComparison.OrdinalIgnoreCase))
             {
                 return DeclarationSite.OtherComponent;
             }

@@ -350,7 +350,7 @@ namespace Rubberduck.Parsing.Symbols
         {
             get
             {
-                if (AsTypeName == Tokens.Object 
+                if (string.Equals(AsTypeName, Tokens.Object, System.StringComparison.OrdinalIgnoreCase)
                     || (AsTypeDeclaration?.DeclarationType.HasFlag(DeclarationType.ClassModule) ?? false))
                 {
                     return true;

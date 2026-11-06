@@ -83,11 +83,11 @@ namespace Rubberduck.Parsing.Symbols
             }
 
             return member.IsInterfaceMember
-                   && IdentifierName.Equals(member.ImplementingIdentifierName)
+                   && IdentifierName.Equals(member.ImplementingIdentifierName, System.StringComparison.OrdinalIgnoreCase)
                    && ((ClassModuleDeclaration)member.ParentDeclaration).Subtypes.Any(implementation => ReferenceEquals(implementation, ParentDeclaration))
                    && (member.DeclarationType == DeclarationType.PropertySet
                        || member.DeclarationType == DeclarationType.Variable 
-                       && (member.IsObject || member.AsTypeName.Equals(Tokens.Variant)));
+                       && (member.IsObject || member.AsTypeName.Equals(Tokens.Variant, System.StringComparison.OrdinalIgnoreCase)));
         }
 
         public override BlockContext Block => ((PropertySetStmtContext)Context).block();

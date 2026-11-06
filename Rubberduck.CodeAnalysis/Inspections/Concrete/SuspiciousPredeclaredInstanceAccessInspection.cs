@@ -88,7 +88,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
                 module.HasPredeclaredId &&
                 reference.ParentScoping.ParentDeclaration.Equals(module) &&
                 reference.Context.TryGetAncestor<VBAParser.MemberAccessExprContext>(out var expression) &&
-                reference.IdentifierName != Tokens.Me && expression.lExpression()?.GetText() == reference.IdentifierName;
+                !string.Equals(reference.IdentifierName, Tokens.Me, System.StringComparison.OrdinalIgnoreCase) && string.Equals(expression.lExpression()?.GetText(), reference.IdentifierName, System.StringComparison.OrdinalIgnoreCase);
         }
 
         protected override string ResultDescription(IdentifierReference reference)

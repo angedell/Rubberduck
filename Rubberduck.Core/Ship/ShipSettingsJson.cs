@@ -31,6 +31,8 @@ namespace Rubberduck.Ship
         {
             { ShipSteps.Notes, "Leave out the notes (the @Notes modules)." },
             { ShipSteps.TestModules, "Leave out the unit test modules (@TestModule) and the reference to Rubberduck's unit testing library." },
+            { ShipSteps.LineNumbers, "Number the executable lines of every procedure with their line in your module (as the code pane shows it), so error handlers in the shipped file can report Erl. Off by default. A procedure that already has line numbers is left alone." },
+            { ShipSteps.TreeShaking, "Remove the code nothing reachable uses (see \"treeShaking\" below for what counts as reachable). Off by default: it is the one step that can remove code you need. The preview lists everything it would remove." },
             { ShipSteps.Comments, "Remove every comment, the '@ annotations included." },
             { ShipSteps.DescriptiveAttributes, "Remove the attributes that only describe (such as VB_Ext_KEY). The ones that change how code runs stay, and so do the descriptions of public procedures in standard modules." },
             { ShipSteps.Config, "Leave out this file (customUI/rubberduck.json) from the shipped file. The ribbon and its pictures stay." }
@@ -92,6 +94,9 @@ namespace Rubberduck.Ship
                     case "steps":
                         ReadSteps(property, ship, errors);
                         break;
+                    case "treeshaking":
+                        ReadTreeShaking(property, ship.TreeShaking, errors);
+                        break;
                     case "$comment":
                         break;
                     default:
@@ -128,6 +133,55 @@ namespace Rubberduck.Ship
                 else
                 {
                     errors.Add($"Invalid value for ship step '{step.Name}': {step.Value}. Use true or false.");
+                }
+            }
+        }
+
+        private static readonly string[] ModeNames = { "conservative", "entryPointsOnly" };
+
+        private static void ReadTreeShaking(JProperty property, ShipTreeShakingSettings settings, ICollection<string> errors)
+        {
+            if (!(property.Value is JObject body))
+            {
+                errors.Add("Ship setting 'treeShaking' must be an object with 'mode' and 'keep'.");
+                return;
+            }
+
+            foreach (var setting in body.Properties())
+            {
+                switch (setting.Name.ToLowerInvariant())
+                {
+                    case "mode":
+                        var (mode, modeError) = ShipKeepList.NormalizeMode(setting.Value);
+                        if (mode == null)
+                        {
+                            errors.Add(modeError);
+                        }
+                        else
+                        {
+                            settings.Mode = mode.Value;
+                        }
+
+                        break;
+                    case "keep":
+                        var (valid, problems) = ShipKeepList.Normalize(setting.Value);
+                        foreach (var problem in problems)
+                        {
+                            errors.Add(problem);
+                        }
+
+                        if (valid != null)
+                        {
+                            settings.Keep.Clear();
+                            settings.Keep.AddRange(valid);
+                        }
+
+                        break;
+                    case "$comment":
+                        break;
+                    default:
+                        errors.Add($"Unknown ship setting 'treeShaking.{setting.Name}'.");
+                        break;
                 }
             }
         }
@@ -177,6 +231,17 @@ namespace Rubberduck.Ship
                 Line(inner + "  \"" + step + "\": " + (ship.IsOn(step) ? "true" : "false") + (i < ShipSteps.All.Length - 1 ? "," : string.Empty));
             }
 
+            Line(inner + "},");
+            Line();
+            Comment(inner, "How the \"treeShaking\" step decides what is reachable. It reads what Rubberduck parsed, so the project has to parse without errors; if it does not, the step is skipped and the preview says why.",
+                "Always kept: event handlers, interface implementations, Class_Initialize/Terminate, Auto_Open/Auto_Close, @EntryPoint and @ExcelHotkey members, public members of exposed classes,",
+                "member names found in a string anywhere in the code, and in the ribbon, shape macros, defined names and formulas of the workbook.");
+            Line(inner + "\"treeShaking\": {");
+            Comment(inner + "  ", "\"conservative\": every public procedure of a standard module is kept (it may be a macro or a worksheet function).",
+                "\"entryPointsOnly\": only what is listed above and in \"keep\" is kept, so a public procedure nothing calls is removed.");
+            Line(inner + "  \"mode\": " + JsonConvert.ToString(ship.TreeShaking.Mode == ShipTreeShakingMode.EntryPointsOnly ? "entryPointsOnly" : "conservative") + ",");
+            Comment(inner + "  ", "Names that are never removed: \"Name\" (a procedure, variable, constant, Type, Enum or module of that name anywhere) or \"Module.Name\". Not case sensitive.");
+            Line(inner + "  \"keep\": [" + string.Join(", ", ship.TreeShaking.Keep.Select(k => JsonConvert.ToString(k))) + "]");
             Line(inner + "}");
             text.Append(indent).Append("}");
             return text.ToString();

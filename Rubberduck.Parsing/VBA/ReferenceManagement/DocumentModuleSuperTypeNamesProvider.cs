@@ -48,7 +48,7 @@ namespace Rubberduck.Parsing.VBA.ReferenceManagement
                 return Enumerable.Empty<string>();
             }
 
-            var comModule = userComProject.Members.SingleOrDefault(m => m.Name == document.ComponentName);
+            var comModule = userComProject.Members.SingleOrDefault(m => string.Equals(m.Name, document.ComponentName, System.StringComparison.OrdinalIgnoreCase));
             if (comModule == null)
             {
                 return Enumerable.Empty<string>();

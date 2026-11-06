@@ -456,7 +456,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
 
         public IEnumerable<Declaration> FindWithEventFields(Declaration eventDeclaration)
         {
-            return FindWithEventFields().Where(withEventField => withEventField.AsTypeName == eventDeclaration.ComponentName);
+            return FindWithEventFields().Where(withEventField => string.Equals(withEventField.AsTypeName, eventDeclaration.ComponentName, System.StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -548,7 +548,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
         public ParameterDeclaration FindParameter(Declaration parameterizedMember, string parameterName)
         {
             return _parametersByParent.TryGetValue(parameterizedMember, out List<ParameterDeclaration> parameters) 
-                ? parameters.SingleOrDefault(parameter => parameter.IdentifierName == parameterName) 
+                ? parameters.SingleOrDefault(parameter => string.Equals(parameter.IdentifierName, parameterName, System.StringComparison.OrdinalIgnoreCase)) 
                 : null;
         }
 
@@ -574,7 +574,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
         public IEnumerable<Declaration> FindMemberMatches(Declaration parent, string memberName)
         {
             return Members(parent.QualifiedName.QualifiedModuleName, DeclarationType.Member)
-                .Where(member => member.IdentifierName.Equals(memberName));
+                .Where(member => member.IdentifierName.Equals(memberName, System.StringComparison.OrdinalIgnoreCase));
         }
 
         public IEnumerable<IParseTreeAnnotation> FindAnnotations(QualifiedModuleName module, int annotatedLine)
@@ -687,7 +687,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
             {
                 // argument is named: we're lucky
                 var parameterName = namedArg.unrestrictedIdentifier().GetText();
-                parameter = parameters.SingleOrDefault(p => p.IdentifierName == parameterName);
+                parameter = parameters.SingleOrDefault(p => string.Equals(p.IdentifierName, parameterName, System.StringComparison.OrdinalIgnoreCase));
             }
             else
             {
@@ -1119,7 +1119,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
                 {
                     _newUndeclared.TryGetValue(enclosingScope, out undeclared);
                 }
-                var inScopeUndeclared = undeclared.FirstOrDefault(d => d.IdentifierName == identifierName);
+                var inScopeUndeclared = undeclared.FirstOrDefault(d => string.Equals(d.IdentifierName, identifierName, System.StringComparison.OrdinalIgnoreCase));
                 if (inScopeUndeclared != null)
                 {
                     return inScopeUndeclared;
@@ -1724,7 +1724,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
         {
             var qualifiedSelection = new QualifiedSelection(module, identifierContext.GetSelection());
             return IdentifierReferences(qualifiedSelection)
-                .Where(identifierReference => identifierReference.IdentifierName.Equals(identifierContext.GetText()));
+                .Where(identifierReference => identifierReference.IdentifierName.Equals(identifierContext.GetText(), System.StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -1734,7 +1734,7 @@ namespace Rubberduck.Parsing.VBA.DeclarationCaching
         {
             var qualifiedSelection = new QualifiedSelection(module, identifierContext.GetSelection());
             return IdentifierReferences(qualifiedSelection)
-                .Where(identifierReference => identifierReference.IdentifierName.Equals(identifierContext.GetText()));
+                .Where(identifierReference => identifierReference.IdentifierName.Equals(identifierContext.GetText(), System.StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

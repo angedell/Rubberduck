@@ -144,7 +144,7 @@ namespace Rubberduck.Parsing.Symbols
             var supertype = string.Join("_", identifiers.Take(identifiers.Length - 1));
 
             var implements = classModule.Supertypes.Cast<ClassModuleDeclaration>().FirstOrDefault(intrface =>
-                intrface.IdentifierName.Equals(supertype)
+                intrface.IdentifierName.Equals(supertype, System.StringComparison.OrdinalIgnoreCase)
                 && intrface.References.Any(reference => ReferenceEquals(reference.ParentScoping, classModule)));
 
             if (implements == null)

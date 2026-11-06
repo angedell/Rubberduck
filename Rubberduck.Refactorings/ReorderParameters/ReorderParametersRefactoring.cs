@@ -114,7 +114,7 @@ namespace Rubberduck.Refactorings.ReorderParameters
             var getter = _declarationFinderProvider.DeclarationFinder
                 .UserDeclarations(DeclarationType.PropertyGet)
                 .FirstOrDefault(item => item.Scope == target.Scope
-                                        && item.IdentifierName == target.IdentifierName);
+                                        && string.Equals(item.IdentifierName, target.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
             if (getter == null)
             {

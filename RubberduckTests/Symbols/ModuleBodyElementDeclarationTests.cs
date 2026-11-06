@@ -55,5 +55,45 @@ End Property
 
             Assert.AreSame(member, implementing.InterfaceMemberImplemented);
         }
+
+        [Test]
+        [Category("Resolver")]
+        public void ImplementationMatchesInterfaceMemberAndInterfaceNameIgnoringCase()
+        {
+            var interfaceModule =
+                @"Option Explicit
+
+Public Function command() As Long
+End Function
+";
+
+            var implementation =
+                @"Option Explicit
+
+Implements TestInterface
+
+Private Function TESTINTERFACE_Command() As Long
+End Function
+";
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("UnderTest", ProjectProtection.Unprotected)
+                .AddComponent("TestInterface", ComponentType.ClassModule, interfaceModule, new Selection(1, 1))
+                .AddComponent("TestImplementation", ComponentType.ClassModule, implementation, new Selection(1, 1))
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            var parser = MockParser.Create(vbe.Object);
+            parser.Parse(new CancellationTokenSource());
+
+            var declarations = parser.State.DeclarationFinder.AllDeclarations.ToList();
+
+            var implementing = (ModuleBodyElementDeclaration)declarations.Single(decl =>
+                decl.DeclarationType == DeclarationType.Function && decl.IdentifierName.Equals("TESTINTERFACE_Command"));
+            var member = (ModuleBodyElementDeclaration)declarations.Single(decl =>
+                decl.DeclarationType == DeclarationType.Function && decl.IdentifierName.Equals("command"));
+
+            Assert.IsTrue(implementing.IsInterfaceImplementation);
+            Assert.AreSame(member, implementing.InterfaceMemberImplemented);
+        }
     }
 }

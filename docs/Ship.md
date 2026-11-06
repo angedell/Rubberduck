@@ -18,7 +18,7 @@ Still to check while building, and to be reported in the result if found: staged
 
 `ShipPipeline` runs an ordered list of `IShipStep` over a `ShipWorkingSet` (the exported modules as text, the references, the copy's resources). Every step reports a `StepReport` (what it removed, counts). `ShipReport` is the sum plus the problems (modules shipped unchanged because they did not parse), the output path and the chosen file name. A dry run is the preview.
 
-Steps: `RemoveNotes`, `RemoveTestModules` (with its reference), `RemoveComments`, `RemoveDescriptiveAttributes`, `RemoveConfig`. Each can be switched off. No analysis stage exists yet: the ADR names the place.
+Steps: `RemoveNotes`, `RemoveTestModules` (with its reference), `AddLineNumbers` (off by default), `RemoveComments`, `RemoveDescriptiveAttributes`, `RemoveConfig`. Each can be switched off. No analysis stage exists yet: the ADR names the place.
 
 ## Pieces
 
@@ -39,3 +39,23 @@ Tree shaking, other hosts, locking the shipped project: deferred, see the issues
 ## Overlap with the uncommitted work
 
 These files already have uncommitted changes of others in this branch and Ship needs a small addition to them: `Rubberduck.Main/Root/RubberduckIoCInstaller.cs` (registrations), `Rubberduck.Core/Api/McpEndpoint.cs` and `ApiModels.cs` (tools, models). Strings go in a new resx instead of `CodeExplorerUI.resx`. Ship's own hunks in the shared files will be kept apart from the others when committing.
+
+## Tree shaking (v2)
+
+Decisions: `docs/adr/0004-tree-shaking-reads-the-parser-state-and-removes-by-name.md`.
+
+- **Analysis** (`IShipAnalysis`, implemented over the parser state, `ParserSync` makes it catch up): roots, reachability over resolved references, removals by name, the dynamic calls. Runs before every step, only when the `treeShaking` step is on.
+- **Step** (`TreeShakingStep`): removes the named declarations from each module's text with the parse tree's spans; collapses the blank runs left; drops a module that is left empty and referenced by nothing.
+- **Roots from the document**: ribbon callbacks (`customUI.xml`), shape macros, defined names and formulas (the parts of the package read as text, names as whole words).
+- **Settings**: `steps.treeShaking` (off by default), `treeShaking.mode` (`conservative`, `entryPointsOnly`), `treeShaking.keep`.
+- **Surfaces**: the dialog gets a toggle, a mode choice, a keep list and a preview that lists removals and dynamic calls; the API settings, preview and ship carry the same; MCP instructions say to use literal names.
+- **Tests**: a corpus of small projects parsed for real; every kept member's references are kept; the shaken text is re-parsed; a skipped run when a module does not parse.
+
+## Line numbers
+
+Step `lineNumbers` (off by default) puts a line number in front of every executable statement that starts a line inside a procedure, so the shipped project's error handlers can read `Erl`.
+
+- **The number is the line in the user's own module**, as the code pane shows it (the class header, designer block and every attribute line are not counted). It runs before tree shaking and comment stripping, which take lines out, so the numbers stay true to the source; the shipped text itself has gaps.
+- **Not numbered**: `Dim`/`Static`/`Const`, `Sub`/`Function`/`Property`/`End`/`Else`/`ElseIf`/`Case` lines, comments, blank lines, continuation lines, statements after a colon, and lines that already carry a label.
+- **Left alone**: a procedure that has a line number of its own (reported as a warning), and a module that does not parse.
+- Code: `ShipModuleText.NumberLines`, `AddLineNumbersStep`.

@@ -47,7 +47,7 @@ namespace Rubberduck.CodeAnalysis.Inspections.Concrete
 
             var isResult = parameter != null
                            && ((!parameter.IsOptional && !parameter.IsParamArray)
-                               || !parameter.AsTypeName.Equals(Tokens.Variant)
+                               || !parameter.AsTypeName.Equals(Tokens.Variant, System.StringComparison.OrdinalIgnoreCase)
                                || !string.IsNullOrEmpty(parameter.DefaultValue)
                                || (parameter.IsArray && !parameter.IsParamArray));
             return (isResult, parameter);

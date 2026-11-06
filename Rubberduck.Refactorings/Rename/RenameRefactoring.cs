@@ -98,7 +98,7 @@ namespace Rubberduck.Refactorings.Rename
                 var component = _projectsProvider.Component(target.QualifiedName.QualifiedModuleName);
                 using (var controls = component.Controls)
                 {
-                    using (var control = controls.FirstOrDefault(item => item.Name == target.IdentifierName))
+                    using (var control = controls.FirstOrDefault(item => string.Equals(item.Name, target.IdentifierName, System.StringComparison.OrdinalIgnoreCase)))
                     {
                         if (control == null)
                         {
@@ -160,8 +160,8 @@ namespace Rubberduck.Refactorings.Rename
                     {
                         var eventName = userTarget.IdentifierName.Remove(0, $"{withEvent.IdentifierName}_".Length);
 
-                        var eventDeclaration = _declarationFinderProvider.DeclarationFinder.UserDeclarations(DeclarationType.Event).FirstOrDefault(ev => ev.IdentifierName.Equals(eventName)
-                                && withEvent.AsTypeName.Equals(ev.ParentDeclaration.IdentifierName));
+                        var eventDeclaration = _declarationFinderProvider.DeclarationFinder.UserDeclarations(DeclarationType.Event).FirstOrDefault(ev => ev.IdentifierName.Equals(eventName, System.StringComparison.OrdinalIgnoreCase)
+                                && withEvent.AsTypeName.Equals(ev.ParentDeclaration.IdentifierName, System.StringComparison.OrdinalIgnoreCase));
 
                         model.IsUserEventHandlerRename = eventDeclaration != null;
 

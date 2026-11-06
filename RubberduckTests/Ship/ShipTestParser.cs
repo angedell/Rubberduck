@@ -10,6 +10,10 @@ namespace RubberduckTests.Ship
     internal static class ShipTestParser
     {
         public static IStringParser Create(Dictionary<string, short> compilationConstants = null)
+            => CreateFor(compilationConstants, "project-1");
+
+        /// <summary>The same parser for the given project ids (the preprocessor reads the #Const values of the project it is asked about).</summary>
+        public static IStringParser CreateFor(Dictionary<string, short> compilationConstants, params string[] projectIds)
         {
             var arguments = new Mock<ICompilationArgumentsProvider>();
             var predefined = new VBAPredefinedCompilationConstants(7.1);
@@ -19,7 +23,7 @@ namespace RubberduckTests.Ship
             var preprocessorErrors = new PreprocessingParseErrorListenerFactory();
             //The preprocessor reads the project's #Const values from the cache, which has to be told to load them.
             var cache = new CompilationArgumentsCache(arguments.Object);
-            cache.ReloadCompilationArguments(new[] { "project-1" });
+            cache.ReloadCompilationArguments(projectIds);
             var preprocessor = new VBAPreprocessor(new VBAPreprocessorParser(preprocessorErrors, preprocessorErrors), cache);
             var mainErrors = new MainParseErrorListenerFactory();
             return new TokenStreamParserStringParserAdapterWithPreprocessing(new SimpleVBAModuleTokenStreamProvider(), new VBATokenStreamParser(mainErrors, mainErrors), preprocessor);

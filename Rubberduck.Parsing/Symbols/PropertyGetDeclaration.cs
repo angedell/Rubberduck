@@ -92,7 +92,7 @@ namespace Rubberduck.Parsing.Symbols
             return (member.DeclarationType == DeclarationType.PropertyGet || member.DeclarationType == DeclarationType.Variable)
                    && member.IsInterfaceMember
                    && ((ClassModuleDeclaration)member.ParentDeclaration).Subtypes.Any(implementation => ReferenceEquals(implementation, ParentDeclaration))
-                   && IdentifierName.Equals(member.ImplementingIdentifierName);
+                   && IdentifierName.Equals(member.ImplementingIdentifierName, System.StringComparison.OrdinalIgnoreCase);
         }
 
         public override BlockContext Block => ((PropertyGetStmtContext)Context).block();
