@@ -130,7 +130,8 @@ namespace Rubberduck.Parsing.VBA.ComReferenceLoading
             }
         }
 
-        private static IDictionary<string, List<(int newPriority, int oldPriority)>> ReferencePriorityChanges(IDictionary<string, ReferencePriorityMap> newProjectReferences, IDictionary<string, ReferencePriorityMap> oldProjectReferences)
+        //The maps are keyed by the project that has the reference, so that is also what a priority is looked up by.
+        internal static IDictionary<string, List<(int newPriority, int oldPriority)>> ReferencePriorityChanges(IDictionary<string, ReferencePriorityMap> newProjectReferences, IDictionary<string, ReferencePriorityMap> oldProjectReferences)
         {
             var referencePriorityChanges = new Dictionary<string, List<(int newPriority, int oldPriority)>>();
             foreach (var referencedProjectId in oldProjectReferences.Keys)
@@ -148,7 +149,7 @@ namespace Rubberduck.Parsing.VBA.ComReferenceLoading
                     foreach (var projectId in oldMap.Keys)
                     {
                         var oldPriority = oldMap[projectId];
-                        if (!newMap.TryGetValue(referencedProjectId, out var newPriority))
+                        if (!newMap.TryGetValue(projectId, out var newPriority))
                         {
                             newPriority = int.MaxValue;
                         }
