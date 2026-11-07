@@ -1,6 +1,6 @@
 # Changes in this fork
 
-This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds a built-in **Git client**, **Git Sync**, **bulk removal** to the Code Explorer, **Ship** (a clean, optionally tree-shaken copy of the workbook), an **API for AI agents** and a **Split Parameters** refactoring, and makes the parser and the code that builds on it ignore case in identifiers, as VBA does. Everything below is on top of the original; the rest of this README is unchanged.
+This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds a built-in **Git client**, **Git Sync**, **bulk removal** to the Code Explorer, **Ship** (a clean, optionally tree-shaken copy of the workbook), an **API for AI agents**, **ProcDump** integration to troubleshoot hangs and a **Split Parameters** refactoring, and makes the parser and the code that builds on it ignore case in identifiers, as VBA does. Everything below is on top of the original; the rest of this README is unchanged.
 
 ## Ship
 Builds a clean copy of the saved workbook with everything Rubberduck added stripped out: notes modules, test modules, `rubberduck.json`, annotation comments and Rubberduck attributes. Two optional steps, both off by default:
@@ -44,6 +44,16 @@ Compares a VBA project with a folder on disk, subfolders included, so the code c
 - **Case:** VBA does not care about upper and lower case, so by default (`"ignoreCaseOutsideStrings": true` in `rubberduck.json`) a change of case is not a change, except inside a string literal, where it counts. Comments count as code here. Set it to `false` to treat every change of case as a change. Changing the setting changes how modules compare, so modules that differ may show up as changed on both sides once until they are synced again.
 - **Excluding things:** besides `sync.ignore`, a `.rdsyncignore` file in the sync folder or any subfolder works, using the `.gitignore` syntax. It is a separate file so it cannot be confused with git's own `.gitignore`.
 - **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
+
+## Troubleshooting with ProcDump
+When the editor hangs (calls time out, the parser stays `Busy`, Excel says "waiting for an OLE action"), the log cannot say what a stuck thread is doing. Rubberduck can take a memory dump of its own process with Sysinternals [ProcDump](https://learn.microsoft.com/sysinternals/downloads/procdump) and read it itself, so nobody has to open a debugger. Off by default, behind its own opt-in (*Also let agents take memory dumps of the editor with ProcDump*, Settings > General); ticking it offers to download ProcDump from Microsoft when it is missing.
+
+- **Capture:** `POST /api/v1/dump` (MCP `capture_dump`) writes a `full` or `mini` dump from the API's own thread, so it works while the UI thread is stuck. A dump holds everything in memory, open documents included, so it needs the approval a write needs. Dumps go to `%LOCALAPPDATA%\Rubberduck\Dumps`; a folder that Dropbox, OneDrive or the like syncs is refused and the local one used.
+- **Analyze:** `GET /api/v1/dump/{name}/analysis` (MCP `analyze_dump`) opens the dump in the editor's process (ClrMD) and answers with findings instead of a thread dump: the main thread blocked and on what, a probable deadlock between it and a thread calling into the host, inspections still running, exceptions, and the stacks of the threads inside Rubberduck. Only managed threads are read, so a hang inside Excel itself shows as a main thread without a cause. Reading needs no approval, since it sends back stacks and not memory. Take two dumps a minute apart: a thread in the same place both times is the stuck one.
+- **Monitor:** `POST /api/v1/dump/monitor` (MCP `dump_monitor`) starts ProcDump watching the editor so a hang that happens when nobody is looking is caught: it writes a dump by itself on a hung window, an unhandled exception or sustained processor use, and stops after a set number of dumps. `GET .../monitor?analyze=true` reads the newest one.
+- **Clean up:** a dump is a 2 GB image of Excel's memory, so `DELETE /api/v1/dump/{name}`, `DELETE /api/v1/dump?keep=n` and `?delete=true` on the analysis remove them. A dump is named by its file name alone and nothing else can be deleted.
+
+Routes: [docs/RestApi.md](docs/RestApi.md). Design: [docs/adr/0005-dumps-are-read-in-process-and-deleted-by-name.md](docs/adr/0005-dumps-are-read-in-process-and-deleted-by-name.md).
 
 ## Git client
 Commit, history, restore, push and pull for a VBA project without leaving the editor and without a repository folder in sight. Off by default (Settings); nothing runs git or creates a repository until it is on. It is built on [Git Sync](#git-sync): a commit is a sync of the project into a work tree, then `git add` and `git commit`, so the VBE is only touched by Git Sync's code and hidden attributes survive.
