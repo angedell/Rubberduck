@@ -1,6 +1,6 @@
 # Changes in this fork
 
-This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds **Git Sync**, **bulk removal** to the Code Explorer, **Ship** (a clean, optionally tree-shaken copy of the workbook), and an **API for AI agents**, and makes the parser and the code that builds on it ignore case in identifiers, as VBA does. Everything below is on top of the original; the rest of this README is unchanged.
+This fork of [Rubberduck](https://github.com/rubberduck-vba/Rubberduck) adds a built-in **Git client**, **Git Sync**, **bulk removal** to the Code Explorer, **Ship** (a clean, optionally tree-shaken copy of the workbook), an **API for AI agents** and a **Split Parameters** refactoring, and makes the parser and the code that builds on it ignore case in identifiers, as VBA does. Everything below is on top of the original; the rest of this README is unchanged.
 
 ## Ship
 Builds a clean copy of the saved workbook with everything Rubberduck added stripped out: notes modules, test modules, `rubberduck.json`, annotation comments and Rubberduck attributes. Two optional steps, both off by default:
@@ -44,6 +44,21 @@ Compares a VBA project with a folder on disk, subfolders included, so the code c
 - **Case:** VBA does not care about upper and lower case, so by default (`"ignoreCaseOutsideStrings": true` in `rubberduck.json`) a change of case is not a change, except inside a string literal, where it counts. Comments count as code here. Set it to `false` to treat every change of case as a change. Changing the setting changes how modules compare, so modules that differ may show up as changed on both sides once until they are synced again.
 - **Excluding things:** besides `sync.ignore`, a `.rdsyncignore` file in the sync folder or any subfolder works, using the `.gitignore` syntax. It is a separate file so it cannot be confused with git's own `.gitignore`.
 - **Never deletes:** nothing is ever deleted from the project, and deleting a file does not delete its module, so a git checkout cannot wipe modules.
+
+## Git client
+Commit, history, restore, push and pull for a VBA project without leaving the editor and without a repository folder in sight. Off by default (Settings); nothing runs git or creates a repository until it is on. It is built on [Git Sync](#git-sync): a commit is a sync of the project into a work tree, then `git add` and `git commit`, so the VBE is only touched by Git Sync's code and hidden attributes survive.
+
+- **Where:** Code Explorer, right-click a project, **Sync Project > Git: ...**.
+- **Hidden repository:** it lives in `%LOCALAPPDATA%\Rubberduck\repos\<project-id>\`, as a `git` folder and a `tree` folder; nothing is written next to the workbook. Hooks are turned off. The history is therefore not in your backups until you push it to a remote.
+- **Git itself:** found from the setting, `PATH`, Rubberduck's own copy or `C:\Program Files\Git`. If there is none, the first use asks before downloading **MinGit** (hash pinned in Rubberduck, unpacked under `%LOCALAPPDATA%\Rubberduck\git`, no administrator rights, `PATH` untouched).
+- **Commit, History, Restore module:** **Git: Commit...** commits everything that changed (leave things out with `.rdsyncignore`), **Git: History...** lists the commits, **Git: Restore module...** brings one module back from a commit.
+- **Remote:** **Set remote**, **Push**, **Pull** and **Remote status**, HTTPS only, one remote called `origin`. The token is asked for in Rubberduck's own dialog and kept in the Windows Credential Manager; git gets it for one call through environment variables, so it is never in a command line, a remote URL, the repository or the log. Push never forces. Pull is a fast-forward or a clean merge: it refuses while there are uncommitted changes, and a merge that would conflict is aborted with nothing changed. A fetch prunes remote-tracking branches, so a recreated remote does not look ahead.
+- **AI help (separate opt-in):** with an Anthropic API key (kept in the Credential Manager, never in the settings file), **Suggest message** writes a commit message, and **Commit in parts** (**Git: Commit in parts...**) groups the changed hunks by functionality, each group with a message. You can move hunks between groups and edit messages, and each group is committed in order, all or nothing. Nothing is sent until you press a button; the dialog shows which files go and how big, files on the ignore list are never sent, and a change that looks like it contains a secret stops and asks. An answer that misses a hunk or repeats one is rejected and the change stays one group.
+
+Design and decisions: [docs/adr/0006-built-in-git-client-with-a-hidden-repository.md](docs/adr/0006-built-in-git-client-with-a-hidden-repository.md). Not done yet: branches, a diff view, conflict resolution in the compare window, API routes.
+
+## Split Parameters
+Puts every parameter of a signature on its own line, with leading commas and the closing parenthesis on its own line, so a signature change is a one-line diff. **Refactor > Split Parameters** does one member; **Split Parameters in Project** rewrites every member of a project in one pass. The indenter keeps the layout, so reindenting does not realign it to the opening parenthesis. Over the API it is `POST /api/v1/projects/{p}/refactor/split-parameters` (and `/preview`), and the MCP tools `preview_split_parameters` and `split_parameters`.
 
 ## Case-insensitive identifiers
 VBA ignores case, and so does the VBE (it accepts `IUnitOfWork_Command` for an interface member declared as `command`). The parser used to compare some names case-sensitively, so that kind of implementation was not recognized as one. Interface matching, `DeclarationFinder` lookups, the rename, parameter, extract method and encapsulate refactorings and the inspections that compare identifier, component or type names now ignore case. Case-only renames and declaration equality stay exact on purpose.
