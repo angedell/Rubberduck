@@ -112,6 +112,25 @@ namespace RubberduckTests.Api
         }
 
         [Test]
+        public void TheRouteReadsTheRequiredMembers()
+        {
+            var body = "{\"module\":\"Module1\",\"name\":\"TPerson\",\"style\":\"fluent\",\"required\":[\"Name\",\"Age\"]}";
+
+            _api.Route(new ApiRequest { Client = "agent", Body = body }, "POST", new[] { "projects", "p", "refactor", "extract-udt-class", "preview" });
+
+            CollectionAssert.AreEqual(new[] { "Name", "Age" }, _source.Last.Required);
+        }
+
+        [Test]
+        public void RequiredMustBeAListOfNames()
+        {
+            var body = "{\"module\":\"Module1\",\"required\":\"Name\"}";
+
+            Assert.AreEqual(400, Assert.Throws<ApiException>(() =>
+                _api.Route(new ApiRequest { Client = "agent", Body = body }, "POST", new[] { "projects", "p", "refactor", "extract-udt-class", "preview" })).Status);
+        }
+
+        [Test]
         public void ThereAreTwoTools()
         {
             CollectionAssert.AreEqual(new[] { "preview_extract_udt_class", "extract_udt_class" }, _api.Tools().Select(t => t.Name));

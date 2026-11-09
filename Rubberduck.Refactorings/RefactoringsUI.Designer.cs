@@ -1318,6 +1318,24 @@ namespace Rubberduck.Refactorings {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to Required members.
+        /// </summary>
+        public static string ExtractUdtClass_RequiredGroupBox {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_RequiredGroupBox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Required members are the arguments of Create (fluent style only), so the object cannot be made without them..
+        /// </summary>
+        public static string ExtractUdtClass_RequiredInstruction {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_RequiredInstruction", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Properties and a Self property.
         /// </summary>
         public static string ExtractUdtClass_PlainOption {

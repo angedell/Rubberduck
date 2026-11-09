@@ -501,6 +501,12 @@ Do you want to proceed?</value>
   <data name="ExtractUdtClass_StyleGroupBox" xml:space="preserve">
     <value>Members</value>
   </data>
+  <data name="ExtractUdtClass_RequiredGroupBox" xml:space="preserve">
+    <value>Required members</value>
+  </data>
+  <data name="ExtractUdtClass_RequiredInstruction" xml:space="preserve">
+    <value>Required members are the arguments of Create (fluent style only), so the object cannot be made without them.</value>
+  </data>
   <data name="ExtractUdtClass_PlainOption" xml:space="preserve">
     <value>Properties and a Self property</value>
   </data>

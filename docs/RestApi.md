@@ -172,13 +172,13 @@ MCP tools: `preview_split_parameters` and `split_parameters`, with `project` and
 
 #### Extract class from Type
 
-`POST /api/v1/projects/{p}/refactor/extract-udt-class/preview` and `POST /api/v1/projects/{p}/refactor/extract-udt-class`. The body names the Type: `{ "module": "Module1", "name": "TPerson" }`, plus `line` (and `column`) if the name is not unique in the module. Optional: `className` (default: the Type's name without a `T` or `UDT` prefix) and `style`, `"plain"` (default) or `"fluent"`.
+`POST /api/v1/projects/{p}/refactor/extract-udt-class/preview` and `POST /api/v1/projects/{p}/refactor/extract-udt-class`. The body names the Type: `{ "module": "Module1", "name": "TPerson" }`, plus `line` (and `column`) if the name is not unique in the module. Optional: `className` (default: the Type's name without a `T` or `UDT` prefix), `style`, `"plain"` (default) or `"fluent"`, and `required`, a list of member names that become the arguments of `Create` (fluent only; `Person.Create("Ann", #1/1/1990#)`). An array, a member that is a Type, an unknown name, or `required` with the plain style is a problem.
 
 A new class module is added, with its own private copy of the Type behind a `This` field, a `Property Get` and `Let` (or `Set` for objects) per member, and a `Self` property. Array members get a getter only; a member that is itself a Type is left out, with a comment. With `"fluent"` the class is also predeclared (`'@PredeclaredId` and `VB_PredeclaredId`), gets a `Create` function and a chainable `WithName`-style method per member, so `Person.Create.WithName("Ann").WithAge(3)` works. The Type and its uses are not changed.
 
-The preview answers with `className`, `style`, `members` (`name`, `type`, `access`), `code` (the class as it would be added), `problems` and `valid`. A class name that is invalid or taken, a Type without members, and member names that clash with what the class adds (`Self`, `This`, and for the fluent style `Create` or a `WithX` of another member) are problems; applying refuses them with 422 `refactoring_refused`, before the user is asked anything. Otherwise the answer is `{ "className", "style", "note" }`. Unparsed edits are refused with 409, as for the other refactorings.
+The preview answers with `className`, `style`, `members` (`name`, `type`, `access`, `required`), `code` (the class as it would be added), `problems` and `valid`. A class name that is invalid or taken, a Type without members, and member names that clash with what the class adds (`Self`, `This`, and for the fluent style `Create` or a `WithX` of another member) are problems; applying refuses them with 422 `refactoring_refused`, before the user is asked anything. Otherwise the answer is `{ "className", "style", "note" }`. Unparsed edits are refused with 409, as for the other refactorings.
 
-MCP tools: `preview_extract_udt_class` and `extract_udt_class`, with `project`, `module`, `name`, `line`, `column`, `className` and `style`.
+MCP tools: `preview_extract_udt_class` and `extract_udt_class`, with `project`, `module`, `name`, `line`, `column`, `className`, `style` and `required`.
 
 ### Quick fixes
 

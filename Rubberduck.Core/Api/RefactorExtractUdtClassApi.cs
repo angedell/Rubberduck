@@ -23,6 +23,9 @@ namespace Rubberduck.Api
         /// <summary><see cref="Plain"/> or <see cref="Fluent"/>. Null: plain.</summary>
         public string Style { get; set; }
 
+        /// <summary>Names of the members that have to be given when the object is made: they become the arguments of Create. Fluent style only.</summary>
+        public List<string> Required { get; set; } = new List<string>();
+
         public static ExtractUdtClassRequest From(JObject body) => new ExtractUdtClassRequest
         {
             Module = RefactorArgs.Text(body, "module"),
@@ -30,8 +33,25 @@ namespace Rubberduck.Api
             Line = RefactorArgs.Number(body, "line"),
             Column = RefactorArgs.Number(body, "column"),
             ClassName = RefactorArgs.Text(body, "className"),
-            Style = RefactorArgs.Text(body, "style")
+            Style = RefactorArgs.Text(body, "style"),
+            Required = Names(body, "required")
         };
+
+        private static List<string> Names(JObject body, string name)
+        {
+            var token = body[name];
+            if (token == null || token.Type == JTokenType.Null)
+            {
+                return new List<string>();
+            }
+
+            if (!(token is JArray list) || list.Any(item => item.Type != JTokenType.String))
+            {
+                throw ApiException.BadRequest($"'{name}' must be a list of member names.");
+            }
+
+            return list.Select(item => item.Value<string>()).ToList();
+        }
     }
 
     public class ExtractedMember
@@ -41,6 +61,9 @@ namespace Rubberduck.Api
 
         /// <summary>readWrite, readOnly (arrays have a getter only) or left out (a Type inside the Type is not wrapped).</summary>
         public string Access { get; set; }
+
+        /// <summary>An argument of Create.</summary>
+        public bool Required { get; set; }
     }
 
     public class ExtractUdtClassPreview
@@ -166,7 +189,7 @@ namespace Rubberduck.Api
             new RefactorToolSpec
             {
                 Name = "extract_udt_class",
-                Description = "Adds a class module for a Type, through Rubberduck's Extract Class from Type refactoring: a Property Get and Let/Set per member and a Self property, and with style 'fluent' also a predeclared instance with a Create function and a chainable WithName-style method per member. The Type itself is not changed, nor are its uses. Call preview_extract_udt_class first. Needs the user's approval like a write. Fails with 409 if the editor is not in design mode.",
+                Description = "Adds a class module for a Type, through Rubberduck's Extract Class from Type refactoring: a Property Get and Let/Set per member and a Self property, and with style 'fluent' also a predeclared instance with a Create function and a chainable WithName-style method per member; members named in 'required' become the arguments of Create. The Type itself is not changed, nor are its uses. Call preview_extract_udt_class first. Needs the user's approval like a write. Fails with 409 if the editor is not in design mode.",
                 Properties = ExtractProperties(),
                 Required = new[] { "project", "module" },
                 Run = (args, client) => Extract(client, RefactorArgs.Required(args, "project"), ExtractUdtClassRequest.From(args))
@@ -181,7 +204,13 @@ namespace Rubberduck.Api
             ["line"] = RefactorArgs.Integer("Line where the Type is declared (1-based), if 'name' is not unique in the module."),
             ["column"] = RefactorArgs.Integer("A column on that line within the name."),
             ["className"] = RefactorArgs.String("Name of the new class. Default: the Type's name without a T or UDT prefix (Rubberduck avoids clashes)."),
-            ["style"] = RefactorArgs.String("'plain' (properties and Self) or 'fluent' (also a predeclared instance, Create and WithX methods). Default: plain.")
+            ["style"] = RefactorArgs.String("'plain' (properties and Self) or 'fluent' (also a predeclared instance, Create and WithX methods). Default: plain."),
+            ["required"] = new JObject
+            {
+                ["type"] = "array",
+                ["items"] = new JObject { ["type"] = "string" },
+                ["description"] = "Names of the members that have to be given when the object is made; they become the arguments of Create, in the order of the Type. Fluent style only; arrays and members that are a Type cannot be required."
+            }
         };
     }
 }

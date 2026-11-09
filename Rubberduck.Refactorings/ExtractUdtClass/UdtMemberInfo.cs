@@ -25,6 +25,12 @@ namespace Rubberduck.Refactorings.ExtractUdtClass
         /// <summary>The member as it is written in the type, for the copy of the type in the new class.</summary>
         public string DeclarationText { get; }
 
+        /// <summary>An array cannot be handed over as a single value, and a Type inside the Type is not wrapped at all, so neither can be an argument of Create.</summary>
+        public bool CanBeRequired => !IsArray && !IsUserDefinedType;
+
+        /// <summary>The member has to be given when the object is made: it becomes an argument of Create. Only the fluent style has a Create.</summary>
+        public bool IsRequired { get; set; }
+
         public static UdtMemberInfo From(Declaration member)
         {
             var context = member.Context;

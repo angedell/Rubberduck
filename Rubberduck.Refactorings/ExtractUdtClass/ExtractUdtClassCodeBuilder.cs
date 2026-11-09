@@ -14,17 +14,21 @@ namespace Rubberduck.Refactorings.ExtractUdtClass
         private const string Indent = "    ";
         private const string BackingField = "This";
 
+        /// <summary>The header the VBE reads when it imports the module, with the line endings it insists on: a bare line feed makes it show the header as code.</summary>
         public static string ModuleHeader(string className)
         {
-            return $@"VERSION 1.0 CLASS
-BEGIN
-  MultiUse = -1  'True
-END
-Attribute VB_Name = ""{className}""
-Attribute VB_GlobalNameSpace = False
-Attribute VB_Creatable = False
-Attribute VB_PredeclaredId = True
-Attribute VB_Exposed = False";
+            return string.Join("\r\n", new[]
+            {
+                "VERSION 1.0 CLASS",
+                "BEGIN",
+                "  MultiUse = -1  'True",
+                "END",
+                $"Attribute VB_Name = \"{className}\"",
+                "Attribute VB_GlobalNameSpace = False",
+                "Attribute VB_Creatable = False",
+                "Attribute VB_PredeclaredId = True",
+                "Attribute VB_Exposed = False"
+            });
         }
 
         /// <param name="folderAnnotation">The module's own <c>'@Folder</c> line, to keep the new class next to it, or null.</param>
@@ -41,6 +45,7 @@ Attribute VB_Exposed = False";
             {
                 code.AppendLine("'@PredeclaredId");
             }
+            code.Append(UsageComment(className, members, style));
             code.AppendLine("Option Explicit");
             code.AppendLine();
 
@@ -56,9 +61,7 @@ Attribute VB_Exposed = False";
             if (fluent)
             {
                 code.AppendLine();
-                code.AppendLine($"Public Function Create() As {className}");
-                code.AppendLine($"{Indent}Set Create = New {className}");
-                code.AppendLine("End Function");
+                code.Append(CreateFunction(className, members));
             }
 
             code.AppendLine();
@@ -78,6 +81,115 @@ Attribute VB_Exposed = False";
                 }
             }
 
+            return code.ToString();
+        }
+
+        /// <summary>
+        /// Comment lines for the top of the class that show how to use it: how to make one and set and read its members. The values are samples of the
+        /// member's type. Arrays and nested types, which have no setter, are left out.
+        /// </summary>
+        public static string UsageComment(string className, IReadOnlyList<UdtMemberInfo> members, ExtractUdtClassStyle style)
+        {
+            const string variable = "item";
+            var settable = members.Where(member => !member.IsArray && !member.IsUserDefinedType).ToList();
+            var lines = new List<string> { "Usage:", $"  Dim {variable} As {className}" };
+
+            if (style == ExtractUdtClassStyle.Fluent)
+            {
+                var required = RequiredMembers(members);
+                var chained = settable.Where(member => !required.Contains(member)).ToList();
+                var create = $"{className}.Create({string.Join(", ", required.Select(SampleValue))})";
+
+                lines.Add($"  Set {variable} = {create}{(chained.Count > 0 ? " _" : string.Empty)}");
+                for (var i = 0; i < chained.Count; i++)
+                {
+                    lines.Add($"      .{WithMethodName(chained[i])}({SampleValue(chained[i])}){(i < chained.Count - 1 ? " _" : string.Empty)}");
+                }
+            }
+            else
+            {
+                lines.Add($"  Set {variable} = New {className}");
+                foreach (var member in settable)
+                {
+                    lines.Add(member.IsObject
+                        ? $"  Set {variable}.{member.Name} = {SampleValue(member)}"
+                        : $"  {variable}.{member.Name} = {SampleValue(member)}");
+                }
+            }
+
+            var read = settable.FirstOrDefault(member => !member.IsObject);
+            if (read != null)
+            {
+                lines.Add($"  Debug.Print {variable}.{read.Name}");
+            }
+            lines.Add("Self returns the object itself, which suits With blocks and chaining.");
+
+            var code = new StringBuilder();
+            foreach (var line in lines)
+            {
+                code.AppendLine($"'{(line.StartsWith(" ") ? string.Empty : " ")}{line}");
+            }
+            return code.ToString();
+        }
+
+        private static string SampleValue(UdtMemberInfo member)
+        {
+            if (member.IsObject)
+            {
+                return "Nothing";
+            }
+
+            switch (member.TypeName.ToUpperInvariant())
+            {
+                case "STRING":
+                case "VARIANT":
+                    return "\"text\"";
+                case "BOOLEAN":
+                    return "True";
+                case "DATE":
+                    return "#1/1/2000#";
+                default:
+                    //The numeric types, and enumerations.
+                    return "0";
+            }
+        }
+
+        /// <summary>The members that Create takes as arguments, in the order of the type: the ones marked required that can be.</summary>
+        public static IReadOnlyList<UdtMemberInfo> RequiredMembers(IReadOnlyList<UdtMemberInfo> members)
+            => members.Where(member => member.IsRequired && member.CanBeRequired).ToList();
+
+        private static string CreateFunction(string className, IReadOnlyList<UdtMemberInfo> members)
+        {
+            var required = RequiredMembers(members);
+            var code = new StringBuilder();
+
+            if (required.Count == 0)
+            {
+                code.AppendLine($"Public Function Create() As {className}");
+                code.AppendLine($"{Indent}Set Create = New {className}");
+                code.AppendLine("End Function");
+                return code.ToString();
+            }
+
+            //The new object cannot be called Create's own name, nor the name of one of the arguments.
+            var created = "NewInstance";
+            while (required.Any(member => member.Name.Equals(created, StringComparison.OrdinalIgnoreCase)))
+            {
+                created += "_";
+            }
+
+            var arguments = string.Join(", ", required.Select(member => $"ByVal {member.Name} As {member.TypeName}"));
+            code.AppendLine($"Public Function Create({arguments}) As {className}");
+            code.AppendLine($"{Indent}Dim {created} As {className}");
+            code.AppendLine($"{Indent}Set {created} = New {className}");
+            foreach (var member in required)
+            {
+                code.AppendLine(member.IsObject
+                    ? $"{Indent}Set {created}.{member.Name} = {member.Name}"
+                    : $"{Indent}{created}.{member.Name} = {member.Name}");
+            }
+            code.AppendLine($"{Indent}Set Create = {created}");
+            code.AppendLine("End Function");
             return code.ToString();
         }
 
@@ -107,16 +219,19 @@ Attribute VB_Exposed = False";
                 else if (fluent)
                 {
                     var wither = members.FirstOrDefault(other => HasWithMethod(other)
-                        && member.Name.Equals("With" + other.Name, StringComparison.OrdinalIgnoreCase));
+                        && member.Name.Equals(WithMethodName(other), StringComparison.OrdinalIgnoreCase));
                     if (wither != null)
                     {
-                        problems.Add($"'{member.Name}' clashes with the With{wither.Name} method that '{wither.Name}' gets.");
+                        problems.Add($"'{member.Name}' clashes with the {WithMethodName(wither)} method that '{wither.Name}' gets.");
                     }
                 }
             }
 
             return problems;
         }
+
+        /// <summary>WithName for a member called name: the member's first letter is capitalised, as the VBE would not do it for us.</summary>
+        private static string WithMethodName(UdtMemberInfo member) => "With" + char.ToUpperInvariant(member.Name[0]) + member.Name.Substring(1);
 
         private static bool HasWithMethod(UdtMemberInfo member) => !member.IsArray && !member.IsUserDefinedType;
 
@@ -168,9 +283,10 @@ Attribute VB_Exposed = False";
                 : $"{BackingField}.{member.Name} = {value}";
 
             var code = new StringBuilder();
-            code.AppendLine($"Public Function With{member.Name}(ByVal {value} As {member.TypeName}) As {className}");
+            var method = WithMethodName(member);
+            code.AppendLine($"Public Function {method}(ByVal {value} As {member.TypeName}) As {className}");
             code.AppendLine($"{Indent}{assignment}");
-            code.AppendLine($"{Indent}Set With{member.Name} = Me");
+            code.AppendLine($"{Indent}Set {method} = Me");
             code.AppendLine("End Function");
             return code.ToString();
         }

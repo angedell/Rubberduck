@@ -63,6 +63,29 @@
                 </StackPanel>
             </GroupBox>
 
+            <GroupBox Header="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_RequiredGroupBox}"
+                      Margin="5"
+                      Padding="5">
+                <StackPanel>
+                    <TextBlock Text="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_RequiredInstruction}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,5" />
+                    <ItemsControl ItemsSource="{Binding Members}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Margin="0,1"
+                                          IsChecked="{Binding IsRequired, Mode=TwoWay}"
+                                          IsEnabled="{Binding CanChange}">
+                                    <TextBlock>
+                                        <Run Text="{Binding Name, Mode=OneWay}" /><Run Text=" As " /><Run Text="{Binding TypeName, Mode=OneWay}" />
+                                    </TextBlock>
+                                </CheckBox>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </GroupBox>
+
             <TextBlock Margin="5,0"
                        Foreground="Firebrick"
                        TextWrapping="Wrap"
