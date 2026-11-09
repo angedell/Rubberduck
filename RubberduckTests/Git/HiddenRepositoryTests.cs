@@ -131,6 +131,44 @@ namespace RubberduckTests.Git
         }
 
         [Test]
+        public void ChangesIn_ListsWhatACommitChangedAgainstItsParent_AndTheFirstCommitAddsEverything()
+        {
+            _repository.EnsureCreated();
+            Write("a.bas", new byte[] { 65 });
+            Write("b.bas", new byte[] { 66 });
+            var first = Commit("first");
+            Write("a.bas", new byte[] { 65, 65 });
+            File.Delete(Path.Combine(_repository.WorkTree, "b.bas"));
+            Write("c.bas", new byte[] { 67 });
+            var second = Commit("second");
+
+            var inFirst = _repository.ChangesIn(first).ToDictionary(change => change.Path, change => change.Kind);
+            var inSecond = _repository.ChangesIn(second).ToDictionary(change => change.Path, change => change.Kind);
+
+            CollectionAssert.AreEquivalent(new[] { "a.bas", "b.bas" }, inFirst.Keys);
+            Assert.IsTrue(inFirst.Values.All(kind => kind == GitChangeKind.Added));
+            Assert.AreEqual(GitChangeKind.Modified, inSecond["a.bas"]);
+            Assert.AreEqual(GitChangeKind.Deleted, inSecond["b.bas"]);
+            Assert.AreEqual(GitChangeKind.Added, inSecond["c.bas"]);
+            Assert.IsNull(_repository.ParentOf(first));
+            Assert.AreEqual(first, _repository.ParentOf(second));
+        }
+
+        [Test]
+        public void TryReadFileAt_ReadsHead_AndTryReadWorkFile_ReadsTheWorkTree()
+        {
+            _repository.EnsureCreated();
+            Write("a.bas", new byte[] { 65 });
+            Commit();
+            Write("a.bas", new byte[] { 66 });
+
+            Assert.AreEqual(new byte[] { 65 }, _repository.TryReadFileAt("HEAD", "a.bas"));
+            Assert.AreEqual(new byte[] { 66 }, _repository.TryReadWorkFile("a.bas"));
+            Assert.IsNull(_repository.TryReadFileAt("HEAD", "missing.bas"));
+            Assert.IsNull(_repository.TryReadWorkFile("missing.bas"));
+        }
+
+        [Test]
         public void Commit_WithNothingChanged_ReturnsNull()
         {
             _repository.EnsureCreated();

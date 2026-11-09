@@ -173,7 +173,8 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                     return;
                 }
 
-                var message = GitCommitDialog.Ask(project.Name, changes, Git.AiAvailable ? (Func<System.Windows.Forms.IWin32Window, string>)(owner => SuggestMessage(project)) : null);
+                var message = GitCommitDialog.Ask(project.Name, changes, Git.AiAvailable ? (Func<System.Windows.Forms.IWin32Window, string>)(owner => SuggestMessage(project)) : null,
+                    change => Git.ChangeVersions(project, change));
                 if (message == null)
                 {
                     return;
@@ -278,7 +279,7 @@ namespace Rubberduck.UI.CodeExplorer.Commands
                     return;
                 }
 
-                GitHistoryDialog.Show(project.Name, commits.ToList());
+                GitHistoryDialog.Show(project.Name, commits.ToList(), commit => Git.CommitChanges(project, commit), (commit, change) => Git.CommitVersions(project, commit, change));
             });
         }
     }

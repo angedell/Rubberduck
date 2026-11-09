@@ -28,6 +28,19 @@ namespace Rubberduck.Git
         public GitChangeKind Kind { get; }
     }
 
+    /// <summary>The two states of one file that a diff compares. Null for a side where the file does not exist (added or deleted).</summary>
+    public class GitFileVersions
+    {
+        public GitFileVersions(byte[] before, byte[] after)
+        {
+            Before = before;
+            After = after;
+        }
+
+        public byte[] Before { get; }
+        public byte[] After { get; }
+    }
+
     public enum GitMergeKind
     {
         /// <summary>The remote had nothing this side lacks.</summary>
@@ -253,10 +266,10 @@ namespace Rubberduck.Git
             return commits;
         }
 
-        /// <summary>A file as it was in a commit, or null if the commit has no such file.</summary>
+        /// <summary>A file as it was in a commit (or in <c>HEAD</c>, the last one), or null if the commit has no such file.</summary>
         public byte[] TryReadFileAt(string commit, string relativePath)
         {
-            var result = _git.Run(Prefix().Concat(new[] { "show", CommitOf(commit) + ":" + PathOf(relativePath) }), WorkTree);
+            var result = _git.Run(Prefix().Concat(new[] { "show", (commit == "HEAD" ? commit : CommitOf(commit)) + ":" + PathOf(relativePath) }), WorkTree);
             return result.Ok ? result.OutputBytes : null;
         }
 
@@ -356,9 +369,32 @@ namespace Rubberduck.Git
         }
 
         //What a merge changed in the work tree, as paths and kinds.
-        private IReadOnlyList<GitChange> ChangesSince(string commit)
+        private IReadOnlyList<GitChange> ChangesSince(string commit) => NameStatus(commit, "HEAD");
+
+        //git's empty tree: what the first commit is compared with.
+        private const string EmptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
+        /// <summary>The files a commit changed, compared with its first parent (with nothing, for the first commit).</summary>
+        public IReadOnlyList<GitChange> ChangesIn(string commit) => NameStatus(ParentOf(commit) ?? EmptyTree, commit);
+
+        /// <summary>The first parent of a commit, or null for the first commit.</summary>
+        public string ParentOf(string commit)
         {
-            var fields = Run("diff", "--name-status", "-z", "--no-renames", CommitOf(commit), "HEAD").Output
+            var parent = _git.Run(Prefix().Concat(new[] { "rev-parse", "--verify", "--quiet", CommitOf(commit) + "^" }), WorkTree);
+            return parent.Ok ? parent.Output.Trim() : null;
+        }
+
+        /// <summary>A file of the work tree as it is now, or null if there is none.</summary>
+        public byte[] TryReadWorkFile(string relativePath)
+        {
+            var path = _fileSystem.Path.Combine(WorkTree, PathOf(relativePath).Replace('/', '\\'));
+            return _fileSystem.File.Exists(path) ? _fileSystem.File.ReadAllBytes(path) : null;
+        }
+
+        private IReadOnlyList<GitChange> NameStatus(string from, string to)
+        {
+            string Rev(string rev) => rev == "HEAD" ? rev : CommitOf(rev);
+            var fields = Run("diff", "--name-status", "-z", "--no-renames", Rev(from), Rev(to)).Output
                 .Split(new[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
             var changes = new List<GitChange>();
             for (var i = 0; i + 1 < fields.Length; i += 2)

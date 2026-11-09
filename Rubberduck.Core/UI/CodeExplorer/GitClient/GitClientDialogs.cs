@@ -12,7 +12,7 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
     {
         private readonly TextBox _message;
 
-        private GitCommitDialog(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest)
+        private GitCommitDialog(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest, Func<GitChange, GitFileVersions> versions)
         {
             Text = "Git: commit '" + projectName + "'";
             Font = new Font("Segoe UI", 9f);
@@ -34,6 +34,25 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
             }
 
             Controls.Add(list);
+
+            if (versions != null)
+            {
+                var sorted = changes.OrderBy(c => c.Path).ToList();
+                void ShowChange()
+                {
+                    if (list.SelectedIndices.Count == 1)
+                    {
+                        var change = sorted[list.SelectedIndices[0]];
+                        var pair = versions(change);
+                        GitDiffDialog.Show(this, change.Path, "Last commit", "Now", pair.Before, pair.After);
+                    }
+                }
+
+                list.DoubleClick += (sender, args) => ShowChange();
+                var show = new Button { Text = "Show changes", Size = new Size(110, 28), Location = new Point(176, ClientSize.Height - 40) };
+                show.Click += (sender, args) => ShowChange();
+                Controls.Add(show);
+            }
 
             Controls.Add(new Label { Text = "Message:", Location = new Point(12, 232), Size = new Size(536, 18) });
             _message = new TextBox { Multiline = true, AcceptsReturn = true, ScrollBars = ScrollBars.Vertical, Location = new Point(12, 254), Size = new Size(536, 110) };
@@ -64,9 +83,10 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
 
         /// <returns>The message, or null if the user cancelled. An empty message is not accepted.</returns>
         /// <param name="suggest">Asked for a message when the user presses the AI button, which is only there if this is given. Returns null for none.</param>
-        public static string Ask(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest = null)
+        /// <param name="versions">Gives a change's file before and after; the list's "Show changes" is only there if this is given.</param>
+        public static string Ask(string projectName, IReadOnlyList<GitChange> changes, Func<IWin32Window, string> suggest = null, Func<GitChange, GitFileVersions> versions = null)
         {
-            using (var dialog = new GitCommitDialog(projectName, changes, suggest))
+            using (var dialog = new GitCommitDialog(projectName, changes, suggest, versions))
             {
                 while (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -141,16 +161,16 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
     /// <summary>The commits made for a project, newest first.</summary>
     public sealed class GitHistoryDialog : Form
     {
-        private GitHistoryDialog(string projectName, IReadOnlyList<GitCommit> commits)
+        private GitHistoryDialog(string projectName, IReadOnlyList<GitCommit> commits, Func<GitCommit, IReadOnlyList<GitChange>> changesOf, Func<GitCommit, GitChange, GitFileVersions> versionsOf)
         {
             Text = "Git: history of '" + projectName + "'";
             Font = new Font("Segoe UI", 9f);
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(720, 420);
+            ClientSize = new Size(720, changesOf != null ? 560 : 420);
 
-            var list = new ListView { View = View.Details, FullRowSelect = true, Dock = DockStyle.Fill };
+            var list = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, Dock = DockStyle.Fill };
             list.Columns.Add("Commit", 70);
             list.Columns.Add("Date", 130);
             list.Columns.Add("Author", 130);
@@ -160,15 +180,76 @@ namespace Rubberduck.UI.CodeExplorer.GitClient
                 list.Items.Add(new ListViewItem(new[] { commit.Id.Substring(0, 7), commit.Date.LocalDateTime.ToString("yyyy-MM-dd HH:mm"), commit.Author, commit.Subject }));
             }
 
-            Controls.Add(list);
             var close = new Button { Text = "Close", DialogResult = DialogResult.Cancel, Dock = DockStyle.Bottom, Height = 30 };
-            Controls.Add(close);
             CancelButton = close;
+
+            if (changesOf == null || versionsOf == null)
+            {
+                Controls.Add(list);
+                Controls.Add(close);
+                return;
+            }
+
+            //What the selected commit changed; a double click shows the file's change.
+            var files = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, Dock = DockStyle.Fill };
+            files.Columns.Add("Change", 80);
+            files.Columns.Add("File (double-click to see what changed)", 600);
+            var shown = new List<GitChange>();
+            GitCommit selected = null;
+
+            list.SelectedIndexChanged += (sender, args) =>
+            {
+                files.Items.Clear();
+                shown.Clear();
+                selected = null;
+                if (list.SelectedIndices.Count != 1)
+                {
+                    return;
+                }
+
+                selected = commits[list.SelectedIndices[0]];
+                try
+                {
+                    shown.AddRange(changesOf(selected).OrderBy(change => change.Path));
+                }
+                catch (Exception exception)
+                {
+                    MessageBox.Show(this, exception.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
+                foreach (var change in shown)
+                {
+                    files.Items.Add(new ListViewItem(new[] { change.Kind.ToString(), change.Path }));
+                }
+            };
+
+            files.DoubleClick += (sender, args) =>
+            {
+                if (selected == null || files.SelectedIndices.Count != 1)
+                {
+                    return;
+                }
+
+                var change = shown[files.SelectedIndices[0]];
+                var pair = versionsOf(selected, change);
+                GitDiffDialog.Show(this, change.Path, "Before " + selected.Id.Substring(0, 7), selected.Id.Substring(0, 7), pair.Before, pair.After);
+            };
+
+            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, SplitterDistance = 240 };
+            split.Panel1.Controls.Add(list);
+            split.Panel2.Controls.Add(files);
+            Controls.Add(split);
+            Controls.Add(close);
+            if (list.Items.Count > 0)
+            {
+                list.Items[0].Selected = true;
+            }
         }
 
-        public static void Show(string projectName, IReadOnlyList<GitCommit> commits)
+        /// <param name="changesOf">The files a commit changed. With <paramref name="versionsOf"/>, selecting a commit lists them and a double click shows the change.</param>
+        public static void Show(string projectName, IReadOnlyList<GitCommit> commits, Func<GitCommit, IReadOnlyList<GitChange>> changesOf = null, Func<GitCommit, GitChange, GitFileVersions> versionsOf = null)
         {
-            using (var dialog = new GitHistoryDialog(projectName, commits))
+            using (var dialog = new GitHistoryDialog(projectName, commits, changesOf, versionsOf))
             {
                 dialog.ShowDialog();
             }

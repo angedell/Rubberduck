@@ -130,6 +130,25 @@ namespace Rubberduck.Git
             return repository.Exists ? repository.LogOf(TreePathOf(repository, moduleName), max) : new GitCommit[0];
         }
 
+        /// <summary>The files a commit changed. Reads no module.</summary>
+        public IReadOnlyList<GitChange> CommitChanges(IVBProject project, GitCommit commit)
+            => Open(project, null, out _).ChangesIn(commit.Id);
+
+        /// <summary>A changed file as the last commit has it and as the work tree has it now. Call after <see cref="Changes"/>, which brings the work tree up to date.</summary>
+        public GitFileVersions ChangeVersions(IVBProject project, GitChange change)
+        {
+            var repository = Open(project, null, out _);
+            return new GitFileVersions(repository.TryReadFileAt("HEAD", change.Path), repository.TryReadWorkFile(change.Path));
+        }
+
+        /// <summary>A file as a commit's first parent has it and as the commit has it.</summary>
+        public GitFileVersions CommitVersions(IVBProject project, GitCommit commit, GitChange change)
+        {
+            var repository = Open(project, null, out _);
+            var parent = repository.ParentOf(commit.Id);
+            return new GitFileVersions(parent == null ? null : repository.TryReadFileAt(parent, change.Path), repository.TryReadFileAt(commit.Id, change.Path));
+        }
+
         /// <summary>
         /// Replaces the module in the project with its version in a commit. The version it replaces is backed up first (<see cref="GitSyncResult.BackupFolder"/>),
         /// and nothing is committed: the restored module shows as a change, to be committed or thrown away like any other.
