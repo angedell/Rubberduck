@@ -36,6 +36,7 @@ namespace Rubberduck.Api
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
         private readonly RefactorMoveToFolderApi _moveRefactor;
         private readonly RefactorSplitParametersApi _splitRefactor;
+        private readonly RefactorExtractUdtClassApi _extractUdtClassRefactor;
         private readonly QuickFixApi _quickFix;
 
         public McpEndpoint(ModuleApi api, DiagnosticsApi diagnostics, ImmediateApi immediate, ResourceApi resources = null,
@@ -48,7 +49,8 @@ namespace Rubberduck.Api
             NotesApi notes = null,
             ShipApi ship = null,
             FormApi forms = null,
-            RefactorSplitParametersApi splitRefactor = null)
+            RefactorSplitParametersApi splitRefactor = null,
+            RefactorExtractUdtClassApi extractUdtClassRefactor = null)
         {
             _forms = forms;
             _notes = notes;
@@ -63,6 +65,7 @@ namespace Rubberduck.Api
             _encapsulateRefactor = encapsulateRefactor;
             _moveRefactor = moveRefactor;
             _splitRefactor = splitRefactor;
+            _extractUdtClassRefactor = extractUdtClassRefactor;
             _quickFix = quickFix;
             _parser = parser;
             _api = api;
@@ -216,6 +219,7 @@ namespace Rubberduck.Api
             .Concat(_encapsulateRefactor != null ? FromSpecs(_encapsulateRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_moveRefactor != null ? FromSpecs(_moveRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_splitRefactor != null ? FromSpecs(_splitRefactor.Tools()) : Enumerable.Empty<Tool>())
+            .Concat(_extractUdtClassRefactor != null ? FromSpecs(_extractUdtClassRefactor.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_quickFix != null ? FromSpecs(_quickFix.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_ship != null ? FromSpecs(_ship.Tools()) : Enumerable.Empty<Tool>())
             .Concat(_immediate.CanRead ? ImmediateTools().Where(t => t.Name != "run_immediate" || _immediate.IsEnabled) : Enumerable.Empty<Tool>());

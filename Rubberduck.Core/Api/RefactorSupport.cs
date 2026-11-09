@@ -9,6 +9,7 @@ using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.UIContext;
 using Rubberduck.Refactorings;
 using Rubberduck.Refactorings.Exceptions;
+using Rubberduck.Refactorings.Exceptions.ExtractUdtClass;
 using Rubberduck.Refactorings.Exceptions.MoveToFolder;
 using Rubberduck.VBEditor;
 
@@ -240,6 +241,8 @@ namespace Rubberduck.Api
                     return ApiException.Conflict($"'{stale.StaleModule.ComponentName}' was edited and not parsed yet. Ask for a reparse and retry.");
                 case SuspendParserFailureException _:
                     return ApiException.Unavailable("Rubberduck is parsing right now, so the refactoring cannot be made. Try again in a moment.");
+                case MemberNamesClashException clash:
+                    return RefactorArgs.Refused(clash.Message);
                 case NoTargetFolderException _:
                     return ApiException.BadRequest("A target folder is required.");
                 case InvalidTargetDeclarationException _:

@@ -489,6 +489,24 @@ Do you want to proceed?</value>
   <data name="SplitParameters_Caption" xml:space="preserve">
     <value>Rubberduck - Split Parameters</value>
   </data>
+  <data name="ExtractUdtClass_Caption" xml:space="preserve">
+    <value>Rubberduck - Extract Class from Type</value>
+  </data>
+  <data name="ExtractUdtClass_TitleLabel" xml:space="preserve">
+    <value>Extract Class from Type</value>
+  </data>
+  <data name="ExtractUdtClass_InstructionLabel" xml:space="preserve">
+    <value>Adds a class module with a property for each member of the type. The type itself is not changed.</value>
+  </data>
+  <data name="ExtractUdtClass_StyleGroupBox" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="ExtractUdtClass_PlainOption" xml:space="preserve">
+    <value>Properties and a Self property</value>
+  </data>
+  <data name="ExtractUdtClass_FluentOption" xml:space="preserve">
+    <value>Properties, a predeclared instance with Create, and chainable WithName methods</value>
+  </data>
   <data name="RemoveParamsDialog_Caption" xml:space="preserve">
     <value>Rubberduck - Remove Parameters</value>
   </data>

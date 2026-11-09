@@ -331,6 +331,15 @@ namespace Rubberduck.Resources.Menus {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Extract Class from &amp;Type.
+        /// </summary>
+        public static string RefactorMenu_ExtractUdtClass {
+            get {
+                return ResourceManager.GetString("RefactorMenu_ExtractUdtClass", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to &amp;Split Parameters.
         /// </summary>
         public static string RefactorMenu_SplitParameters {

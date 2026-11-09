@@ -1280,6 +1280,60 @@ namespace Rubberduck.Refactorings {
                 return ResourceManager.GetString("SplitParameters_Caption", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Rubberduck - Extract Class from Type.
+        /// </summary>
+        public static string ExtractUdtClass_Caption {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_Caption", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Extract Class from Type.
+        /// </summary>
+        public static string ExtractUdtClass_TitleLabel {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_TitleLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Adds a class module with a property for each member of the type. The type itself is not changed..
+        /// </summary>
+        public static string ExtractUdtClass_InstructionLabel {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_InstructionLabel", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Members.
+        /// </summary>
+        public static string ExtractUdtClass_StyleGroupBox {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_StyleGroupBox", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Properties and a Self property.
+        /// </summary>
+        public static string ExtractUdtClass_PlainOption {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_PlainOption", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Properties, a predeclared instance with Create, and chainable WithName methods.
+        /// </summary>
+        public static string ExtractUdtClass_FluentOption {
+            get {
+                return ResourceManager.GetString("ExtractUdtClass_FluentOption", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Rubberduck - Remove Parameters.

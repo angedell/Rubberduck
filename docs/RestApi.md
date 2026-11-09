@@ -17,7 +17,7 @@ Settings > General > **Let AI agents read and edit modules and forms**. Then **C
 
 ## MCP
 
-Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `reset_vbe`, `capture_dump`, `list_dumps`, `analyze_dump`, `delete_dump`, `dump_monitor`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `sync_attributes`, `preview_rename`, `rename_symbol`, `preview_encapsulate_field`, `encapsulate_field`, `preview_move_to_folder`, `move_to_folder`, `preview_split_parameters`, `split_parameters`, `list_quick_fixes`, `apply_quick_fix`, `list_controls`, `add_control`, `set_control_properties`, `delete_control`, `list_notes`, `read_note`, `write_note`, `delete_note`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, `get_ship_settings`, `set_ship_settings`, `preview_ship`, `ship_project`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
+Point an MCP client at `http://127.0.0.1:7437/mcp` with the header `Authorization: Bearer <token>`. Tools: `get_info`, `reparse`, `reset_vbe`, `capture_dump`, `list_dumps`, `analyze_dump`, `delete_dump`, `dump_monitor`, `get_log`, `set_log_level`, `list_projects`, `list_modules`, `read_module`, `write_module`, `edit_lines`, `create_module`, `delete_module`, `batch_edit`, `get_diagnostics`, `get_parser_errors`, `check_work`, `list_symbols`, `find_references`, `find_definition`, `list_libraries`, `get_structure`, `get_metrics`, `list_tests`, `sync_attributes`, `preview_rename`, `rename_symbol`, `preview_encapsulate_field`, `encapsulate_field`, `preview_move_to_folder`, `move_to_folder`, `preview_split_parameters`, `split_parameters`, `preview_extract_udt_class`, `extract_udt_class`, `list_quick_fixes`, `apply_quick_fix`, `list_controls`, `add_control`, `set_control_properties`, `delete_control`, `list_notes`, `read_note`, `write_note`, `delete_note`, `list_resources`, `read_resource`, `write_resource`, `delete_resource`, `get_ship_settings`, `set_ship_settings`, `preview_ship`, `ship_project`, and, only while running code is allowed, `run_tests`, `read_immediate` and `run_immediate`.
 
 The server also offers MCP *resources* (`resources/list`, `resources/read`): `rubberduck://{project}/modules/{module}` (the code), `rubberduck://{project}/diagnostics` and `rubberduck://{project}/parser-errors`, for clients that let the user attach them to a conversation.
 
@@ -169,6 +169,16 @@ Public Function Create( _
 The indenter keeps this layout (fixed offsets, not aligned to the opening parenthesis). The preview answers with `members` (`module`, `member`, `parameters`); members that are laid out that way already are left out. If there are none, applying answers at once, without approval. Otherwise the answer is `{ "split", "note" }`, all in one rewrite. Unparsed edits are refused with 409, as for the other refactorings.
 
 MCP tools: `preview_split_parameters` and `split_parameters`, with `project` and the optional `module`.
+
+#### Extract class from Type
+
+`POST /api/v1/projects/{p}/refactor/extract-udt-class/preview` and `POST /api/v1/projects/{p}/refactor/extract-udt-class`. The body names the Type: `{ "module": "Module1", "name": "TPerson" }`, plus `line` (and `column`) if the name is not unique in the module. Optional: `className` (default: the Type's name without a `T` or `UDT` prefix) and `style`, `"plain"` (default) or `"fluent"`.
+
+A new class module is added, with its own private copy of the Type behind a `This` field, a `Property Get` and `Let` (or `Set` for objects) per member, and a `Self` property. Array members get a getter only; a member that is itself a Type is left out, with a comment. With `"fluent"` the class is also predeclared (`'@PredeclaredId` and `VB_PredeclaredId`), gets a `Create` function and a chainable `WithName`-style method per member, so `Person.Create.WithName("Ann").WithAge(3)` works. The Type and its uses are not changed.
+
+The preview answers with `className`, `style`, `members` (`name`, `type`, `access`), `code` (the class as it would be added), `problems` and `valid`. A class name that is invalid or taken, a Type without members, and member names that clash with what the class adds (`Self`, `This`, and for the fluent style `Create` or a `WithX` of another member) are problems; applying refuses them with 422 `refactoring_refused`, before the user is asked anything. Otherwise the answer is `{ "className", "style", "note" }`. Unparsed edits are refused with 409, as for the other refactorings.
+
+MCP tools: `preview_extract_udt_class` and `extract_udt_class`, with `project`, `module`, `name`, `line`, `column`, `className` and `style`.
 
 ### Quick fixes
 

@@ -1,0 +1,98 @@
+<UserControl x:Class="Rubberduck.UI.Refactorings.ExtractUdtClassView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="250"
+             d:DesignWidth="400">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Controls/ToolBar.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <BitmapImage x:Key="InvalidNameImage"
+                         UriSource="pack://application:,,,/Rubberduck.Resources;component/Icons/Fugue/cross-circle.png" />
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="50" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="40" />
+        </Grid.RowDefinitions>
+        <DockPanel Dock="Top"
+                   Background="{StaticResource BackgroundLightBrush}">
+            <StackPanel>
+                <Label Content="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_TitleLabel}"
+                       FontWeight="Bold" />
+                <TextBlock Text="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_InstructionLabel}"
+                           Margin="5,0" />
+            </StackPanel>
+        </DockPanel>
+        <StackPanel Grid.Row="1"
+                    Margin="5">
+            <Label Content="{Resx ResxName=Rubberduck.Resources.RubberduckUI, Key=NameLabelText}" />
+            <TextBox Margin="5,-2,0,0"
+                     Height="22"
+                     VerticalContentAlignment="Center"
+                     Text="{Binding ClassName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Image Source="{StaticResource InvalidNameImage}"
+                   Height="16"
+                   Margin="0,-19,-8,0"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Top"
+                   Visibility="{Binding IsValidClassName, Converter={StaticResource BoolToHiddenVisibility}}" />
+
+            <GroupBox Header="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_StyleGroupBox}"
+                      Margin="5"
+                      Padding="5">
+                <StackPanel>
+                    <RadioButton GroupName="Style"
+                                 Margin="0,0,0,5"
+                                 IsChecked="{Binding IsPlain, Mode=TwoWay}">
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_PlainOption}"
+                                   TextWrapping="Wrap" />
+                    </RadioButton>
+                    <RadioButton GroupName="Style"
+                                 IsChecked="{Binding IsFluent, Mode=TwoWay}">
+                        <TextBlock Text="{Resx ResxName=Rubberduck.Refactorings.RefactoringsUI, Key=ExtractUdtClass_FluentOption}"
+                                   TextWrapping="Wrap" />
+                    </RadioButton>
+                </StackPanel>
+            </GroupBox>
+
+            <TextBlock Margin="5,0"
+                       Foreground="Firebrick"
+                       TextWrapping="Wrap"
+                       Text="{Binding ClashMessage}"
+                       Visibility="{Binding HasClashes, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+
+        <Grid Grid.Row="2"
+              Background="{x:Static SystemColors.ControlDarkBrush}"
+              Grid.IsSharedSizeScope="True">
+            <Grid HorizontalAlignment="Right"
+                  Margin="5,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition SharedSizeGroup="SettingsButtons" />
+                    <ColumnDefinition SharedSizeGroup="SettingsButtons" />
+                </Grid.ColumnDefinitions>
+                <Button Content="{Resx ResxName=Rubberduck.Resources.RubberduckUI, Key=OK}"
+                        Grid.Column="0"
+                        Height="20"
+                        Margin="5,0"
+                        Padding="10,0"
+                        IsEnabled="{Binding CanOk}"
+                        Command="{Binding OkButtonCommand}" />
+                <Button Content="{Resx ResxName=Rubberduck.Resources.RubberduckUI, Key=CancelButtonText}"
+                        Grid.Column="1"
+                        Height="20"
+                        Margin="5,0"
+                        Padding="10,0"
+                        Command="{Binding CancelButtonCommand}" />
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

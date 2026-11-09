@@ -56,6 +56,7 @@ namespace Rubberduck.Api
         private readonly RefactorEncapsulateFieldApi _encapsulateRefactor;
         private readonly RefactorMoveToFolderApi _moveRefactor;
         private readonly RefactorSplitParametersApi _splitRefactor;
+        private readonly RefactorExtractUdtClassApi _extractUdtClassRefactor;
         private readonly QuickFixApi _quickFix;
         private readonly McpEndpoint _mcp;
         private readonly ReadyWait _ready;
@@ -70,7 +71,8 @@ namespace Rubberduck.Api
             NotesApi notes = null,
             ShipApi ship = null,
             FormApi forms = null,
-            RefactorSplitParametersApi splitRefactor = null)
+            RefactorSplitParametersApi splitRefactor = null,
+            RefactorExtractUdtClassApi extractUdtClassRefactor = null)
         {
             _forms = forms;
             _notes = notes;
@@ -472,6 +474,7 @@ namespace Rubberduck.Api
             Add(_encapsulateRefactor != null, "* /projects/{p}/refactor/encapsulate-field");
             Add(_moveRefactor != null, "* /projects/{p}/refactor/move-to-folder");
             Add(_splitRefactor != null, "* /projects/{p}/refactor/split-parameters");
+            Add(_extractUdtClassRefactor != null, "* /projects/{p}/refactor/extract-udt-class");
             return routes.Select(r => r.Replace(" /", " " + Base + "/"));
         }
 
@@ -553,6 +556,9 @@ namespace Rubberduck.Api
 
                 case "refactor" when rest == "split-parameters" && _splitRefactor != null:
                     return _splitRefactor.Route(request, method, segments);
+
+                case "refactor" when rest == "extract-udt-class" && _extractUdtClassRefactor != null:
+                    return _extractUdtClassRefactor.Route(request, method, segments);
 
                 case "edits" when segments.Length == 3:
                     Allow(method, "POST");

@@ -231,6 +231,10 @@
   <data name="RefactorMenu_Rename" xml:space="preserve">
     <value>&amp;Rename</value>
   </data>
+  <data name="RefactorMenu_ExtractUdtClass" xml:space="preserve">
+    <value>Extract Class from &amp;Type</value>
+    <comment>TC: different hotkey</comment>
+  </data>
   <data name="RefactorMenu_SplitParameters" xml:space="preserve">
     <value>&amp;Split Parameters</value>
     <comment>TC: different hotkey</comment>
